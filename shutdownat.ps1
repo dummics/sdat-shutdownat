@@ -30,12 +30,12 @@ if ($ExtraArgs -and $ExtraArgs.Count -gt 0) {
 function Write-Info($msg){ Write-Host $msg }
 
 <#
-    Cancel-All
+    Remove-ScheduledShutdowns
     Remove any scheduled tasks that match the ShutdownAt* pattern.
     This helper is used both by the `-A` cancel mode and before scheduling a new shutdown
     to avoid multiple pending timers.
 #>
-function Cancel-All {
+function Remove-ScheduledShutdowns {
     $tasks = Get-ScheduledTask -ErrorAction SilentlyContinue | Where-Object { $_.TaskName -like 'ShutdownAt*' }
     if (-not $tasks){ Write-Info "Nessuno spegnimento presente, non ho cancellato."; return }
     $tasks | ForEach-Object { Unregister-ScheduledTask -TaskName $_.TaskName -Confirm:$false }
@@ -43,7 +43,7 @@ function Cancel-All {
 }
 
 # ----------------- Cancel mode -----------------
-if ($A) { Cancel-All; exit }
+if ($A) { Remove-ScheduledShutdowns; exit }
 
 # ----------------- Input validation -----------------
 if (-not $Time) {
@@ -92,7 +92,7 @@ if ($Test) {
 # PowerShell command that unregisters the task and then performs a forced shutdown.
 # Heavy quoting is necessary to embed the inline command in the schtasks call.
 # Cancel previous timers so we only allow one pending shutdown at a time
-Cancel-All
+Remove-ScheduledShutdowns
 try { Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue } catch {}
 
 try {
