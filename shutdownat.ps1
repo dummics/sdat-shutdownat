@@ -21,8 +21,8 @@ param(
 
 # If there are unrecognized arguments (e.g. undeclared params), fail gracefully
 if ($ExtraArgs -and $ExtraArgs.Count -gt 0) {
-    Write-Host "Parametro non supportato: $($ExtraArgs -join ' ')" -ForegroundColor Yellow
-    Write-Host "Uso: sdat HHMM | sdat -Test | sdat -a"
+    Write-Host "Unsupported parameter: $($ExtraArgs -join ' ')" -ForegroundColor Yellow
+    Write-Host "Usage: sdat HHMM | sdat -Test | sdat -a"
     exit 2
 }
 
@@ -37,9 +37,9 @@ function Write-Info($msg){ Write-Host $msg }
 #>
 function Remove-ScheduledShutdowns {
     $tasks = Get-ScheduledTask -ErrorAction SilentlyContinue | Where-Object { $_.TaskName -like 'ShutdownAt*' }
-    if (-not $tasks){ Write-Info "Nessuno spegnimento presente, non ho cancellato."; return }
+    if (-not $tasks){ Write-Info "No scheduled shutdown present; nothing canceled."; return }
     $tasks | ForEach-Object { Unregister-ScheduledTask -TaskName $_.TaskName -Confirm:$false }
-    Write-Info "Annullati $(($tasks|Measure-Object).Count) spegnimenti programmati."
+    Write-Info "Canceled $(($tasks|Measure-Object).Count) scheduled shutdown(s)."
 }
 
 # ----------------- Cancel mode -----------------
@@ -48,8 +48,8 @@ if ($A) { Remove-ScheduledShutdowns; exit }
 # ----------------- Input validation -----------------
 if (-not $Time) {
     $tasks = Get-ScheduledTask -ErrorAction SilentlyContinue | Where-Object { $_.TaskName -like 'ShutdownAt*' }
-    if (-not $tasks) { Write-Info "Nessuno spegnimento programmato."; exit 0 }
-    Write-Info "Spegnimenti programmati:"
+    if (-not $tasks) { Write-Info "No scheduled shutdown."; exit 0 }
+    Write-Info "Scheduled shutdowns:"
     foreach ($task in $tasks) {
         $info = Get-ScheduledTaskInfo -TaskName $task.TaskName -ErrorAction SilentlyContinue
         $next = if ($info -and $info.NextRunTime -gt [datetime]::MinValue) { $info.NextRunTime.ToString('yyyy-MM-dd HH:mm') } else { 'N/D' }
@@ -57,11 +57,11 @@ if (-not $Time) {
     }
     exit 0
 }
-if ($Time -notmatch '^\d{4}$') { Write-Info "Formato orario non valido. Usa HHMM (es. 0030, 1345)."; exit 1 }
+if ($Time -notmatch '^\d{4}$') { Write-Info "Invalid time format. Use HHMM (e.g., 0030, 1345)."; exit 1 }
 
 $h = [int]$Time.Substring(0,2)
 $m = [int]$Time.Substring(2,2)
-if ($h -gt 23 -or $m -gt 59) { Write-Info "Orario non valido: $Time"; exit 1 }
+if ($h -gt 23 -or $m -gt 59) { Write-Info "Invalid time: ${Time}"; exit 1 }
 
 # ----------------- Calculate target time -----------------
 $target = (Get-Date).Date.AddHours($h).AddMinutes($m)
@@ -83,7 +83,7 @@ Unregister-ScheduledTask -TaskName '$taskName' -Confirm:\$false; Start-Sleep -Mi
 
 # ----------------- Test mode -----------------
 if ($Test) {
-    Write-Info "Avrei programmato lo spegnimento alle $targetStr (TEST MODE)"
+    Write-Info "Would schedule shutdown at ${targetStr} (TEST MODE)"
     exit 0
 }
 
@@ -100,8 +100,8 @@ try {
     $sd = $target.ToString('dd/MM/yyyy')
     $cmd = "schtasks /create /tn `"$taskName`" /tr `"powershell.exe -NoProfile -ExecutionPolicy Bypass -Command \`"`"$inline\`"`"`" /sc once /st $st /sd $sd /ru `"$env:USERNAME`" /f"
     Invoke-Expression $cmd
-    Write-Info "Spegnimento programmato: $targetStr  (task: $taskName)"
+    Write-Info "Shutdown scheduled: ${targetStr} (task: ${taskName})"
 }
 catch {
-    throw "Errore nella creazione del task: $($_.Exception.Message)"
+    throw "Error creating scheduled task: $($_.Exception.Message)"
 }
