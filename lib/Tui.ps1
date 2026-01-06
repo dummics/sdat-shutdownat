@@ -135,7 +135,7 @@ function Read-LineWithEsc {
 
         $w = Get-ConsoleWidthSafe
         function Render-InputLine {
-            param([Parameter(Mandatory)][string]$Value)
+            param([AllowEmptyString()][string]$Value)
             try {
                 [Console]::SetCursorPosition($inputLeft, $inputTop)
                 $out = $Value

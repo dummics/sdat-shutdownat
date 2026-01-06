@@ -265,7 +265,13 @@ if ($Tui) {
         if ($null -eq $sel) { exit 0 }
 
         if ($sel -eq 0) {
-            $input = Read-LineWithEsc -Title "SDAT" -Header $header -Prompt "Set one-time (volatile) shutdown."
+            $input = $null
+            try {
+                $input = Read-LineWithEsc -Title "SDAT" -Header $header -Prompt "Set one-time (volatile) shutdown."
+            } catch {
+                $notice = New-TuiNotice -Kind "error" -Message $_.Exception.Message
+                continue
+            }
             if ($null -eq $input) { continue }
             if ([string]::IsNullOrWhiteSpace($input)) {
                 Invoke-CancelVolatile
@@ -283,7 +289,13 @@ if ($Tui) {
         }
 
         if ($sel -eq 1) {
-            $input = Read-LineWithEsc -Title "SDAT" -Header $header -Prompt "Set daily (permanent) shutdown."
+            $input = $null
+            try {
+                $input = Read-LineWithEsc -Title "SDAT" -Header $header -Prompt "Set daily (permanent) shutdown."
+            } catch {
+                $notice = New-TuiNotice -Kind "error" -Message $_.Exception.Message
+                continue
+            }
             if ($null -eq $input) { continue }
             if ([string]::IsNullOrWhiteSpace($input)) {
                 Invoke-CancelPermanent
