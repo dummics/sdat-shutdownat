@@ -9,4 +9,15 @@
 
 :: This is a wrapper used for WIN+R calls
 
+:: When launched from Win+R (cmd.exe /c), the console closes immediately and can kill child console processes.
+:: For `sdat` with no args, launch a detached notification via wscript.exe.
+if "%~1"=="" (
+  if defined CMDCMDLINE (
+    echo %CMDCMDLINE% | findstr /i " /c " >nul && (
+      wscript.exe "%~dp0tools\\notify-status.vbs" "%~dp0shutdownat.ps1"
+      exit /b 0
+    )
+  )
+)
+
 powershell -ExecutionPolicy Bypass -File "%~dp0shutdownat.ps1" %*

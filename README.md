@@ -33,6 +33,8 @@ sdat
 
 This also shows a small, dismissible Windows notification with the current scheduled status (best-effort; falls back to console output if notifications are unavailable).
 
+Tip: when launching from Win+R, the `sdat.bat` wrapper starts the notification in a detached GUI host so it can still appear even though the console closes immediately.
+
 - Schedule a **volatile** shutdown at 00:30 (one-use):
 
 ```powershell
