@@ -22,6 +22,7 @@ param(
 
     [switch]$RunVolatile,
     [switch]$RunPermanent,
+    [switch]$NotifyStatus,
 
     [Parameter(ValueFromRemainingArguments = $true)]
     [string[]]$ExtraArgs
@@ -41,6 +42,7 @@ $root = Split-Path -Parent $PSCommandPath
 . (Join-Path -Path $root -ChildPath "lib\\Time.ps1")
 . (Join-Path -Path $root -ChildPath "lib\\Tasks.ps1")
 . (Join-Path -Path $root -ChildPath "lib\\Tui.ps1")
+. (Join-Path -Path $root -ChildPath "lib\\Notify.ps1")
 
 function Write-Info([string]$Msg) { Write-Host $Msg }
 
@@ -90,6 +92,36 @@ function Get-SdatStatusText {
     }
 
     return ($lines -join "`n")
+}
+
+function Get-SdatStatusSummaryLine {
+    param(
+        [Parameter(Mandatory)]$State,
+        [Parameter(Mandatory)]$Config
+    )
+    $names = Get-SdatTaskNames
+    $v = Get-TaskInfoSafe -TaskName $names.Volatile
+    $pinfo = Get-TaskInfoSafe -TaskName $names.Permanent
+
+    $vol = "none"
+    if ($v.Exists -and $v.Info -and $v.Info.NextRunTime -gt [datetime]::MinValue) {
+        $vol = (Format-LocalShort -Value $v.Info.NextRunTime)
+    }
+
+    $perm = "none"
+    if ($pinfo.Exists -and $pinfo.Info -and $pinfo.Info.NextRunTime -gt [datetime]::MinValue) {
+        $perm = (Format-LocalShort -Value $pinfo.Info.NextRunTime)
+    } elseif ($pinfo.Exists) {
+        $perm = "active"
+    }
+
+    $suspendUntil = Parse-LocalDateTimeOrNull -Value $State.SuspendPermanentUntil
+    $suspend = "none"
+    if ($suspendUntil -and (Get-Date) -lt $suspendUntil) {
+        $suspend = (Format-LocalShort -Value $suspendUntil)
+    }
+
+    return "Volatile: $vol  |  Permanent: $perm  |  SuspendUntil: $suspend  |  GraceMinutes: $($Config.GraceMinutes)"
 }
 
 function Set-PermanentSuspendWindowFromVolatile {
@@ -200,6 +232,19 @@ function Invoke-ScheduleVolatileOnce {
 if ($RunVolatile) { Invoke-RunVolatile; exit }
 if ($RunPermanent) { Invoke-RunPermanent; exit }
 
+if ($NotifyStatus) {
+    $config = Load-SdatConfig -Root $root
+    $state = Load-SdatState -Root $root
+    $title = "SDAT"
+    $msg = Get-SdatStatusSummaryLine -State $state -Config $config
+    $msg = Truncate-NotificationText -Text (Convert-ToSingleLine -Text $msg) -MaxLength 240
+    $ok = Show-WindowsBalloonNotification -Title $title -Message $msg -TimeoutMs 6500
+    if (-not $ok) {
+        Write-Info (Get-SdatStatusText -State $state -Config $config)
+    }
+    exit 0
+}
+
 if ($Clean) { $A = $true }
 
 if ($A) {
@@ -261,6 +306,14 @@ if ($Tui) {
 if (-not $Time) {
     $config = Load-SdatConfig -Root $root
     $state = Load-SdatState -Root $root
+    try {
+        Start-Process -WindowStyle Hidden -FilePath "powershell.exe" -ArgumentList @(
+            "-NoProfile",
+            "-ExecutionPolicy", "Bypass",
+            "-File", $PSCommandPath,
+            "-NotifyStatus"
+        ) | Out-Null
+    } catch { }
     Write-Info (Get-SdatStatusText -State $state -Config $config)
     exit 0
 }

@@ -31,6 +31,8 @@ Open a Command Prompt, PowerShell, or Win+R and run:
 sdat
 ```
 
+This also shows a small, dismissible Windows notification with the current scheduled status (best-effort; falls back to console output if notifications are unavailable).
+
 - Schedule a **volatile** shutdown at 00:30 (one-use):
 
 ```powershell
