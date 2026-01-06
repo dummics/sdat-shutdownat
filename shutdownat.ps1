@@ -7,7 +7,8 @@
       sdat HHMM -p        # schedule daily (permanent) shutdown
       sdat -Test HHMM [-p]
       sdat -tui
-      sdat -A             # cancel all SDAT + legacy tasks
+      sdat -a             # cancel one-time (volatile) shutdown
+      sdat -aa            # cancel all SDAT + legacy tasks
 #>
 
 param(
@@ -15,8 +16,9 @@ param(
     [string]$Time,
 
     [switch]$Test,
-    [switch]$A,
-    [switch]$Clean,  # alias for -A (kept for wrapper compatibility)
+    [switch]$A,      # cancel volatile only
+    [switch]$AA,     # cancel all
+    [switch]$Clean,  # alias for -AA (kept for wrapper compatibility)
     [switch]$P,      # permanent (daily)
     [switch]$Tui,
 
@@ -32,7 +34,7 @@ Set-StrictMode -Version Latest
 
 if ($ExtraArgs -and $ExtraArgs.Count -gt 0) {
     Write-Host "Unsupported parameter: $($ExtraArgs -join ' ')" -ForegroundColor Yellow
-    Write-Host "Usage: sdat [HHMM [-p]] | sdat -Test HHMM [-p] | sdat -tui | sdat -A"
+    Write-Host "Usage: sdat [HHMM [-p]] | sdat -Test HHMM [-p] | sdat -tui | sdat -a | sdat -aa"
     exit 2
 }
 
@@ -47,54 +49,6 @@ $root = Split-Path -Parent $PSCommandPath
 function Write-Info([string]$Msg) { Write-Host $Msg }
 
 function Get-SdatStatusText {
-    param(
-        [Parameter(Mandatory)]$State,
-        [Parameter(Mandatory)]$Config
-    )
-    $names = Get-SdatTaskNames
-    $v = Get-TaskInfoSafe -TaskName $names.Volatile
-    $pinfo = Get-TaskInfoSafe -TaskName $names.Permanent
-
-    $lines = @()
-    $lines += "GraceMinutes: $($Config.GraceMinutes)"
-
-    if ($v.Exists -and $v.Info -and $v.Info.NextRunTime -gt [datetime]::MinValue) {
-        $lines += "Volatile: scheduled for $(Format-LocalShort -Value $v.Info.NextRunTime)"
-    } else {
-        $lines += "Volatile: none"
-    }
-
-    if ($pinfo.Exists -and $pinfo.Info -and $pinfo.Info.NextRunTime -gt [datetime]::MinValue) {
-        $lines += "Permanent: next run $(Format-LocalShort -Value $pinfo.Info.NextRunTime)"
-    } elseif ($pinfo.Exists) {
-        $lines += "Permanent: active"
-    } else {
-        $lines += "Permanent: none"
-    }
-
-    $suspendUntil = Parse-LocalDateTimeOrNull -Value $State.SuspendPermanentUntil
-    if ($suspendUntil) {
-        $remaining = $suspendUntil - (Get-Date)
-        if ($remaining.TotalSeconds -gt 0) {
-            $mins = [Math]::Ceiling($remaining.TotalMinutes)
-            $lines += "Permanent suspend until: $(Format-LocalShort -Value $suspendUntil) (~${mins}m)"
-        } else {
-            $lines += "Permanent suspend until: $(Format-LocalShort -Value $suspendUntil) (expired)"
-        }
-    } else {
-        $lines += "Permanent suspend until: none"
-    }
-
-    $legacyTasks = Get-ScheduledTask -ErrorAction SilentlyContinue | Where-Object { $_.TaskName -like 'ShutdownAt*' }
-    $legacyCount = if ($legacyTasks) { ($legacyTasks | Measure-Object).Count } else { 0 }
-    if ($legacyCount -gt 0) {
-        $lines += "Legacy tasks present: ${legacyCount} (use: sdat -A)"
-    }
-
-    return ($lines -join "`n")
-}
-
-function Get-SdatStatusSummaryLine {
     param(
         [Parameter(Mandatory)]$State,
         [Parameter(Mandatory)]$Config
@@ -121,7 +75,19 @@ function Get-SdatStatusSummaryLine {
         $suspend = (Format-LocalShort -Value $suspendUntil)
     }
 
-    return "Volatile: $vol  |  Permanent: $perm  |  SuspendUntil: $suspend  |  GraceMinutes: $($Config.GraceMinutes)"
+    $legacyTasks = Get-ScheduledTask -ErrorAction SilentlyContinue | Where-Object { $_.TaskName -like 'ShutdownAt*' }
+    $legacyCount = if ($legacyTasks) { ($legacyTasks | Measure-Object).Count } else { 0 }
+    $legacy = if ($legacyCount -gt 0) { " | Legacy: ${legacyCount}" } else { "" }
+
+    return "One-time: $vol | Daily: $perm | SuspendedUntil: $suspend | Grace: $($Config.GraceMinutes)m${legacy}"
+}
+
+function Get-SdatStatusSummaryLine {
+    param(
+        [Parameter(Mandatory)]$State,
+        [Parameter(Mandatory)]$Config
+    )
+    return (Get-SdatStatusText -State $State -Config $Config)
 }
 
 function Set-PermanentSuspendWindowFromVolatile {
@@ -245,11 +211,21 @@ if ($NotifyStatus) {
     exit 0
 }
 
-if ($Clean) { $A = $true }
+if ($Clean) { $AA = $true }
+
+if ($AA) {
+    $result = Invoke-CancelAllAndResetState
+    $config = Load-SdatConfig -Root $root
+    $state = Load-SdatState -Root $root
+    Write-Info ("Canceled all scheduled shutdown tasks. Removed legacy tasks: {0}. Status: {1}" -f $result.LegacyRemoved, (Get-SdatStatusText -State $state -Config $config))
+    exit 0
+}
 
 if ($A) {
-    $result = Invoke-CancelAllAndResetState
-    Write-Info "Canceled: $($result.Names.Volatile), $($result.Names.Permanent) + legacy=$($result.LegacyRemoved)"
+    Invoke-CancelVolatile
+    $config = Load-SdatConfig -Root $root
+    $state = Load-SdatState -Root $root
+    Write-Info ("Canceled one-time shutdown. Status: {0}" -f (Get-SdatStatusText -State $state -Config $config))
     exit 0
 }
 

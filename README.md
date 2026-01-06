@@ -61,7 +61,13 @@ sdat -tui
 - Cancel tasks created by this tool (and legacy `ShutdownAt*` tasks):
 
 ```powershell
-sdat -A
+sdat -aa
+```
+
+- Cancel only the one-time (volatile) shutdown:
+
+```powershell
+sdat -a
 ```
 
 ## Behavior

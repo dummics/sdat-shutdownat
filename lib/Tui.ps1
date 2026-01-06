@@ -8,6 +8,47 @@ function Get-ConsoleWidthSafe {
     return 100
 }
 
+function Write-ConsoleAt {
+    param(
+        [int]$Left,
+        [int]$Top,
+        [AllowNull()][string]$Text,
+        [ConsoleColor]$ForegroundColor,
+        [ConsoleColor]$BackgroundColor,
+        [switch]$ClearToEnd
+    )
+
+    $oldFg = [Console]::ForegroundColor
+    $oldBg = [Console]::BackgroundColor
+    try {
+        [Console]::SetCursorPosition([Math]::Max(0, $Left), [Math]::Max(0, $Top))
+    } catch {
+        return
+    }
+
+    try {
+        if ($PSBoundParameters.ContainsKey('ForegroundColor')) { [Console]::ForegroundColor = $ForegroundColor }
+        if ($PSBoundParameters.ContainsKey('BackgroundColor')) { [Console]::BackgroundColor = $BackgroundColor }
+
+        $out = if ($null -eq $Text) { "" } else { [string]$Text }
+        if ($ClearToEnd) {
+            $w = Get-ConsoleWidthSafe
+            if ($out.Length -lt ($w - 1)) {
+                $out = $out + (' ' * (($w - 1) - $out.Length))
+            } else {
+                $out = $out.Substring(0, [Math]::Max(0, $w - 1))
+            }
+        }
+        [Console]::Write($out)
+    } catch {
+    } finally {
+        try {
+            [Console]::ForegroundColor = $oldFg
+            [Console]::BackgroundColor = $oldBg
+        } catch { }
+    }
+}
+
 function New-TuiNotice {
     param(
         [Parameter(Mandatory)][string]$Kind,
@@ -48,30 +89,143 @@ function Show-SdatMainMenu {
         "Daily (permanent)"
     )
     $idx = 0
-    while ($true) {
-        Clear-Host
-        Write-Host $Title -ForegroundColor Cyan
-        Write-Hr
-        Write-NoticeBar -Notice $Notice
-        if ($Header) { Write-Host $Header -ForegroundColor DarkGray; Write-Hr }
-        Write-Host ""
-        for ($i = 0; $i -lt $options.Count; $i++) {
-            if ($i -eq $idx) {
-                Write-Host ("> " + $options[$i]) -ForegroundColor Black -BackgroundColor DarkCyan
-            } else {
-                Write-Host ("  " + $options[$i]) -ForegroundColor Gray
+
+    $consoleReady = $true
+    try { $null = [Console]::WindowWidth } catch { $consoleReady = $false }
+
+    if (-not $consoleReady) {
+        while ($true) {
+            Clear-Host
+            Write-Host $Title -ForegroundColor Cyan
+            Write-Hr
+            Write-NoticeBar -Notice $Notice
+            if ($Header) { Write-Host $Header -ForegroundColor DarkGray; Write-Hr }
+            Write-Host ""
+            for ($i = 0; $i -lt $options.Count; $i++) {
+                if ($i -eq $idx) { Write-Host ("> " + $options[$i]) -ForegroundColor Black -BackgroundColor DarkCyan }
+                else { Write-Host ("  " + $options[$i]) -ForegroundColor Gray }
+            }
+            Write-Host ""
+            Write-Host "Enter=select  |  Esc=back" -ForegroundColor DarkGray
+
+            $k = [Console]::ReadKey($true)
+            switch ($k.Key) {
+                'UpArrow' { if ($idx -gt 0) { $idx-- } }
+                'DownArrow' { if ($idx -lt ($options.Count - 1)) { $idx++ } }
+                'Enter' { return $idx }
+                'Escape' { return $null }
             }
         }
-        Write-Host ""
-        Write-Host "Enter=select  |  Esc=back" -ForegroundColor DarkGray
+    }
 
-        $k = [Console]::ReadKey($true)
-        switch ($k.Key) {
-            'UpArrow' { if ($idx -gt 0) { $idx-- } }
-            'DownArrow' { if ($idx -lt ($options.Count - 1)) { $idx++ } }
-            'Enter' { return $idx }
-            'Escape' { return $null }
+    $w = Get-ConsoleWidthSafe
+    $bg = [Console]::BackgroundColor
+    $oldCursor = $true
+    try { $oldCursor = [Console]::CursorVisible; [Console]::CursorVisible = $false } catch { }
+
+    $titleFg = [ConsoleColor]::Cyan
+    $mutedFg = [ConsoleColor]::DarkGray
+    $optFg = [ConsoleColor]::Gray
+    $selFg = [ConsoleColor]::Black
+    $selBg = [ConsoleColor]::DarkCyan
+
+    function Get-HrLine {
+        return ('-' * [Math]::Max(10, $w - 1))
+    }
+
+    function Render-OptionLine {
+        param(
+            [Parameter(Mandatory)][int]$Top,
+            [Parameter(Mandatory)][int]$Index,
+            [Parameter(Mandatory)][bool]$Selected
+        )
+        $prefix = if ($Selected) { "> " } else { "  " }
+        $text = $prefix + $options[$Index]
+        if ($Selected) {
+            Write-ConsoleAt -Left 0 -Top $Top -Text $text -ForegroundColor $selFg -BackgroundColor $selBg -ClearToEnd
+        } else {
+            Write-ConsoleAt -Left 0 -Top $Top -Text $text -ForegroundColor $optFg -BackgroundColor $bg -ClearToEnd
         }
+    }
+
+    function Render-Frame {
+        param([int]$Current)
+        try { [Console]::Clear() } catch { try { Clear-Host } catch { } }
+        $row = 0
+        $row++
+        Write-ConsoleAt -Left 0 -Top $row -Text $Title -ForegroundColor $titleFg -BackgroundColor $bg -ClearToEnd
+        $row++
+        Write-ConsoleAt -Left 0 -Top $row -Text (Get-HrLine) -ForegroundColor $mutedFg -BackgroundColor $bg -ClearToEnd
+        $row++
+
+        if ($Notice) {
+            $tag = "INFO"
+            $tagColor = [ConsoleColor]::Cyan
+            $msgColor = [ConsoleColor]::Gray
+            if ($Notice.Kind -eq 'error') { $tag = "ERROR"; $tagColor = [ConsoleColor]::Red; $msgColor = [ConsoleColor]::White }
+            $line = "[${tag}] $($Notice.Message)"
+            Write-ConsoleAt -Left 0 -Top $row -Text $line -ForegroundColor $msgColor -BackgroundColor $bg -ClearToEnd
+            Write-ConsoleAt -Left 0 -Top $row -Text "[${tag}]" -ForegroundColor $tagColor -BackgroundColor $bg
+            $row++
+            Write-ConsoleAt -Left 0 -Top $row -Text (Get-HrLine) -ForegroundColor $mutedFg -BackgroundColor $bg -ClearToEnd
+            $row++
+        }
+
+        if ($Header) {
+            foreach ($line in ($Header -split "`r?`n")) {
+                Write-ConsoleAt -Left 0 -Top $row -Text $line -ForegroundColor $mutedFg -BackgroundColor $bg -ClearToEnd
+                $row++
+            }
+            Write-ConsoleAt -Left 0 -Top $row -Text (Get-HrLine) -ForegroundColor $mutedFg -BackgroundColor $bg -ClearToEnd
+            $row++
+        }
+
+        $row++
+        $optionsTop = $row
+        for ($i = 0; $i -lt $options.Count; $i++) {
+            Render-OptionLine -Top ($optionsTop + $i) -Index $i -Selected ($i -eq $Current)
+        }
+
+        $footerTop = $optionsTop + $options.Count + 1
+        Write-ConsoleAt -Left 0 -Top $footerTop -Text "" -ForegroundColor $mutedFg -BackgroundColor $bg -ClearToEnd
+        Write-ConsoleAt -Left 0 -Top ($footerTop + 1) -Text "Enter=select  |  Esc=back" -ForegroundColor $mutedFg -BackgroundColor $bg -ClearToEnd
+        return [pscustomobject]@{ OptionsTop = $optionsTop }
+    }
+
+    try {
+        $layout = Render-Frame -Current $idx
+        while ($true) {
+            $k = [Console]::ReadKey($true)
+            switch ($k.Key) {
+                'UpArrow' {
+                    if ($idx -gt 0) {
+                        $prev = $idx
+                        $idx--
+                        Render-OptionLine -Top ($layout.OptionsTop + $prev) -Index $prev -Selected $false
+                        Render-OptionLine -Top ($layout.OptionsTop + $idx) -Index $idx -Selected $true
+                    }
+                }
+                'DownArrow' {
+                    if ($idx -lt ($options.Count - 1)) {
+                        $prev = $idx
+                        $idx++
+                        Render-OptionLine -Top ($layout.OptionsTop + $prev) -Index $prev -Selected $false
+                        Render-OptionLine -Top ($layout.OptionsTop + $idx) -Index $idx -Selected $true
+                    }
+                }
+                'Enter' { return $idx }
+                'Escape' { return $null }
+            }
+        }
+    } finally {
+        try { [Console]::CursorVisible = $oldCursor } catch { }
+        try {
+            $h = [Console]::WindowHeight
+            if ($h -gt 0) {
+                [Console]::SetCursorPosition(0, [Math]::Max(0, $h - 1))
+                [Console]::WriteLine('')
+            }
+        } catch { }
     }
 }
 

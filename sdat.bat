@@ -4,7 +4,8 @@
 ::   sdat HHMM [-Test]
 ::   sdat HHMM -p [-Test]
 ::   sdat -tui
-::   sdat -A   (alias: -Clean)
+::   sdat -a            (cancel one-time/volatile)
+::   sdat -aa           (cancel all; alias: -Clean)
 
 :: This is a wrapper used for WIN+R calls
 
