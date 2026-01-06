@@ -1,0 +1,5 @@
+# Local runtime files
+/data/config.json
+/data/state.json
+/data/*.bak
+
