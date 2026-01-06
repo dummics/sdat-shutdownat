@@ -82,29 +82,96 @@ function Read-LineWithEsc {
         [string]$Header = ""
     )
     $buf = ""
-    while ($true) {
-        Clear-Host
+
+    $consoleReady = $true
+    try { $null = [Console]::WindowWidth } catch { $consoleReady = $false }
+    if (-not $consoleReady) {
+        while ($true) {
+            Clear-Host
+            Write-Host $Title -ForegroundColor Cyan
+            Write-Hr
+            if ($Header) { Write-Host $Header -ForegroundColor DarkGray; Write-Hr }
+            Write-Host ""
+            Write-Host $Prompt -ForegroundColor Gray
+            Write-Host ""
+            Write-Host ("> " + $buf) -ForegroundColor White
+            Write-Host ""
+            Write-Host "Type HHMM (digits only). Enter=confirm | Esc=back | Empty+Enter=cancel" -ForegroundColor DarkGray
+
+            $k = [Console]::ReadKey($true)
+            switch ($k.Key) {
+                'Escape' { return $null }
+                'Enter' { return $buf }
+                'Backspace' { if ($buf.Length -gt 0) { $buf = $buf.Substring(0, $buf.Length - 1) } }
+                default {
+                    $c = $k.KeyChar
+                    if ($c -and [char]::IsDigit($c) -and $buf.Length -lt 4) { $buf += $c }
+                }
+            }
+        }
+    }
+
+    $oldCursor = $true
+    try { $oldCursor = [Console]::CursorVisible; [Console]::CursorVisible = $false } catch { }
+    $inputTop = 0
+    $inputLeft = 0
+    $maxLen = 4
+    try {
+        [Console]::Clear()
         Write-Host $Title -ForegroundColor Cyan
         Write-Hr
         if ($Header) { Write-Host $Header -ForegroundColor DarkGray; Write-Hr }
         Write-Host ""
         Write-Host $Prompt -ForegroundColor Gray
         Write-Host ""
-        Write-Host ("> " + $buf) -ForegroundColor White
+
+        $inputTop = [Console]::CursorTop
+        $inputLeft = 0
+        [Console]::Write("> ")
+        $inputLeft = [Console]::CursorLeft
+        [Console]::WriteLine("")
         Write-Host ""
         Write-Host "Type HHMM (digits only). Enter=confirm | Esc=back | Empty+Enter=cancel" -ForegroundColor DarkGray
 
-        $k = [Console]::ReadKey($true)
-        switch ($k.Key) {
-            'Escape' { return $null }
-            'Enter' { return $buf }
-            'Backspace' {
-                if ($buf.Length -gt 0) { $buf = $buf.Substring(0, $buf.Length - 1) }
-            }
-            default {
-                $c = $k.KeyChar
-                if ($c -and [char]::IsDigit($c) -and $buf.Length -lt 4) { $buf += $c }
+        $w = Get-ConsoleWidthSafe
+        function Render-InputLine {
+            param([Parameter(Mandatory)][string]$Value)
+            try {
+                [Console]::SetCursorPosition($inputLeft, $inputTop)
+                $out = $Value
+                if ($out.Length -gt $maxLen) { $out = $out.Substring(0, $maxLen) }
+                $pad = [Math]::Max(0, ($w - 3) - $out.Length) # width minus '> ' and 1
+                [Console]::Write($out + (' ' * $pad))
+                [Console]::SetCursorPosition($inputLeft + [Math]::Min($out.Length, $maxLen), $inputTop)
+            } catch { }
+        }
+
+        Render-InputLine -Value $buf
+        while ($true) {
+            $k = [Console]::ReadKey($true)
+            switch ($k.Key) {
+                'Escape' { return $null }
+                'Enter' { return $buf }
+                'Backspace' {
+                    if ($buf.Length -gt 0) {
+                        $buf = $buf.Substring(0, $buf.Length - 1)
+                        Render-InputLine -Value $buf
+                    }
+                }
+                default {
+                    $c = $k.KeyChar
+                    if ($c -and [char]::IsDigit($c) -and $buf.Length -lt $maxLen) {
+                        $buf += $c
+                        Render-InputLine -Value $buf
+                    }
+                }
             }
         }
+    } finally {
+        try { [Console]::CursorVisible = $oldCursor } catch { }
+        try {
+            $h = [Console]::WindowHeight
+            if ($h -gt 0) { [Console]::SetCursorPosition(0, [Math]::Max(0, $h - 1)) }
+        } catch { }
     }
 }
