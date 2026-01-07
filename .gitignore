@@ -1,5 +1,12 @@
 # Local runtime files
 /data/config.json
 /data/state.json
+/data/config.*.json
+/data/state.*.json
+/data/profiles/
+/data/profiles/**
 /data/*.bak
 
+# Logs
+/logs/
+/logs/**

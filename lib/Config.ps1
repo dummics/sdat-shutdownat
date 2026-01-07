@@ -1,24 +1,45 @@
 Set-StrictMode -Version Latest
 
+function Get-SdatProfileSafe {
+    param([AllowNull()][string]$Profile)
+    if ([string]::IsNullOrWhiteSpace($Profile)) { return "" }
+    $p = $Profile.Trim()
+    $p = ($p -replace "[^a-zA-Z0-9_-]", "_")
+    return $p
+}
+
 function Get-SdatDataDir {
-    param([Parameter(Mandatory)][string]$Root)
-    return (Join-Path -Path $Root -ChildPath "data")
+    param(
+        [Parameter(Mandatory)][string]$Root,
+        [AllowNull()][string]$Profile
+    )
+    $base = Join-Path -Path $Root -ChildPath "data"
+    $p = Get-SdatProfileSafe -Profile $Profile
+    if ($p) { return (Join-Path -Path $base -ChildPath ("profiles\\{0}" -f $p)) }
+    return $base
 }
 
 function Get-SdatConfigPaths {
-    param([Parameter(Mandatory)][string]$Root)
-    $dataDir = Get-SdatDataDir -Root $Root
+    param(
+        [Parameter(Mandatory)][string]$Root,
+        [AllowNull()][string]$Profile
+    )
+    $dataDir = Get-SdatDataDir -Root $Root -Profile $Profile
+    $templateDir = Join-Path -Path $Root -ChildPath "data"
     return [pscustomobject]@{
         DataDir = $dataDir
-        ConfigTemplatePath = (Join-Path -Path $dataDir -ChildPath "config.template.json")
+        ConfigTemplatePath = (Join-Path -Path $templateDir -ChildPath "config.template.json")
         ConfigPath = (Join-Path -Path $dataDir -ChildPath "config.json")
         StatePath = (Join-Path -Path $dataDir -ChildPath "state.json")
     }
 }
 
 function Ensure-SdatDataDir {
-    param([Parameter(Mandatory)][string]$Root)
-    $dataDir = Get-SdatDataDir -Root $Root
+    param(
+        [Parameter(Mandatory)][string]$Root,
+        [AllowNull()][string]$Profile
+    )
+    $dataDir = Get-SdatDataDir -Root $Root -Profile $Profile
     if (-not (Test-Path -LiteralPath $dataDir)) {
         New-Item -ItemType Directory -Path $dataDir -Force | Out-Null
     }
@@ -35,9 +56,12 @@ function Copy-FileAtomic {
 }
 
 function Ensure-SdatConfigExists {
-    param([Parameter(Mandatory)][string]$Root)
-    Ensure-SdatDataDir -Root $Root
-    $paths = Get-SdatConfigPaths -Root $Root
+    param(
+        [Parameter(Mandatory)][string]$Root,
+        [AllowNull()][string]$Profile
+    )
+    Ensure-SdatDataDir -Root $Root -Profile $Profile
+    $paths = Get-SdatConfigPaths -Root $Root -Profile $Profile
     if (-not (Test-Path -LiteralPath $paths.ConfigPath)) {
         if (-not (Test-Path -LiteralPath $paths.ConfigTemplatePath)) {
             throw "Missing config template: $($paths.ConfigTemplatePath)"
@@ -55,9 +79,12 @@ function Read-JsonFileOrNull {
 }
 
 function Load-SdatConfig {
-    param([Parameter(Mandatory)][string]$Root)
-    Ensure-SdatConfigExists -Root $Root
-    $paths = Get-SdatConfigPaths -Root $Root
+    param(
+        [Parameter(Mandatory)][string]$Root,
+        [AllowNull()][string]$Profile
+    )
+    Ensure-SdatConfigExists -Root $Root -Profile $Profile
+    $paths = Get-SdatConfigPaths -Root $Root -Profile $Profile
 
     $config = Read-JsonFileOrNull -Path $paths.ConfigPath
     if ($null -eq $config) { $config = [pscustomobject]@{} }
@@ -71,12 +98,12 @@ function Load-SdatConfig {
 function Save-SdatConfig {
     param(
         [Parameter(Mandatory)][string]$Root,
+        [AllowNull()][string]$Profile,
         [Parameter(Mandatory)]$Config
     )
-    Ensure-SdatDataDir -Root $Root
-    $paths = Get-SdatConfigPaths -Root $Root
+    Ensure-SdatDataDir -Root $Root -Profile $Profile
+    $paths = Get-SdatConfigPaths -Root $Root -Profile $Profile
     $tmp = "$($paths.ConfigPath).tmp"
     $Config | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $tmp -Encoding UTF8
     Move-Item -LiteralPath $tmp -Destination $paths.ConfigPath -Force
 }
-

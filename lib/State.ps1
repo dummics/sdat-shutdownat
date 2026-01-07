@@ -50,19 +50,25 @@ function Normalize-SdatState {
 }
 
 function Ensure-SdatStateExists {
-    param([Parameter(Mandatory)][string]$Root)
-    Ensure-SdatDataDir -Root $Root
-    $paths = Get-SdatConfigPaths -Root $Root
+    param(
+        [Parameter(Mandatory)][string]$Root,
+        [AllowNull()][string]$Profile
+    )
+    Ensure-SdatDataDir -Root $Root -Profile $Profile
+    $paths = Get-SdatConfigPaths -Root $Root -Profile $Profile
     if (-not (Test-Path -LiteralPath $paths.StatePath)) {
         $state = New-DefaultSdatState
-        Save-SdatState -Root $Root -State $state
+        Save-SdatState -Root $Root -Profile $Profile -State $state
     }
 }
 
 function Load-SdatState {
-    param([Parameter(Mandatory)][string]$Root)
-    Ensure-SdatStateExists -Root $Root
-    $paths = Get-SdatConfigPaths -Root $Root
+    param(
+        [Parameter(Mandatory)][string]$Root,
+        [AllowNull()][string]$Profile
+    )
+    Ensure-SdatStateExists -Root $Root -Profile $Profile
+    $paths = Get-SdatConfigPaths -Root $Root -Profile $Profile
     $state = Read-JsonFileOrNull -Path $paths.StatePath
     if ($null -eq $state) { return (New-DefaultSdatState) }
     return (Normalize-SdatState -State $state)
@@ -71,10 +77,11 @@ function Load-SdatState {
 function Save-SdatState {
     param(
         [Parameter(Mandatory)][string]$Root,
+        [AllowNull()][string]$Profile,
         [Parameter(Mandatory)]$State
     )
-    Ensure-SdatDataDir -Root $Root
-    $paths = Get-SdatConfigPaths -Root $Root
+    Ensure-SdatDataDir -Root $Root -Profile $Profile
+    $paths = Get-SdatConfigPaths -Root $Root -Profile $Profile
     $tmp = "$($paths.StatePath).tmp"
     $State | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $tmp -Encoding UTF8
     Move-Item -LiteralPath $tmp -Destination $paths.StatePath -Force
