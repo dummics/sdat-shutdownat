@@ -20,4 +20,14 @@ if "%~1"=="" (
   )
 )
 
+:: When launched from Win+R (cmd.exe /c), open a dedicated PowerShell window for self-test output.
+if defined CMDCMDLINE (
+  echo %CMDCMDLINE% | findstr /i " /c " >nul && (
+    echo %* | findstr /i /c:"-SelfTest" >nul && (
+      start "SDAT SelfTest" powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0tools\\selftest-window.ps1" %*
+      exit /b 0
+    )
+  )
+)
+
 powershell -ExecutionPolicy Bypass -File "%~dp0shutdownat.ps1" %*

@@ -15,7 +15,7 @@ function Get-SdatDataDir {
     )
     $base = Join-Path -Path $Root -ChildPath "data"
     $p = Get-SdatProfileSafe -Profile $Profile
-    if ($p) { return (Join-Path -Path $base -ChildPath ("profiles\\{0}" -f $p)) }
+    if ($p) { return (Join-Path -Path (Join-Path -Path $base -ChildPath "profiles") -ChildPath $p) }
     return $base
 }
 
