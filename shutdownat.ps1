@@ -252,6 +252,12 @@ function Invoke-CancelVolatile {
     $state.Volatile.ScheduledFor = $null
     $state.Volatile.CreatedAt = $null
     Save-SdatState -Root $root -Profile $script:sdatProfile -State $state
+    try {
+        shutdown /a
+        Write-SdatLog -Ctx $script:logCtx -Level "INFO" -Message "Aborted pending system shutdown"
+    } catch {
+        Write-SdatLog -Ctx $script:logCtx -Level "WARN" -Message "Failed to abort pending system shutdown"
+    }
     Write-SdatLog -Ctx $script:logCtx -Level "INFO" -Message "Canceled one-time shutdown"
 }
 
