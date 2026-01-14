@@ -9,6 +9,8 @@
       sdat -tui
       sdat -a             # cancel one-time (volatile) shutdown
       sdat -aa            # cancel all SDAT + legacy tasks
+      sdat -s             # toggle skip for next permanent shutdown
+      sdat -h             # help
 #>
 
 param(
@@ -21,6 +23,8 @@ param(
     [switch]$Clean,  # alias for -AA (kept for wrapper compatibility)
     [switch]$P,      # permanent (daily)
     [switch]$Tui,
+    [Alias('S')][switch]$SkipPermanent,     # skip next permanent run once
+    [Alias('h')][switch]$Help,
 
     [switch]$RunVolatile,
     [switch]$RunPermanent,
@@ -39,8 +43,15 @@ Set-StrictMode -Version Latest
 
 if ($ExtraArgs -and $ExtraArgs.Count -gt 0) {
     Write-Host "Unsupported parameter: $($ExtraArgs -join ' ')" -ForegroundColor Yellow
-    Write-Host "Usage: sdat [HHMM [-p]] | sdat -Test HHMM [-p] | sdat -tui | sdat -a | sdat -aa"
+    Show-SdatHelp
+    Send-SdatNotification -Message "Unsupported parameter. Use: sdat -h"
     exit 2
+}
+
+if ($Help) {
+    Show-SdatHelp
+    Send-SdatNotification -Message "Usage: sdat [HHMM [-p]] | sdat -Test HHMM [-p] | sdat -tui | sdat -a | sdat -aa | sdat -s | sdat -h"
+    exit 0
 }
 
 $root = Split-Path -Parent $PSCommandPath
@@ -53,7 +64,39 @@ $root = Split-Path -Parent $PSCommandPath
 . (Join-Path -Path $root -ChildPath "lib\\Log.ps1")
 . (Join-Path -Path $root -ChildPath "lib\\SelfTest.ps1")
 
-function Write-Info([string]$Msg) { Write-Host $Msg }
+function Show-SdatHelp {
+    $lines = @(
+        "Usage: sdat [HHMM [-p]] | sdat -Test HHMM [-p] | sdat -tui | sdat -a | sdat -aa | sdat -s | sdat -h",
+        "",
+        "Commands:",
+        "  (no args)            show status and a notification",
+        "  HHMM [-p]            schedule a volatile (-p omitted) or permanent (-p) shutdown",
+        "  -Test HHMM [-p]      dry run the volatile or permanent schedule",
+        "  -tui                 open the interactive configuration UI",
+        "  -a                   cancel the pending one-time shutdown",
+        "  -aa / -Clean         cancel every SDAT and legacy shutdown task",
+        "  -s / -SkipPermanent  toggle skip for the next permanent shutdown",
+        "  -h / -Help           show this help output",
+        "",
+        "Special modes: -NotifyStatus, -RunVolatile, -RunPermanent, -SelfTest"
+    )
+    foreach ($line in $lines) { Write-Host $line }
+}
+
+function Test-FromWinR { return ($env:SDAT_FROM_WINR -eq '1') }
+
+function Send-SdatNotification {
+    param([AllowNull()][string]$Message)
+    if (-not (Test-FromWinR)) { return }
+    $title = "SDAT"
+    $msg = Truncate-NotificationText -Text (Convert-ToSingleLine -Text $Message) -MaxLength 240
+    $null = Show-WindowsBalloonNotification -Title $title -Message $msg -TimeoutMs 6500
+}
+
+function Write-Info([string]$Msg) {
+    Write-Host $Msg
+    Send-SdatNotification -Message $Msg
+}
 
 function Test-SdatDryRun {
     if ($DryRun) { return $true }
@@ -141,13 +184,26 @@ function Get-SdatStatusSummaryLine {
 function Get-PermanentSuppressionAt {
     param(
         [Parameter(Mandatory)]$State,
-        [Parameter(Mandatory)]$Config,
-        [AllowNull()][datetime]$AtLocal,
-        [switch]$VolatileTaskExists
-    )
+    [Parameter(Mandatory)]$Config,
+    [AllowNull()][datetime]$AtLocal,
+    [switch]$VolatileTaskExists
+)
 
     $graceMinutes = [int]$Config.GraceMinutes
     $at = if ($AtLocal) { $AtLocal } else { Get-Date }
+    $manualUntil = Parse-LocalDateTimeOrNull -Value $State.SuspendPermanentUntil
+    if ($manualUntil -and $at -lt $manualUntil) {
+        return [pscustomobject]@{
+            Suppressed = $true
+            Kind = "manual-skip"
+            Until = $manualUntil
+            Data = @{
+                Reason = $State.SuspendReason
+                SetAt = $State.SuspendSetAt
+                SuppressUntil = $manualUntil.ToString("o", [System.Globalization.CultureInfo]::InvariantCulture)
+            }
+        }
+    }
 
     $vScheduled = if ($VolatileTaskExists) { Parse-LocalDateTimeOrNull -Value $State.Volatile.ScheduledFor } else { $null }
     if ($vScheduled -and $at -lt $vScheduled) {
@@ -234,6 +290,11 @@ function Invoke-RunPermanent {
     $sup = Get-PermanentSuppressionAt -State $state -Config $config -AtLocal (Get-Date) -VolatileTaskExists:($v.Exists)
     if ($sup.Suppressed) {
         $state.Permanent.LastSkippedAt = (Get-Date).ToString("o", [System.Globalization.CultureInfo]::InvariantCulture)
+        if ($sup.Kind -eq "manual-skip") {
+            $state.SuspendPermanentUntil = $null
+            $state.SuspendSetAt = $null
+            $state.SuspendReason = $null
+        }
         Save-SdatState -Root $root -Profile $script:sdatProfile -State $state
         Write-SdatLog -Ctx $script:logCtx -Level "INFO" -Message ("Permanent skipped ({0})" -f $sup.Kind) -Data $sup.Data
         return 0
@@ -274,6 +335,41 @@ function Invoke-SchedulePermanentDaily {
     Register-PermanentShutdownTaskDaily -Hours $Hours -Minutes $Minutes -ScriptPath $PSCommandPath -Profile $script:sdatProfile -DryRunAction:(Test-SdatDryRun)
     Write-SdatLog -Ctx $script:logCtx -Level "INFO" -Message "Scheduled daily shutdown" -Data @{ Hours = $Hours; Minutes = $Minutes; Task = $names.Permanent }
     return "Permanent shutdown scheduled daily at $($Hours.ToString('D2')):$($Minutes.ToString('D2')) (task: $($names.Permanent))"
+}
+
+function Invoke-SkipPermanentOnce {
+    $names = Get-SdatTaskNames -Profile $script:sdatProfile
+    $state = Load-SdatState -Root $root -Profile $script:sdatProfile
+    $manualUntil = Parse-LocalDateTimeOrNull -Value $state.SuspendPermanentUntil
+    if ($manualUntil -and (Get-Date) -lt $manualUntil) {
+        $state.SuspendPermanentUntil = $null
+        $state.SuspendSetAt = $null
+        $state.SuspendReason = $null
+        Save-SdatState -Root $root -Profile $script:sdatProfile -State $state
+        Write-SdatLog -Ctx $script:logCtx -Level "INFO" -Message "Manual skip cleared for permanent shutdown"
+        return "Permanent shutdown skip cleared (daily schedule re-enabled)."
+    }
+
+    $info = Get-TaskInfoSafe -TaskName $names.Permanent
+    if (-not $info.Exists) {
+        return "No permanent shutdown task found to skip."
+    }
+    $nextRun = $info.Info.NextRunTime
+    if (-not $nextRun -or $nextRun -le [datetime]::MinValue) {
+        $nextRun = (Get-Date).AddDays(1)
+    }
+    $culture = [System.Globalization.CultureInfo]::InvariantCulture
+    $targetStr = Format-LocalShort -Value $nextRun
+    $suppressUntil = $nextRun.AddMinutes(5)
+    $state.SuspendPermanentUntil = $suppressUntil.ToString("o", $culture)
+    $state.SuspendSetAt = (Get-Date).ToString("o", $culture)
+    $state.SuspendReason = ("manual-skip for {0}" -f $targetStr)
+    Save-SdatState -Root $root -Profile $script:sdatProfile -State $state
+    Write-SdatLog -Ctx $script:logCtx -Level "INFO" -Message "Manual skip scheduled for permanent shutdown" -Data @{
+        NextRun = $nextRun.ToString("o", $culture)
+        SuppressUntil = $suppressUntil.ToString("o", $culture)
+    }
+    return "Permanent shutdown at $targetStr will be skipped once."
 }
 
 function Invoke-ScheduleVolatileOnce {
@@ -318,6 +414,12 @@ if ($NotifyStatus) {
     exit 0
 }
 
+if ($SkipPermanent) {
+    $msg = Invoke-SkipPermanentOnce
+    Write-Info $msg
+    exit 0
+}
+
 if ($Clean) { $AA = $true }
 
 if ($AA) {
@@ -339,11 +441,19 @@ if ($A) {
 if ($Tui) {
     $notice = $null
     while ($true) {
-        $config = Load-SdatConfig -Root $root -Profile $script:sdatProfile
-        $state = Load-SdatState -Root $root -Profile $script:sdatProfile
+        $config = Load-SdatConfig -Root $root -Profile $script:sdatProfile      
+        $state = Load-SdatState -Root $root -Profile $script:sdatProfile        
         $header = Get-SdatStatusText -State $state -Config $config
+        $manualUntil = Parse-LocalDateTimeOrNull -Value $state.SuspendPermanentUntil
+        $skipActive = ($manualUntil -and (Get-Date) -lt $manualUntil)
+        $skipLabel = if ($skipActive) { "Toggle skip next permanent (ON)" } else { "Toggle skip next permanent (off)" }
+        $options = @(
+            "One-time (volatile)",
+            "Daily (permanent)",
+            $skipLabel
+        )
 
-        $sel = Show-SdatMainMenu -Title "SDAT" -Header $header -Notice $notice
+        $sel = Show-SdatMainMenu -Title "SDAT" -Header $header -Notice $notice -Options $options  
         $notice = $null
         if ($null -eq $sel) { exit 0 }
 
@@ -486,6 +596,16 @@ if ($Tui) {
             try {
                 $parsed = Parse-HHMM -Time $input
                 $msg = Invoke-SchedulePermanentDaily -Hours $parsed.Hours -Minutes $parsed.Minutes
+                $notice = New-TuiNotice -Kind "info" -Message $msg
+            } catch {
+                $notice = New-TuiNotice -Kind "error" -Message $_.Exception.Message
+            }
+            continue
+        }
+
+        if ($sel -eq 2) {
+            try {
+                $msg = Invoke-SkipPermanentOnce
                 $notice = New-TuiNotice -Kind "info" -Message $msg
             } catch {
                 $notice = New-TuiNotice -Kind "error" -Message $_.Exception.Message

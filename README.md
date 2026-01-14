@@ -47,11 +47,22 @@ sdat 0030
 sdat 0300 -p
 ```
 
+- Skip the next scheduled permanent shutdown once (run again to re-enable):
+
+```powershell
+sdat -s
+```
 - Dry run / test mode (no task will be created):
 
 ```powershell
 sdat -Test 0030
 sdat -Test 0300 -p
+```
+
+- Show this help output (includes the `-s` option):
+
+```powershell
+sdat -h
 ```
 
 - Open a minimal configuration TUI:
@@ -78,6 +89,7 @@ sdat -a
 - Permanent task name: `SDAT_Permanent` (daily).
 - If the provided time is in the past for the current day, the volatile shutdown schedules for the next day.
 - When a volatile shutdown is scheduled, the permanent schedule is suspended until `volatile + GraceMinutes` (configurable) to avoid unwanted shutdowns near manual usage.
+- Use `sdat -s` to toggle suppression of the next permanent shutdown; running it again clears the skip, and the normal daily schedule resumes after the skipped run.
 - The volatile execution cleans up after itself (task + volatile state), so `sdat` shows "Volatile: none" after it runs.
 
 ## Notes & Security

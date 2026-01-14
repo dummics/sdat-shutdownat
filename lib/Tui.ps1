@@ -82,12 +82,18 @@ function Show-SdatMainMenu {
     param(
         [Parameter(Mandatory)][string]$Title,
         [string]$Header = "",
-        $Notice
+        $Notice,
+        [AllowNull()][string[]]$Options
     )
-    $options = @(
-        "One-time (volatile)",
-        "Daily (permanent)"
-    )
+    $options = if ($Options -and $Options.Count -gt 0) {
+        $Options
+    } else {
+        @(
+            "One-time (volatile)",
+            "Daily (permanent)",
+            "Toggle skip next permanent"
+        )
+    }
     $idx = 0
 
     $consoleReady = $true

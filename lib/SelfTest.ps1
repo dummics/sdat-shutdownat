@@ -182,6 +182,36 @@ function Invoke-SdatSelfTest {
         Unregister-TaskIfExists -TaskName $names2.Volatile
     }
 
+    Add-Test -Name "Skip next permanent shutdown once" -Body {
+        $p2 = "${profileSafe}_skip"
+        $names2 = Get-SdatTaskNames -Profile $p2
+        Unregister-TaskIfExists -TaskName $names2.Volatile
+        Unregister-TaskIfExists -TaskName $names2.Permanent
+        Save-SdatState -Root $Root -Profile $p2 -State (New-DefaultSdatState)
+
+        $r1 = Invoke-SdatScript -Args @("-Profile", $p2, "-Time", "0200", "-P")
+        Assert-True -Condition ($r1.ExitCode -eq 0) -Message ("Script exited with {0}: {1}" -f $r1.ExitCode, $r1.Output)
+
+        $r2 = Invoke-SdatScript -Args @("-Profile", $p2, "-SkipPermanent")
+        Assert-True -Condition ($r2.ExitCode -eq 0) -Message ("Script exited with {0}: {1}" -f $r2.ExitCode, $r2.Output)
+
+        $state = Load-SdatState -Root $Root -Profile $p2
+        Assert-True -Condition (-not [string]::IsNullOrWhiteSpace($state.SuspendPermanentUntil)) -Message "Expected manual skip window to be recorded"
+
+        $null = & schtasks.exe /run /tn $names2.Permanent 2>&1
+        $deadline = (Get-Date).AddSeconds(8)
+        do {
+            Start-Sleep -Milliseconds 250
+            $state = Load-SdatState -Root $Root -Profile $p2
+        } while (([string]::IsNullOrWhiteSpace($state.Permanent.LastSkippedAt) -or -not [string]::IsNullOrWhiteSpace($state.SuspendPermanentUntil)) -and (Get-Date) -lt $deadline)
+
+        Assert-True -Condition (-not [string]::IsNullOrWhiteSpace($state.Permanent.LastSkippedAt)) -Message "Expected Permanent.LastSkippedAt to be set after skip"
+        Assert-True -Condition ([string]::IsNullOrWhiteSpace($state.SuspendPermanentUntil)) -Message "Expected manual skip window to clear"
+
+        Unregister-TaskIfExists -TaskName $names2.Permanent
+        Unregister-TaskIfExists -TaskName $names2.Volatile
+    }
+
     Add-Test -Name "Regression: cancel volatile clears suppression for permanent" -Body {
         $p2 = "${profileSafe}_cancel"
         $names2 = Get-SdatTaskNames -Profile $p2
