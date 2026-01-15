@@ -25,6 +25,17 @@ function Get-TaskInfoSafe {
     }
 }
 
+function Get-TaskStartBoundaryLocal {
+    param([Parameter(Mandatory)]$Task)
+    $trigger = $Task.Triggers | Select-Object -First 1
+    if (-not $trigger -or [string]::IsNullOrWhiteSpace($trigger.StartBoundary)) { return $null }
+    try {
+        return [datetime]::Parse($trigger.StartBoundary, [System.Globalization.CultureInfo]::InvariantCulture)
+    } catch {
+        try { return [datetime]::Parse($trigger.StartBoundary) } catch { return $null }
+    }
+}
+
 function Unregister-TaskIfExists {
     param([Parameter(Mandatory)][string]$TaskName)
     try { Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false -ErrorAction Stop | Out-Null } catch { }
@@ -53,7 +64,7 @@ function Build-ScheduledActionCommand {
     $pp = Get-SdatProfileSafe -Profile $Profile
     if ($pp) { $args += @("-Profile", $pp) }
     if ($DryRunAction) { $args += "-DryRun" }
-    return "powershell.exe -NoProfile -ExecutionPolicy Bypass -File ""$p"" " + ($args -join " ")
+    return "powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ""$p"" " + ($args -join " ")
 }
 
 function Set-SdatTaskDefaultSettings {

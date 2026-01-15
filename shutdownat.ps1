@@ -311,6 +311,26 @@ function Invoke-RunPermanent {
         return 0
     }
 
+    $pinfo = Get-TaskInfoSafe -TaskName $names.Permanent
+    $scheduledAt = if ($pinfo.Task) { Get-TaskStartBoundaryLocal -Task $pinfo.Task } else { $null }
+    $maxDelay = [int]$config.MissedPermanentShutdownMaxDelayMinutes
+    if ($scheduledAt -and $maxDelay -ge 0) {
+        $now = Get-Date
+        $scheduledToday = $now.Date.Add($scheduledAt.TimeOfDay)
+        $scheduledMostRecent = if ($now -lt $scheduledToday) { $scheduledToday.AddDays(-1) } else { $scheduledToday }
+        $lateMinutes = ($now - $scheduledMostRecent).TotalMinutes
+        if ($lateMinutes -gt $maxDelay) {
+            $state.Permanent.LastSkippedAt = $now.ToString("o", [System.Globalization.CultureInfo]::InvariantCulture)
+            Save-SdatState -Root $root -Profile $script:sdatProfile -State $state
+            Write-SdatLog -Ctx $script:logCtx -Level "WARN" -Message "Permanent missed (too late); no shutdown executed" -Data @{
+                ScheduledFor = $scheduledMostRecent
+                LateMinutes = $lateMinutes
+                MaxDelayMinutes = $maxDelay
+            }
+            return 0
+        }
+    }
+
     $state.Permanent.LastExecutedAt = (Get-Date).ToString("o", [System.Globalization.CultureInfo]::InvariantCulture)
     Save-SdatState -Root $root -Profile $script:sdatProfile -State $state
     Invoke-SdatShutdown -Reason "permanent"

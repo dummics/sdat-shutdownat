@@ -91,6 +91,7 @@ function Load-SdatConfig {
 
     if ($null -eq $config.GraceMinutes) { $config | Add-Member -NotePropertyName GraceMinutes -NotePropertyValue 60 }
     if ($null -eq $config.MissedVolatileShutdownMaxDelayMinutes) { $config | Add-Member -NotePropertyName MissedVolatileShutdownMaxDelayMinutes -NotePropertyValue 5 }
+    if ($null -eq $config.MissedPermanentShutdownMaxDelayMinutes) { $config | Add-Member -NotePropertyName MissedPermanentShutdownMaxDelayMinutes -NotePropertyValue 10 }
 
     return $config
 }
