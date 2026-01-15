@@ -148,6 +148,33 @@ function Invoke-SdatShutdown {
     shutdown /s /f
 }
 
+function Invoke-CleanupStaleVolatile {
+    $config = Load-SdatConfig -Root $root -Profile $script:sdatProfile
+    $state = Load-SdatState -Root $root -Profile $script:sdatProfile
+    $names = Get-SdatTaskNames -Profile $script:sdatProfile
+    $v = Get-TaskInfoSafe -TaskName $names.Volatile
+
+    $scheduledFor = Parse-LocalDateTimeOrNull -Value $state.Volatile.ScheduledFor
+    if (-not $scheduledFor) { return }
+
+    $maxDelay = [int]$config.MissedVolatileShutdownMaxDelayMinutes
+    if ((Get-Date) -le $scheduledFor.AddMinutes($maxDelay)) { return }
+
+    if ($v.Exists) { Unregister-TaskIfExists -TaskName $names.Volatile }
+    $state.Volatile.LastMissedAt = (Get-Date).ToString("o", [System.Globalization.CultureInfo]::InvariantCulture)
+    $state.Volatile.ScheduledFor = $null
+    $state.Volatile.CreatedAt = $null
+    Save-SdatState -Root $root -Profile $script:sdatProfile -State $state
+    Write-SdatLog -Ctx $script:logCtx -Level "WARN" -Message "Volatile cleanup (missed); task removed" -Data @{
+        ScheduledFor = $scheduledFor
+        MaxDelayMinutes = $maxDelay
+    }
+}
+
+if (-not $RunVolatile -and -not $RunPermanent) {
+    try { Invoke-CleanupStaleVolatile } catch { }
+}
+
 function Get-SdatStatusText {
     param(
         [Parameter(Mandatory)]$State,

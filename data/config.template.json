@@ -1,6 +1,6 @@
 {
   "GraceMinutes": 60,
-  "MissedVolatileShutdownMaxDelayMinutes": 5,
+  "MissedVolatileShutdownMaxDelayMinutes": 0,
   "MissedPermanentShutdownMaxDelayMinutes": 0
 }
 

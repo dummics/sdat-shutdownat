@@ -91,6 +91,7 @@ sdat -a
 - When a volatile shutdown is scheduled, the permanent schedule is suspended until `volatile + GraceMinutes` (configurable) to avoid unwanted shutdowns near manual usage.
 - Use `sdat -s` to toggle suppression of the next permanent shutdown; running it again clears the skip, and the normal daily schedule resumes after the skipped run.
 - The volatile execution cleans up after itself (task + volatile state), so `sdat` shows "Volatile: none" after it runs.
+- If a volatile run is triggered late (for example after sleep), it is skipped when more than `MissedVolatileShutdownMaxDelayMinutes` minutes late (default: 0, which means never run late).
 - If a permanent run is triggered late (for example after sleep), it is skipped when more than `MissedPermanentShutdownMaxDelayMinutes` minutes late (default: 0, which means never run late).
 
 ## Notes & Security

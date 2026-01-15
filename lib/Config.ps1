@@ -1,5 +1,14 @@
 Set-StrictMode -Version Latest
 
+function Test-HasProp {
+    param(
+        [AllowNull()]$Obj,
+        [Parameter(Mandatory)][string]$Name
+    )
+    if ($null -eq $Obj) { return $false }
+    return ($Obj.PSObject.Properties.Name -contains $Name)
+}
+
 function Get-SdatProfileSafe {
     param([AllowNull()][string]$Profile)
     if ([string]::IsNullOrWhiteSpace($Profile)) { return "" }
@@ -89,9 +98,15 @@ function Load-SdatConfig {
     $config = Read-JsonFileOrNull -Path $paths.ConfigPath
     if ($null -eq $config) { $config = [pscustomobject]@{} }
 
-    if ($null -eq $config.GraceMinutes) { $config | Add-Member -NotePropertyName GraceMinutes -NotePropertyValue 60 }
-    if ($null -eq $config.MissedVolatileShutdownMaxDelayMinutes) { $config | Add-Member -NotePropertyName MissedVolatileShutdownMaxDelayMinutes -NotePropertyValue 5 }
-    if ($null -eq $config.MissedPermanentShutdownMaxDelayMinutes) { $config | Add-Member -NotePropertyName MissedPermanentShutdownMaxDelayMinutes -NotePropertyValue 0 }
+    if ((-not (Test-HasProp -Obj $config -Name "GraceMinutes")) -or $null -eq $config.GraceMinutes) {
+        $config | Add-Member -NotePropertyName GraceMinutes -NotePropertyValue 60 -Force
+    }
+    if ((-not (Test-HasProp -Obj $config -Name "MissedVolatileShutdownMaxDelayMinutes")) -or $null -eq $config.MissedVolatileShutdownMaxDelayMinutes) {
+        $config | Add-Member -NotePropertyName MissedVolatileShutdownMaxDelayMinutes -NotePropertyValue 0 -Force
+    }
+    if ((-not (Test-HasProp -Obj $config -Name "MissedPermanentShutdownMaxDelayMinutes")) -or $null -eq $config.MissedPermanentShutdownMaxDelayMinutes) {
+        $config | Add-Member -NotePropertyName MissedPermanentShutdownMaxDelayMinutes -NotePropertyValue 0 -Force
+    }
 
     return $config
 }
