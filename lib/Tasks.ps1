@@ -70,7 +70,7 @@ function Build-ScheduledActionCommand {
 function Set-SdatTaskDefaultSettings {
     param([Parameter(Mandatory)][string]$TaskName)
     try {
-        $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -WakeToRun
+        $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -WakeToRun
         Set-ScheduledTask -TaskName $TaskName -Settings $settings | Out-Null
     } catch {
         # Ignore settings failures; task still exists.
