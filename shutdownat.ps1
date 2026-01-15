@@ -90,7 +90,18 @@ function Send-SdatNotification {
     if (-not (Test-FromWinR)) { return }
     $title = "SDAT"
     $msg = Truncate-NotificationText -Text (Convert-ToSingleLine -Text $Message) -MaxLength 240
-    $null = Show-WindowsBalloonNotification -Title $title -Message $msg -TimeoutMs 6500
+    if ([string]::IsNullOrWhiteSpace($msg)) { return }
+    $scriptRoot = Split-Path -Parent $PSCommandPath
+    $notifyScript = Join-Path -Path $scriptRoot -ChildPath "tools\\notify-message.ps1"
+    $args = @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", $notifyScript,
+        "-Title", $title,
+        "-Message", $msg,
+        "-TimeoutMs", "6500"
+    )
+    Start-Process -WindowStyle Hidden -FilePath "powershell.exe" -ArgumentList $args | Out-Null
 }
 
 function Write-Info([string]$Msg) {
