@@ -57,12 +57,14 @@ function Build-ScheduledActionCommand {
         [Parameter(Mandatory)][string]$ScriptPath,
         [Parameter(Mandatory)][string]$ModeSwitch,
         [AllowNull()][string]$Profile,
+        [switch]$SuspendAction,
         [switch]$DryRunAction
     )
     $p = $ScriptPath.Replace('"', '""')
     $args = @($ModeSwitch)
     $pp = Get-SdatProfileSafe -Profile $Profile
     if ($pp) { $args += @("-Profile", $pp) }
+    if ($SuspendAction) { $args += "-Suspend" }
     if ($DryRunAction) { $args += "-DryRun" }
     return "powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ""$p"" " + ($args -join " ")
 }
@@ -83,6 +85,7 @@ function Register-VolatileShutdownTask {
         [Parameter(Mandatory)][datetime]$TargetLocal,
         [Parameter(Mandatory)][string]$ScriptPath,
         [AllowNull()][string]$Profile,
+        [switch]$SuspendAction,
         [switch]$DryRunAction
     )
     $names = Get-SdatTaskNames -Profile $Profile
@@ -91,7 +94,7 @@ function Register-VolatileShutdownTask {
     Unregister-TaskIfExists -TaskName $tn
     $st = $TargetLocal.ToString('HH:mm')
     $sd = $TargetLocal.ToString('dd/MM/yyyy')
-    $tr = Build-ScheduledActionCommand -ScriptPath $ScriptPath -ModeSwitch "-RunVolatile" -Profile $Profile -DryRunAction:$DryRunAction
+    $tr = Build-ScheduledActionCommand -ScriptPath $ScriptPath -ModeSwitch "-RunVolatile" -Profile $Profile -SuspendAction:$SuspendAction -DryRunAction:$DryRunAction
 
     $out = & schtasks.exe /create /tn $tn /tr $tr /sc once /st $st /sd $sd /ru $env:USERNAME /f 2>&1
     if ($LASTEXITCODE -ne 0) { throw ($out | Out-String) }
@@ -104,6 +107,7 @@ function Register-PermanentShutdownTaskDaily {
         [Parameter(Mandatory)][int]$Minutes,
         [Parameter(Mandatory)][string]$ScriptPath,
         [AllowNull()][string]$Profile,
+        [switch]$SuspendAction,
         [switch]$DryRunAction
     )
     $names = Get-SdatTaskNames -Profile $Profile
@@ -111,7 +115,7 @@ function Register-PermanentShutdownTaskDaily {
 
     Unregister-TaskIfExists -TaskName $tn
     $st = ("{0:D2}:{1:D2}" -f $Hours, $Minutes)
-    $tr = Build-ScheduledActionCommand -ScriptPath $ScriptPath -ModeSwitch "-RunPermanent" -Profile $Profile -DryRunAction:$DryRunAction
+    $tr = Build-ScheduledActionCommand -ScriptPath $ScriptPath -ModeSwitch "-RunPermanent" -Profile $Profile -SuspendAction:$SuspendAction -DryRunAction:$DryRunAction
 
     $out = & schtasks.exe /create /tn $tn /tr $tr /sc daily /st $st /ru $env:USERNAME /f 2>&1
     if ($LASTEXITCODE -ne 0) { throw ($out | Out-String) }

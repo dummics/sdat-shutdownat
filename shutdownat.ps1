@@ -152,10 +152,16 @@ function Normalize-TimeInput {
     if ([string]::IsNullOrWhiteSpace($raw)) {
         throw "Missing time value. Use HHMM (e.g., 0930) or HH:MM."
     }
-    $digits = ($raw -replace '\D', '')
-    if ($digits.Length -lt 3 -or $digits.Length -gt 4) {
+
+    $digits = $null
+    if ($raw -match '^\d{3,4}$') {
+        $digits = $raw
+    } elseif ($raw -match '^\d{1,2}:\d{2}$') {
+        $digits = ($raw -replace ':', '')
+    } else {
         throw "Invalid time format. Use HHMM (e.g., 0930) or HH:MM."
     }
+
     if ($digits.Length -eq 3) { $digits = "0$digits" }
     return $digits
 }
@@ -424,7 +430,7 @@ function Invoke-RunVolatile {
     $state.Volatile.LastExecutedAt = (Get-Date).ToString("o", [System.Globalization.CultureInfo]::InvariantCulture)
     $state.Volatile.ScheduledFor = $null
     $state.Volatile.CreatedAt = $null
-    $action = Resolve-SdatActionType -Value $state.Volatile.ActionType
+    $action = if ($Suspend) { "suspend" } else { Resolve-SdatActionType -Value $state.Volatile.ActionType }
     $state.Volatile.ActionType = $null
     Save-SdatState -Root $root -Profile $script:sdatProfile -State $state
 
@@ -481,7 +487,7 @@ function Invoke-RunPermanent {
     }
 
     $state.Permanent.LastExecutedAt = (Get-Date).ToString("o", [System.Globalization.CultureInfo]::InvariantCulture)
-    $action = Resolve-SdatActionType -Value $state.Permanent.ActionType
+    $action = if ($Suspend) { "suspend" } else { Resolve-SdatActionType -Value $state.Permanent.ActionType }
     Save-SdatState -Root $root -Profile $script:sdatProfile -State $state
     Invoke-SdatShutdown -Reason "permanent" -ActionType $action
     return 0
@@ -524,7 +530,7 @@ function Invoke-SchedulePermanentDaily {
     $names = Get-SdatTaskNames -Profile $script:sdatProfile
     $state = Load-SdatState -Root $root -Profile $script:sdatProfile
     $null = Remove-LegacyShutdownAtTasks -Force:([string]::IsNullOrWhiteSpace($script:sdatProfile))
-    Register-PermanentShutdownTaskDaily -Hours $Hours -Minutes $Minutes -ScriptPath $PSCommandPath -Profile $script:sdatProfile -DryRunAction:(Test-SdatDryRun)
+    Register-PermanentShutdownTaskDaily -Hours $Hours -Minutes $Minutes -ScriptPath $PSCommandPath -Profile $script:sdatProfile -SuspendAction:($ActionType -eq "suspend") -DryRunAction:(Test-SdatDryRun)
     $state.Permanent.ActionType = (Resolve-SdatActionType -Value $ActionType)
     Save-SdatState -Root $root -Profile $script:sdatProfile -State $state
     Write-SdatLog -Ctx $script:logCtx -Level "INFO" -Message "Scheduled daily action" -Data @{ Hours = $Hours; Minutes = $Minutes; Task = $names.Permanent; ActionType = $state.Permanent.ActionType }
@@ -580,7 +586,7 @@ function Invoke-ScheduleVolatileOnce {
     $targetStr = Format-LocalShort -Value $target
 
     $null = Remove-LegacyShutdownAtTasks -Force:([string]::IsNullOrWhiteSpace($script:sdatProfile))
-    Register-VolatileShutdownTask -TargetLocal $target -ScriptPath $PSCommandPath -Profile $script:sdatProfile -DryRunAction:(Test-SdatDryRun)
+    Register-VolatileShutdownTask -TargetLocal $target -ScriptPath $PSCommandPath -Profile $script:sdatProfile -SuspendAction:($ActionType -eq "suspend") -DryRunAction:(Test-SdatDryRun)
     $state.Volatile.ScheduledFor = $target.ToString("o", [System.Globalization.CultureInfo]::InvariantCulture)
     $state.Volatile.CreatedAt = (Get-Date).ToString("o", [System.Globalization.CultureInfo]::InvariantCulture)
     $state.Volatile.ActionType = (Resolve-SdatActionType -Value $ActionType)

@@ -134,6 +134,14 @@ function Invoke-SdatSelfTest {
         Assert-True -Condition ($a.Arguments -like "*-Profile $profileSafe*") -Message "Missing -Profile in Arguments"
     }
 
+    Add-Test -Name "Create daily suspend task persists suspend mode in task arguments" -Body {
+        $r = Invoke-SdatScript -Args @("-Profile", $profileSafe, "-DryRun", "-Time", "0200", "-P", "-Suspend")
+        Assert-True -Condition ($r.ExitCode -eq 0) -Message ("Script exited with {0}: {1}" -f $r.ExitCode, $r.Output)
+        $a = Get-TaskArguments -TaskName $names.Permanent
+        Assert-True -Condition ($a.Arguments -like "*-RunPermanent*") -Message "Missing -RunPermanent in Arguments"
+        Assert-True -Condition ($a.Arguments -like "*-Suspend*") -Message "Missing -Suspend in Arguments"
+    }
+
     Add-Test -Name "Create one-time task via script (dry-run action)" -Body {
         $hhmm = Get-SoonTimeHHMM -MinutesAhead 90
         $r = Invoke-SdatScript -Args @("-Profile", $profileSafe, "-DryRun", "-Time", $hhmm)
@@ -145,6 +153,11 @@ function Invoke-SdatSelfTest {
         Assert-True -Condition ($a.Arguments -like "*-RunVolatile*") -Message "Missing -RunVolatile in Arguments"
         Assert-True -Condition ($a.Arguments -like "*-DryRun*") -Message "Missing -DryRun in Arguments"
         Assert-True -Condition ($a.Arguments -like "*-Profile $profileSafe*") -Message "Missing -Profile in Arguments"
+    }
+
+    Add-Test -Name "Reject malformed HHMM input" -Body {
+        $r = Invoke-SdatScript -Args @("-Profile", $profileSafe, "-DryRun", "-Time", "1x30")
+        Assert-True -Condition ($r.ExitCode -ne 0) -Message "Expected malformed time to be rejected"
     }
 
     Add-Test -Name "Run one-time task via Task Scheduler (dry-run)" -Body {
