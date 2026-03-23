@@ -70,7 +70,8 @@ function Build-ScheduledActionCommand {
 function Set-SdatTaskDefaultSettings {
     param([Parameter(Mandatory)][string]$TaskName)
     try {
-        $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -WakeToRun
+        # Keep SDAT non-intrusive: never wake the PC from sleep for scheduled shutdown jobs.
+        $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
         Set-ScheduledTask -TaskName $TaskName -Settings $settings | Out-Null
     } catch {
         # Ignore settings failures; task still exists.

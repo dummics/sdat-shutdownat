@@ -6,10 +6,12 @@ function New-DefaultSdatState {
         Volatile = [pscustomobject]@{
             ScheduledFor = $null
             CreatedAt = $null
+            ActionType = $null
             LastExecutedAt = $null
             LastMissedAt = $null
         }
         Permanent = [pscustomobject]@{
+            ActionType = $null
             LastExecutedAt = $null
             LastSkippedAt = $null
         }
@@ -35,10 +37,12 @@ function Normalize-SdatState {
     if (-not (Test-HasProp -Obj $State -Name "Volatile") -or $null -eq $State.Volatile) { $State | Add-Member -NotePropertyName Volatile -NotePropertyValue ([pscustomobject]@{}) -Force }
     if (-not (Test-HasProp -Obj $State.Volatile -Name "ScheduledFor")) { $State.Volatile | Add-Member -NotePropertyName ScheduledFor -NotePropertyValue $null }
     if (-not (Test-HasProp -Obj $State.Volatile -Name "CreatedAt")) { $State.Volatile | Add-Member -NotePropertyName CreatedAt -NotePropertyValue $null }
+    if (-not (Test-HasProp -Obj $State.Volatile -Name "ActionType")) { $State.Volatile | Add-Member -NotePropertyName ActionType -NotePropertyValue $null }
     if (-not (Test-HasProp -Obj $State.Volatile -Name "LastExecutedAt")) { $State.Volatile | Add-Member -NotePropertyName LastExecutedAt -NotePropertyValue $null }
     if (-not (Test-HasProp -Obj $State.Volatile -Name "LastMissedAt")) { $State.Volatile | Add-Member -NotePropertyName LastMissedAt -NotePropertyValue $null }
 
     if (-not (Test-HasProp -Obj $State -Name "Permanent") -or $null -eq $State.Permanent) { $State | Add-Member -NotePropertyName Permanent -NotePropertyValue ([pscustomobject]@{}) -Force }
+    if (-not (Test-HasProp -Obj $State.Permanent -Name "ActionType")) { $State.Permanent | Add-Member -NotePropertyName ActionType -NotePropertyValue $null }
     if (-not (Test-HasProp -Obj $State.Permanent -Name "LastExecutedAt")) { $State.Permanent | Add-Member -NotePropertyName LastExecutedAt -NotePropertyValue $null }
     if (-not (Test-HasProp -Obj $State.Permanent -Name "LastSkippedAt")) { $State.Permanent | Add-Member -NotePropertyName LastSkippedAt -NotePropertyValue $null }
 
