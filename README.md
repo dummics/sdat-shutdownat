@@ -59,9 +59,10 @@ sdat -Test 0030
 sdat -Test 0300 -p
 ```
 
-- Show this help output (includes the `-s` option):
+- Show status explicitly with `-Status` (or no args), and get help:
 
 ```powershell
+sdat -Status
 sdat -h
 ```
 
@@ -81,6 +82,20 @@ sdat -aa
 
 ```powershell
 sdat -a
+```
+
+- Skip confirmations with `-f` / `-Force`:
+
+```powershell
+sdat -a -f
+sdat -aa -f
+```
+
+- Accept HHMM and HH:MM formats:
+
+```powershell
+sdat 9:30
+sdat 1130
 ```
 
 ## Behavior

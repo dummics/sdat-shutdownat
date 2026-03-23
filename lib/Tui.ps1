@@ -108,17 +108,28 @@ function Show-SdatMainMenu {
             if ($Header) { Write-Host $Header -ForegroundColor DarkGray; Write-Hr }
             Write-Host ""
             for ($i = 0; $i -lt $options.Count; $i++) {
-                if ($i -eq $idx) { Write-Host ("> " + $options[$i]) -ForegroundColor Black -BackgroundColor DarkCyan }
-                else { Write-Host ("  " + $options[$i]) -ForegroundColor Gray }
+                $line = ("{0}) {1}" -f ($i + 1), $options[$i])
+                if ($i -eq $idx) { Write-Host ("> " + $line) -ForegroundColor Black -BackgroundColor DarkCyan }
+                else { Write-Host ("  " + $line) -ForegroundColor Gray }
             }
             Write-Host ""
-            Write-Host "Enter=select  |  Esc=back" -ForegroundColor DarkGray
+            Write-Host ("1-{0}, Enter=select  |  Esc=back  |  Ctrl+T=diag" -f $options.Count) -ForegroundColor DarkGray
 
             $k = [Console]::ReadKey($true)
             if (($k.Key -eq [ConsoleKey]::T) -and (($k.Modifiers -band [ConsoleModifiers]::Control) -ne 0)) { return 99 }
             switch ($k.Key) {
                 'UpArrow' { if ($idx -gt 0) { $idx-- } }
                 'DownArrow' { if ($idx -lt ($options.Count - 1)) { $idx++ } }
+                'D1' { if ($options.Count -gt 0) { return 0 } }
+                'D2' { if ($options.Count -gt 1) { return 1 } }
+                'D3' { if ($options.Count -gt 2) { return 2 } }
+                'D4' { if ($options.Count -gt 3) { return 3 } }
+                'D5' { if ($options.Count -gt 4) { return 4 } }
+                'NumPad1' { if ($options.Count -gt 0) { return 0 } }
+                'NumPad2' { if ($options.Count -gt 1) { return 1 } }
+                'NumPad3' { if ($options.Count -gt 2) { return 2 } }
+                'NumPad4' { if ($options.Count -gt 3) { return 3 } }
+                'NumPad5' { if ($options.Count -gt 4) { return 4 } }
                 'Enter' { return $idx }
                 'Escape' { return $null }
             }
@@ -147,7 +158,8 @@ function Show-SdatMainMenu {
             [Parameter(Mandatory)][bool]$Selected
         )
         $prefix = if ($Selected) { "> " } else { "  " }
-        $text = $prefix + $options[$Index]
+        $text = ("{0}) {1}" -f ($Index + 1), $options[$Index])
+        $text = $prefix + $text
         if ($Selected) {
             Write-ConsoleAt -Left 0 -Top $Top -Text $text -ForegroundColor $selFg -BackgroundColor $selBg -ClearToEnd
         } else {
@@ -195,7 +207,7 @@ function Show-SdatMainMenu {
 
         $footerTop = $optionsTop + $options.Count + 1
         Write-ConsoleAt -Left 0 -Top $footerTop -Text "" -ForegroundColor $mutedFg -BackgroundColor $bg -ClearToEnd
-        Write-ConsoleAt -Left 0 -Top ($footerTop + 1) -Text "Enter=select  |  Esc=back" -ForegroundColor $mutedFg -BackgroundColor $bg -ClearToEnd
+        Write-ConsoleAt -Left 0 -Top ($footerTop + 1) -Text ("1-{0}, Enter=select  |  Esc=back  |  Ctrl+T=diag" -f $options.Count) -ForegroundColor $mutedFg -BackgroundColor $bg -ClearToEnd
         return [pscustomobject]@{ OptionsTop = $optionsTop }
     }
 
@@ -221,6 +233,16 @@ function Show-SdatMainMenu {
                         Render-OptionLine -Top ($layout.OptionsTop + $idx) -Index $idx -Selected $true
                     }
                 }
+                'D1' { if ($options.Count -gt 0) { return 0 } }
+                'D2' { if ($options.Count -gt 1) { return 1 } }
+                'D3' { if ($options.Count -gt 2) { return 2 } }
+                'D4' { if ($options.Count -gt 3) { return 3 } }
+                'D5' { if ($options.Count -gt 4) { return 4 } }
+                'NumPad1' { if ($options.Count -gt 0) { return 0 } }
+                'NumPad2' { if ($options.Count -gt 1) { return 1 } }
+                'NumPad3' { if ($options.Count -gt 2) { return 2 } }
+                'NumPad4' { if ($options.Count -gt 3) { return 3 } }
+                'NumPad5' { if ($options.Count -gt 4) { return 4 } }
                 'Enter' { return $idx }
                 'Escape' { return $null }
             }
@@ -410,9 +432,9 @@ function Read-LineWithEsc {
             Write-Host ""
             Write-Host $Prompt -ForegroundColor Gray
             Write-Host ""
-            Write-Host ("> " + $buf) -ForegroundColor White
+            Write-Host ("{0}> {1}" -f " ", $buf) -ForegroundColor White
             Write-Host ""
-            Write-Host "Type HHMM (digits only). Enter=confirm | Esc=back | Empty+Enter=cancel" -ForegroundColor DarkGray
+            Write-Host "Type HHMM or HH:MM. Enter=confirm | Esc=back | Empty+Enter=cancel" -ForegroundColor DarkGray
 
             $k = [Console]::ReadKey($true)
             switch ($k.Key) {
@@ -422,6 +444,9 @@ function Read-LineWithEsc {
                 default {
                     $c = $k.KeyChar
                     if ($c -and [char]::IsDigit($c) -and $buf.Length -lt 4) { $buf += $c }
+                    elseif ($c -and $c -eq ':') {
+                        if (($buf -notlike "*:*") -and $buf.Length -lt 5) { $buf += $c }
+                    }
                 }
             }
         }
@@ -431,7 +456,7 @@ function Read-LineWithEsc {
     try { $oldCursor = [Console]::CursorVisible; [Console]::CursorVisible = $false } catch { }
     $inputTop = 0
     $inputLeft = 0
-    $maxLen = 4
+    $maxLen = 5
     try {
         [Console]::Clear()
         Write-Host $Title -ForegroundColor Cyan
@@ -447,7 +472,7 @@ function Read-LineWithEsc {
         $inputLeft = [Console]::CursorLeft
         [Console]::WriteLine("")
         Write-Host ""
-        Write-Host "Type HHMM (digits only). Enter=confirm | Esc=back | Empty+Enter=cancel" -ForegroundColor DarkGray
+        Write-Host "Type HHMM or HH:MM. Enter=confirm | Esc=back | Empty+Enter=cancel" -ForegroundColor DarkGray
 
         $w = Get-ConsoleWidthSafe
         function Render-InputLine {
@@ -475,11 +500,16 @@ function Read-LineWithEsc {
                     }
                 }
                 default {
-                    $c = $k.KeyChar
-                    if ($c -and [char]::IsDigit($c) -and $buf.Length -lt $maxLen) {
+                $c = $k.KeyChar
+                if ($c -and [char]::IsDigit($c) -and $buf.Length -lt $maxLen) {
+                    $buf += $c
+                    Render-InputLine -Value $buf
+                } elseif ($c -and $c -eq ':' -and $buf.Length -lt $maxLen) {
+                    if ($buf -notmatch ':') {
                         $buf += $c
                         Render-InputLine -Value $buf
                     }
+                }
                 }
             }
         }
