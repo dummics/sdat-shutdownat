@@ -30,6 +30,8 @@ param(
     [switch]$Tui,
     [Alias('S')][switch]$SkipPermanent,     # skip next permanent run once
     [Alias('h')][switch]$Help,
+    [Alias('f')][switch]$Force,
+    [switch]$Status,
 
     [switch]$RunVolatile,
     [switch]$RunPermanent,
@@ -58,33 +60,23 @@ $root = Split-Path -Parent $PSCommandPath
 
 function Show-SdatHelp {
     $lines = @(
-        "Usage: sdat|ssat [HHMM [-p]] | sdat|ssat -Test HHMM [-p] | sdat|ssat -tui | sdat|ssat -a | sdat|ssat -aa | sdat|ssat -s | sdat|ssat -h",
+        "Usage: sdat|ssat [HHMM / HH:MM [-p]] | sdat|ssat -Test HHMM [-p] | sdat|ssat -tui | sdat|ssat -a | sdat|ssat -aa | sdat|ssat -s | sdat|ssat -h",
         "",
         "Commands:",
         "  (no args)            show status and a notification",
-        "  HHMM [-p]            schedule a volatile (-p omitted) or permanent (-p) action",
-        "  -Test HHMM [-p]      dry run the volatile or permanent action",
+        "  -Status              explicit status check (same as no args)",
+        "  HHMM / HH:MM [-p]    schedule a volatile (-p omitted) or permanent (-p) shutdown/suspend",
+        "  -Test HHMM [-p]      dry run the volatile or permanent power action",
         "  -Suspend             use suspend action (ssat wrapper always sets this)",
         "  -tui                 open the interactive configuration UI",
-        "  -a                   cancel the pending one-time action",
-        "  -aa / -Clean         cancel every SDAT and legacy scheduled task",
+        "  -a                   cancel the pending one-time action (use -f / -Force to skip confirm)",
+        "  -aa / -Clean         cancel every SDAT and legacy scheduled task (use -f / -Force to skip confirm)",
         "  -s / -SkipPermanent  toggle skip for the next permanent run",
         "  -h / -Help           show this help output",
         "",
         "Special modes: -NotifyStatus, -RunVolatile, -RunPermanent, -SelfTest"
     )
     foreach ($line in $lines) { Write-Host $line }
-}
-
-if ($ExtraArgs -and $ExtraArgs.Count -gt 0) {
-    Write-Host "Unsupported parameter: $($ExtraArgs -join ' ')" -ForegroundColor Yellow
-    Show-SdatHelp
-    exit 2
-}
-
-if ($Help) {
-    Show-SdatHelp
-    exit 0
 }
 
 function Test-FromWinR { return ($env:SDAT_FROM_WINR -eq '1') }
@@ -113,6 +105,25 @@ function Write-Info([string]$Msg) {
     Send-SdatNotification -Message $Msg
 }
 
+if ($ExtraArgs -and $ExtraArgs.Count -gt 0) {
+    Write-Host "Unsupported parameter: $($ExtraArgs -join ' ')" -ForegroundColor Yellow
+    Show-SdatHelp
+    Send-SdatNotification -Message "Unsupported parameter. Use: sdat -h"
+    exit 2
+}
+
+if ($Status -and $Time) {
+    Write-Host "Cannot use -Status with a time argument. Use one command at a time." -ForegroundColor Yellow
+    Show-SdatHelp
+    exit 2
+}
+
+if ($Help) {
+    Show-SdatHelp
+    Send-SdatNotification -Message "Usage: sdat|ssat [HHMM / HH:MM [-p]] | sdat|ssat -Test HHMM [-p] | sdat|ssat -tui | sdat|ssat -a | sdat|ssat -aa | sdat|ssat -s | sdat|ssat -h"
+    exit 0
+}
+
 function Resolve-SdatActionType {
     param(
         [AllowNull()][string]$Value,
@@ -133,6 +144,54 @@ function Get-SdatActionLabel {
     param([Parameter(Mandatory)][string]$ActionType)
     if ((Resolve-SdatActionType -Value $ActionType) -eq "suspend") { return "suspend" }
     return "shutdown"
+}
+
+function Normalize-TimeInput {
+    param([Parameter(Mandatory)][string]$Value)
+    $raw = $Value.Trim()
+    if ([string]::IsNullOrWhiteSpace($raw)) {
+        throw "Missing time value. Use HHMM (e.g., 0930) or HH:MM."
+    }
+    $digits = ($raw -replace '\D', '')
+    if ($digits.Length -lt 3 -or $digits.Length -gt 4) {
+        throw "Invalid time format. Use HHMM (e.g., 0930) or HH:MM."
+    }
+    if ($digits.Length -eq 3) { $digits = "0$digits" }
+    return $digits
+}
+
+function Parse-TimeInput {
+    param([Parameter(Mandatory)][string]$Value)
+    return Parse-HHMM -Time (Normalize-TimeInput -Value $Value)
+}
+
+function Format-TimeRemaining {
+    param([Parameter(Mandatory)][datetime]$Target)
+    $remaining = $Target - (Get-Date)
+    if ($remaining.TotalSeconds -le 0) { return "now" }
+
+    $totalMinutes = [int][Math]::Ceiling($remaining.TotalMinutes)
+    if ($totalMinutes -le 1) { return "<1m" }
+
+    $days = [int]($totalMinutes / 1440)
+    $hours = [int](($totalMinutes % 1440) / 60)
+    $mins = [int]($totalMinutes % 60)
+
+    if ($days -gt 0) { return "{0}d {1}h {2}m" -f $days, $hours, $mins }
+    if ($hours -gt 0) { return "{0}h {1}m" -f $hours, $mins }
+    return "{0}m" -f $totalMinutes
+}
+
+function Ask-Confirmation {
+    param([Parameter(Mandatory)][string]$Prompt)
+    if ($Force) { return $true }
+    $reply = $null
+    try {
+        $reply = Read-Host "$Prompt (y/N)"
+    } catch {
+        return $false
+    }
+    return $reply -match '^(?i:y|yes)$'
 }
 
 function Test-SdatDryRun {
@@ -232,13 +291,15 @@ function Get-SdatStatusText {
     $vol = "none"
     if ($v.Exists -and $v.Info -and $v.Info.NextRunTime -gt [datetime]::MinValue) {
         $volAction = Get-SdatActionLabel -ActionType (Resolve-SdatActionType -Value $State.Volatile.ActionType)
-        $vol = ("{0} @ {1}" -f $volAction, (Format-LocalShort -Value $v.Info.NextRunTime))
+        $volRunAt = $v.Info.NextRunTime
+        $vol = ("{0} @ {1} (in {2})" -f $volAction, (Format-LocalShort -Value $volRunAt), (Format-TimeRemaining -Target $volRunAt))
     }
 
     $perm = "none"
     if ($pinfo.Exists -and $pinfo.Info -and $pinfo.Info.NextRunTime -gt [datetime]::MinValue) {
         $permAction = Get-SdatActionLabel -ActionType (Resolve-SdatActionType -Value $State.Permanent.ActionType)
-        $perm = ("{0} @ {1}" -f $permAction, (Format-LocalShort -Value $pinfo.Info.NextRunTime))
+        $permRunAt = $pinfo.Info.NextRunTime
+        $perm = ("{0} @ {1} (in {2})" -f $permAction, (Format-LocalShort -Value $permRunAt), (Format-TimeRemaining -Target $permRunAt))
     } elseif ($pinfo.Exists) {
         $permAction = Get-SdatActionLabel -ActionType (Resolve-SdatActionType -Value $State.Permanent.ActionType)
         $perm = ("{0} @ active" -f $permAction)
@@ -249,14 +310,23 @@ function Get-SdatStatusText {
         $at = $null
         if ($pinfo.Info -and $pinfo.Info.NextRunTime -gt [datetime]::MinValue) { $at = $pinfo.Info.NextRunTime }
         $sup = Get-PermanentSuppressionAt -State $State -Config $Config -AtLocal $at -VolatileTaskExists:($v.Exists)
-        if ($sup.Suppressed -and $sup.Until) { $suspend = (Format-LocalShort -Value $sup.Until) }
+        if ($sup.Suppressed -and $sup.Until) {
+            $kindLabel = if ($sup.Kind -eq "manual-skip") {
+                "manual"
+            } elseif ($sup.Kind -eq "volatile-upcoming") {
+                "volatile-window"
+            } else {
+                "grace"
+            }
+            $suspend = ("{0} [{1}]" -f (Format-LocalShort -Value $sup.Until), $kindLabel)
+        }
     }
 
     $legacyTasks = Get-ScheduledTask -ErrorAction SilentlyContinue | Where-Object { $_.TaskName -like 'ShutdownAt*' }
     $legacyCount = if ($legacyTasks) { ($legacyTasks | Measure-Object).Count } else { 0 }
     $legacy = if ($legacyCount -gt 0) { " | Legacy: ${legacyCount}" } else { "" }
 
-    return "One-time: $vol | Daily: $perm | SuppressedUntil: $suspend | Grace: $($Config.GraceMinutes)m${legacy}"
+    return "One-time: $vol | Daily: $perm | Suppression: $suspend | Grace: $($Config.GraceMinutes)m${legacy}"
 }
 
 function Get-SdatStatusSummaryLine {
@@ -552,6 +622,21 @@ if ($SkipPermanent) {
 if ($Clean) { $AA = $true }
 
 if ($AA) {
+    $names = Get-SdatTaskNames -Profile $script:sdatProfile
+    $v = Get-TaskInfoSafe -TaskName $names.Volatile
+    $p = Get-TaskInfoSafe -TaskName $names.Permanent
+    $legacyTasks = Get-ScheduledTask -ErrorAction SilentlyContinue | Where-Object { $_.TaskName -like 'ShutdownAt*' }
+    $legacyCount = if ($legacyTasks) { ($legacyTasks | Measure-Object).Count } else { 0 }
+    if (-not ($v.Exists -or $p.Exists -or $legacyCount -gt 0)) {
+        Write-Info "No scheduled tasks to cancel."
+        exit 0
+    }
+
+    if (-not (Ask-Confirmation -Prompt "Remove all SDAT + legacy scheduled tasks?")) {
+        Write-Info "Cancellation aborted."
+        exit 0
+    }
+
     $result = Invoke-CancelAllAndResetState
     $config = Load-SdatConfig -Root $root -Profile $script:sdatProfile
     $state = Load-SdatState -Root $root -Profile $script:sdatProfile
@@ -560,6 +645,18 @@ if ($AA) {
 }
 
 if ($A) {
+    $names = Get-SdatTaskNames -Profile $script:sdatProfile
+    $v = Get-TaskInfoSafe -TaskName $names.Volatile
+    $state = Load-SdatState -Root $root -Profile $script:sdatProfile
+    $actionLabel = Get-SdatActionLabel -ActionType (Resolve-SdatActionType -Value $state.Volatile.ActionType)
+    if (-not $v.Exists) {
+        Write-Info ("No pending one-time {0} to cancel." -f $actionLabel)
+        exit 0
+    }
+    if (-not (Ask-Confirmation -Prompt ("Cancel one-time scheduled {0}?" -f $actionLabel))) {
+        Write-Info "Cancellation aborted."
+        exit 0
+    }
     Invoke-CancelVolatile
     $config = Load-SdatConfig -Root $root -Profile $script:sdatProfile
     $state = Load-SdatState -Root $root -Profile $script:sdatProfile
@@ -690,7 +787,7 @@ if ($Tui) {
         if ($sel -eq 0) {
             $input = $null
             try {
-                $input = Read-LineWithEsc -Title "SDAT" -Header $header -Prompt "Set one-time (volatile) shutdown."
+                $input = Read-LineWithEsc -Title "SDAT" -Header $header -Prompt ("Set one-time (volatile) {0}." -f $actionLabel)
             } catch {
                 $notice = New-TuiNotice -Kind "error" -Message $_.Exception.Message
                 continue
@@ -698,11 +795,11 @@ if ($Tui) {
             if ($null -eq $input) { continue }
             if ([string]::IsNullOrWhiteSpace($input)) {
                 Invoke-CancelVolatile
-                $notice = New-TuiNotice -Kind "info" -Message "One-time shutdown canceled."
+                $notice = New-TuiNotice -Kind "info" -Message ("One-time {0} canceled." -f $actionLabel)
                 continue
             }
             try {
-                $parsed = Parse-HHMM -Time $input
+                $parsed = Parse-TimeInput -Value $input
                 $msg = Invoke-ScheduleVolatileOnce -Hours $parsed.Hours -Minutes $parsed.Minutes -ActionType $tuiActionType
                 $notice = New-TuiNotice -Kind "info" -Message $msg
             } catch {
@@ -714,7 +811,7 @@ if ($Tui) {
         if ($sel -eq 1) {
             $input = $null
             try {
-                $input = Read-LineWithEsc -Title "SDAT" -Header $header -Prompt "Set daily (permanent) shutdown."
+                $input = Read-LineWithEsc -Title "SDAT" -Header $header -Prompt ("Set daily (permanent) {0}." -f $actionLabel)
             } catch {
                 $notice = New-TuiNotice -Kind "error" -Message $_.Exception.Message
                 continue
@@ -722,11 +819,11 @@ if ($Tui) {
             if ($null -eq $input) { continue }
             if ([string]::IsNullOrWhiteSpace($input)) {
                 Invoke-CancelPermanent
-                $notice = New-TuiNotice -Kind "info" -Message "Daily shutdown canceled."
+                $notice = New-TuiNotice -Kind "info" -Message ("Daily {0} canceled." -f $actionLabel)
                 continue
             }
             try {
-                $parsed = Parse-HHMM -Time $input
+                $parsed = Parse-TimeInput -Value $input
                 $msg = Invoke-SchedulePermanentDaily -Hours $parsed.Hours -Minutes $parsed.Minutes -ActionType $tuiActionType
                 $notice = New-TuiNotice -Kind "info" -Message $msg
             } catch {
@@ -754,7 +851,7 @@ if ($Tui) {
     exit 0
 }
 
-if (-not $Time) {
+if ($Status -or -not $Time) {
     $config = Load-SdatConfig -Root $root -Profile $script:sdatProfile
     $state = Load-SdatState -Root $root -Profile $script:sdatProfile
     try {
@@ -765,13 +862,15 @@ if (-not $Time) {
             "-NotifyStatus",
             "-Profile", $script:sdatProfile
         ) | Out-Null
-    } catch { }
+    } catch {
+        Write-Host "Could not open background notification process." -ForegroundColor Yellow
+    }
     Write-Info (Get-SdatStatusText -State $state -Config $config)
     exit 0
 }
 
 try {
-    $parsed = Parse-HHMM -Time $Time
+    $parsed = Parse-TimeInput -Value $Time
 } catch {
     Write-Host $_.Exception.Message -ForegroundColor Yellow
     exit 1

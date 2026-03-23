@@ -100,6 +100,13 @@ function Invoke-SdatSelfTest {
         return $t.ToString("HHmm", [System.Globalization.CultureInfo]::InvariantCulture)
     }
 
+    function Set-RelaxedPermanentDelay {
+        param([Parameter(Mandatory)][string]$ProfileName)
+        $config = Load-SdatConfig -Root $Root -Profile $ProfileName
+        $config.MissedPermanentShutdownMaxDelayMinutes = 1440
+        Save-SdatConfig -Root $Root -Profile $ProfileName -Config $config
+    }
+
     $names = Get-SdatTaskNames -Profile $profileSafe
 
     Add-Test -Name "Clean slate" -Body {
@@ -109,6 +116,7 @@ function Invoke-SdatSelfTest {
         $state = New-DefaultSdatState
         Save-SdatState -Root $Root -Profile $profileSafe -State $state
 
+        Set-RelaxedPermanentDelay -ProfileName $profileSafe
         $config = Load-SdatConfig -Root $Root -Profile $profileSafe
         Assert-True -Condition ($null -ne $config.GraceMinutes) -Message "GraceMinutes missing from config"
     }
@@ -162,6 +170,7 @@ function Invoke-SdatSelfTest {
         Unregister-TaskIfExists -TaskName $names2.Volatile
         Unregister-TaskIfExists -TaskName $names2.Permanent
         Save-SdatState -Root $Root -Profile $p2 -State (New-DefaultSdatState)
+        Set-RelaxedPermanentDelay -ProfileName $p2
 
         $r1 = Invoke-SdatScript -Args @("-Profile", $p2, "-DryRun", "-Time", "0200", "-P")
         Assert-True -Condition ($r1.ExitCode -eq 0) -Message ("Script exited with {0}: {1}" -f $r1.ExitCode, $r1.Output)
@@ -188,6 +197,7 @@ function Invoke-SdatSelfTest {
         Unregister-TaskIfExists -TaskName $names2.Volatile
         Unregister-TaskIfExists -TaskName $names2.Permanent
         Save-SdatState -Root $Root -Profile $p2 -State (New-DefaultSdatState)
+        Set-RelaxedPermanentDelay -ProfileName $p2
 
         $r1 = Invoke-SdatScript -Args @("-Profile", $p2, "-Time", "0200", "-P")
         Assert-True -Condition ($r1.ExitCode -eq 0) -Message ("Script exited with {0}: {1}" -f $r1.ExitCode, $r1.Output)
@@ -218,6 +228,7 @@ function Invoke-SdatSelfTest {
         Unregister-TaskIfExists -TaskName $names2.Volatile
         Unregister-TaskIfExists -TaskName $names2.Permanent
         Save-SdatState -Root $Root -Profile $p2 -State (New-DefaultSdatState)
+        Set-RelaxedPermanentDelay -ProfileName $p2
 
         $r1 = Invoke-SdatScript -Args @("-Profile", $p2, "-DryRun", "-Time", "0200", "-P")
         Assert-True -Condition ($r1.ExitCode -eq 0) -Message ("Script exited with {0}: {1}" -f $r1.ExitCode, $r1.Output)
@@ -226,7 +237,7 @@ function Invoke-SdatSelfTest {
         $r2 = Invoke-SdatScript -Args @("-Profile", $p2, "-DryRun", "-Time", $soon)
         Assert-True -Condition ($r2.ExitCode -eq 0) -Message ("Script exited with {0}: {1}" -f $r2.ExitCode, $r2.Output)
 
-        $r3 = Invoke-SdatScript -Args @("-Profile", $p2, "-A")
+        $r3 = Invoke-SdatScript -Args @("-Profile", $p2, "-A", "-Force")
         Assert-True -Condition ($r3.ExitCode -eq 0) -Message ("Script exited with {0}: {1}" -f $r3.ExitCode, $r3.Output)
 
         $state = Load-SdatState -Root $Root -Profile $p2
@@ -251,12 +262,13 @@ function Invoke-SdatSelfTest {
         Unregister-TaskIfExists -TaskName $names2.Volatile
         Unregister-TaskIfExists -TaskName $names2.Permanent
         Save-SdatState -Root $Root -Profile $p2 -State (New-DefaultSdatState)
+        Set-RelaxedPermanentDelay -ProfileName $p2
 
         $r1 = Invoke-SdatScript -Args @("-Profile", $p2, "-DryRun", "-Time", "0200", "-P")
         Assert-True -Condition ($r1.ExitCode -eq 0) -Message ("Script exited with {0}: {1}" -f $r1.ExitCode, $r1.Output)
 
         $state = Load-SdatState -Root $Root -Profile $p2
-        $state.SuspendPermanentUntil = (Get-Date).AddHours(12).ToString("o", [System.Globalization.CultureInfo]::InvariantCulture)
+        $state.SuspendPermanentUntil = (Get-Date).AddHours(-12).ToString("o", [System.Globalization.CultureInfo]::InvariantCulture)
         $state.SuspendReason = "legacy-test"
         $state.Volatile.ScheduledFor = $null
         $state.Volatile.CreatedAt = $null
