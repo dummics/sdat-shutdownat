@@ -1,5 +1,17 @@
 Set-StrictMode -Version Latest
 
+function Convert-ToLocalDateTime {
+    param([AllowNull()][datetime]$Value)
+    if ($null -eq $Value) { return $null }
+    if ($Value.Kind -eq [System.DateTimeKind]::Utc) {
+        return $Value.ToLocalTime()
+    }
+    if ($Value.Kind -eq [System.DateTimeKind]::Local) {
+        return $Value
+    }
+    return [datetime]::SpecifyKind($Value, [System.DateTimeKind]::Local)
+}
+
 function Parse-HHMM {
     param([Parameter(Mandatory)][string]$Time)
     if ($Time -notmatch '^\d{4}$') { throw "Invalid time format. Use HHMM (e.g., 0030, 1345)." }
@@ -22,6 +34,7 @@ function Get-NextOccurrenceLocal {
 
 function Format-LocalShort {
     param([Parameter(Mandatory)][datetime]$Value)
-    return $Value.ToString('yyyy-MM-dd HH:mm')
+    $local = Convert-ToLocalDateTime -Value $Value
+    return $local.ToString('yyyy-MM-dd HH:mm')
 }
 

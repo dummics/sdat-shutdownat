@@ -30,9 +30,9 @@ function Get-TaskStartBoundaryLocal {
     $trigger = $Task.Triggers | Select-Object -First 1
     if (-not $trigger -or [string]::IsNullOrWhiteSpace($trigger.StartBoundary)) { return $null }
     try {
-        return [datetime]::Parse($trigger.StartBoundary, [System.Globalization.CultureInfo]::InvariantCulture)
+        return (Convert-ToLocalDateTime -Value ([datetime]::Parse($trigger.StartBoundary, [System.Globalization.CultureInfo]::InvariantCulture)))
     } catch {
-        try { return [datetime]::Parse($trigger.StartBoundary) } catch { return $null }
+        try { return (Convert-ToLocalDateTime -Value ([datetime]::Parse($trigger.StartBoundary))) } catch { return $null }
     }
 }
 

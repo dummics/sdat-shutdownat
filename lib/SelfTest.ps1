@@ -160,6 +160,18 @@ function Invoke-SdatSelfTest {
         Assert-True -Condition ($r.ExitCode -ne 0) -Message "Expected malformed time to be rejected"
     }
 
+    Add-Test -Name "UTC task times render like local times" -Body {
+        $localTarget = (Get-Date).AddMinutes(90)
+        $utcTarget = $localTarget.ToUniversalTime()
+        $localRemaining = Format-TimeRemaining -Target $localTarget
+        $utcRemaining = Format-TimeRemaining -Target $utcTarget
+        $localLabel = Format-LocalShort -Value $localTarget
+        $utcLabel = Format-LocalShort -Value $utcTarget
+
+        Assert-True -Condition ($localRemaining -eq $utcRemaining) -Message ("Expected equal countdowns, got local='{0}' utc='{1}'" -f $localRemaining, $utcRemaining)
+        Assert-True -Condition ($localLabel -eq $utcLabel) -Message ("Expected equal local labels, got local='{0}' utc='{1}'" -f $localLabel, $utcLabel)
+    }
+
     Add-Test -Name "Run one-time task via Task Scheduler (dry-run)" -Body {
         $null = & schtasks.exe /run /tn $names.Volatile 2>&1
         $deadline = (Get-Date).AddSeconds(8)

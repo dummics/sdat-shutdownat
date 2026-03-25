@@ -173,7 +173,7 @@ function Parse-TimeInput {
 
 function Format-TimeRemaining {
     param([Parameter(Mandatory)][datetime]$Target)
-    $remaining = $Target - (Get-Date)
+    $remaining = (Convert-ToLocalDateTime -Value $Target) - (Get-Date)
     if ($remaining.TotalSeconds -le 0) { return "now" }
 
     $totalMinutes = [int][Math]::Ceiling($remaining.TotalMinutes)
@@ -297,14 +297,14 @@ function Get-SdatStatusText {
     $vol = "none"
     if ($v.Exists -and $v.Info -and $v.Info.NextRunTime -gt [datetime]::MinValue) {
         $volAction = Get-SdatActionLabel -ActionType (Resolve-SdatActionType -Value $State.Volatile.ActionType)
-        $volRunAt = $v.Info.NextRunTime
+        $volRunAt = Convert-ToLocalDateTime -Value $v.Info.NextRunTime
         $vol = ("{0} @ {1} (in {2})" -f $volAction, (Format-LocalShort -Value $volRunAt), (Format-TimeRemaining -Target $volRunAt))
     }
 
     $perm = "none"
     if ($pinfo.Exists -and $pinfo.Info -and $pinfo.Info.NextRunTime -gt [datetime]::MinValue) {
         $permAction = Get-SdatActionLabel -ActionType (Resolve-SdatActionType -Value $State.Permanent.ActionType)
-        $permRunAt = $pinfo.Info.NextRunTime
+        $permRunAt = Convert-ToLocalDateTime -Value $pinfo.Info.NextRunTime
         $perm = ("{0} @ {1} (in {2})" -f $permAction, (Format-LocalShort -Value $permRunAt), (Format-TimeRemaining -Target $permRunAt))
     } elseif ($pinfo.Exists) {
         $permAction = Get-SdatActionLabel -ActionType (Resolve-SdatActionType -Value $State.Permanent.ActionType)
@@ -314,7 +314,7 @@ function Get-SdatStatusText {
     $suspend = "none"
     if ($pinfo.Exists) {
         $at = $null
-        if ($pinfo.Info -and $pinfo.Info.NextRunTime -gt [datetime]::MinValue) { $at = $pinfo.Info.NextRunTime }
+        if ($pinfo.Info -and $pinfo.Info.NextRunTime -gt [datetime]::MinValue) { $at = (Convert-ToLocalDateTime -Value $pinfo.Info.NextRunTime) }
         $sup = Get-PermanentSuppressionAt -State $State -Config $Config -AtLocal $at -VolatileTaskExists:($v.Exists)
         if ($sup.Suppressed -and $sup.Until) {
             $kindLabel = if ($sup.Kind -eq "manual-skip") {
@@ -352,7 +352,7 @@ function Get-PermanentSuppressionAt {
 )
 
     $graceMinutes = [int]$Config.GraceMinutes
-    $at = if ($AtLocal) { $AtLocal } else { Get-Date }
+    $at = if ($AtLocal) { Convert-ToLocalDateTime -Value $AtLocal } else { Get-Date }
     $manualUntil = Parse-LocalDateTimeOrNull -Value $State.SuspendPermanentUntil
     if ($manualUntil -and $at -lt $manualUntil) {
         return [pscustomobject]@{
@@ -554,7 +554,7 @@ function Invoke-SkipPermanentOnce {
     if (-not $info.Exists) {
         return "No permanent shutdown task found to skip."
     }
-    $nextRun = $info.Info.NextRunTime
+    $nextRun = Convert-ToLocalDateTime -Value $info.Info.NextRunTime
     if (-not $nextRun -or $nextRun -le [datetime]::MinValue) {
         $nextRun = (Get-Date).AddDays(1)
     }
