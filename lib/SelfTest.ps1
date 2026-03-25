@@ -172,6 +172,14 @@ function Invoke-SdatSelfTest {
         Assert-True -Condition ($localLabel -eq $utcLabel) -Message ("Expected equal local labels, got local='{0}' utc='{1}'" -f $localLabel, $utcLabel)
     }
 
+    Add-Test -Name "Time remaining floors hours correctly" -Body {
+        $now = Get-Date
+        $base = $now.AddSeconds(-$now.Second).AddMilliseconds(-$now.Millisecond)
+        $target = $base.AddMinutes(98)
+        $remaining = Format-TimeRemaining -Target $target
+        Assert-True -Condition ($remaining -eq "1h 38m") -Message ("Expected 1h 38m for a 98-minute target, got '{0}'" -f $remaining)
+    }
+
     Add-Test -Name "Run one-time task via Task Scheduler (dry-run)" -Body {
         $null = & schtasks.exe /run /tn $names.Volatile 2>&1
         $deadline = (Get-Date).AddSeconds(8)

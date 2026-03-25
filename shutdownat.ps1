@@ -173,14 +173,16 @@ function Parse-TimeInput {
 
 function Format-TimeRemaining {
     param([Parameter(Mandatory)][datetime]$Target)
-    $remaining = (Convert-ToLocalDateTime -Value $Target) - (Get-Date)
+    $targetLocal = Convert-ToLocalDateTime -Value $Target
+    $nowOffset = [System.DateTimeOffset]::Now
+    $remaining = ([System.DateTimeOffset]$targetLocal) - $nowOffset
     if ($remaining.TotalSeconds -le 0) { return "now" }
 
     $totalMinutes = [int][Math]::Ceiling($remaining.TotalMinutes)
     if ($totalMinutes -le 1) { return "<1m" }
 
-    $days = [int]($totalMinutes / 1440)
-    $hours = [int](($totalMinutes % 1440) / 60)
+    $days = [int][Math]::Floor($totalMinutes / 1440)
+    $hours = [int][Math]::Floor(($totalMinutes % 1440) / 60)
     $mins = [int]($totalMinutes % 60)
 
     if ($days -gt 0) { return "{0}d {1}h {2}m" -f $days, $hours, $mins }
