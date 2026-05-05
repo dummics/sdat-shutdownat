@@ -119,6 +119,7 @@ function Invoke-SdatSelfTest {
         Set-RelaxedPermanentDelay -ProfileName $profileSafe
         $config = Load-SdatConfig -Root $Root -Profile $profileSafe
         Assert-True -Condition ($null -ne $config.GraceMinutes) -Message "GraceMinutes missing from config"
+        Assert-True -Condition ($null -ne $config.DailyOverlapWindowMinutes) -Message "DailyOverlapWindowMinutes missing from config"
     }
 
     Add-Test -Name "Create daily task via script (dry-run action)" -Body {
@@ -155,7 +156,19 @@ function Invoke-SdatSelfTest {
         Assert-True -Condition ($a.Arguments -like "*-Profile $profileSafe*") -Message "Missing -Profile in Arguments"
     }
 
-    Add-Test -Name "Reject malformed HHMM input" -Body {
+    Add-Test -Name "Create one-time task from relative minutes input" -Body {
+        $r = Invoke-SdatScript -Args @("-Profile", $profileSafe, "-DryRun", "-Time", "90m", "-KeepDaily")
+        Assert-True -Condition ($r.ExitCode -eq 0) -Message ("Script exited with {0}: {1}" -f $r.ExitCode, $r.Output)
+        $info = Get-TaskInfoSafe -TaskName $names.Volatile
+        Assert-True -Condition $info.Exists -Message "Expected $($names.Volatile) to exist"
+    }
+
+    Add-Test -Name "Reject relative input for daily schedules" -Body {
+        $r = Invoke-SdatScript -Args @("-Profile", $profileSafe, "-DryRun", "-Time", "2h", "-P")
+        Assert-True -Condition ($r.ExitCode -ne 0) -Message "Expected relative daily schedule to be rejected"
+    }
+
+    Add-Test -Name "Reject malformed time input" -Body {
         $r = Invoke-SdatScript -Args @("-Profile", $profileSafe, "-DryRun", "-Time", "1x30")
         Assert-True -Condition ($r.ExitCode -ne 0) -Message "Expected malformed time to be rejected"
     }
@@ -208,8 +221,7 @@ function Invoke-SdatSelfTest {
         $r1 = Invoke-SdatScript -Args @("-Profile", $p2, "-DryRun", "-Time", "0200", "-P")
         Assert-True -Condition ($r1.ExitCode -eq 0) -Message ("Script exited with {0}: {1}" -f $r1.ExitCode, $r1.Output)
 
-        $soon = Get-SoonTimeHHMM -MinutesAhead 1
-        $r2 = Invoke-SdatScript -Args @("-Profile", $p2, "-DryRun", "-Time", $soon)
+        $r2 = Invoke-SdatScript -Args @("-Profile", $p2, "-DryRun", "-Time", "2m")
         Assert-True -Condition ($r2.ExitCode -eq 0) -Message ("Script exited with {0}: {1}" -f $r2.ExitCode, $r2.Output)
 
         $null = & schtasks.exe /run /tn $names2.Permanent 2>&1
@@ -219,6 +231,50 @@ function Invoke-SdatSelfTest {
             $state = Load-SdatState -Root $Root -Profile $p2
         } while ([string]::IsNullOrWhiteSpace($state.Permanent.LastSkippedAt) -and (Get-Date) -lt $deadline)
         Assert-True -Condition (-not [string]::IsNullOrWhiteSpace($state.Permanent.LastSkippedAt)) -Message "Expected Permanent.LastSkippedAt to be set (suppressed)"
+
+        Unregister-TaskIfExists -TaskName $names2.Permanent
+        Unregister-TaskIfExists -TaskName $names2.Volatile
+    }
+
+    Add-Test -Name "Daily overlap: one-time skips next daily once" -Body {
+        $p2 = "${profileSafe}_overlap"
+        $names2 = Get-SdatTaskNames -Profile $p2
+        Unregister-TaskIfExists -TaskName $names2.Volatile
+        Unregister-TaskIfExists -TaskName $names2.Permanent
+        Save-SdatState -Root $Root -Profile $p2 -State (New-DefaultSdatState)
+        Set-RelaxedPermanentDelay -ProfileName $p2
+
+        $daily = Get-SoonTimeHHMM -MinutesAhead 90
+        $r1 = Invoke-SdatScript -Args @("-Profile", $p2, "-DryRun", "-Time", $daily, "-P")
+        Assert-True -Condition ($r1.ExitCode -eq 0) -Message ("Script exited with {0}: {1}" -f $r1.ExitCode, $r1.Output)
+
+        $r2 = Invoke-SdatScript -Args @("-Profile", $p2, "-DryRun", "-Time", "95m")
+        Assert-True -Condition ($r2.ExitCode -eq 0) -Message ("Script exited with {0}: {1}" -f $r2.ExitCode, $r2.Output)
+
+        $state = Load-SdatState -Root $Root -Profile $p2
+        Assert-True -Condition (-not [string]::IsNullOrWhiteSpace($state.SuspendPermanentUntil)) -Message "Expected overlap to record a one-time skip for daily"
+
+        Unregister-TaskIfExists -TaskName $names2.Permanent
+        Unregister-TaskIfExists -TaskName $names2.Volatile
+    }
+
+    Add-Test -Name "Daily overlap: -KeepDaily leaves daily active" -Body {
+        $p2 = "${profileSafe}_keep"
+        $names2 = Get-SdatTaskNames -Profile $p2
+        Unregister-TaskIfExists -TaskName $names2.Volatile
+        Unregister-TaskIfExists -TaskName $names2.Permanent
+        Save-SdatState -Root $Root -Profile $p2 -State (New-DefaultSdatState)
+        Set-RelaxedPermanentDelay -ProfileName $p2
+
+        $daily = Get-SoonTimeHHMM -MinutesAhead 90
+        $r1 = Invoke-SdatScript -Args @("-Profile", $p2, "-DryRun", "-Time", $daily, "-P")
+        Assert-True -Condition ($r1.ExitCode -eq 0) -Message ("Script exited with {0}: {1}" -f $r1.ExitCode, $r1.Output)
+
+        $r2 = Invoke-SdatScript -Args @("-Profile", $p2, "-DryRun", "-Time", "95m", "-KeepDaily")
+        Assert-True -Condition ($r2.ExitCode -eq 0) -Message ("Script exited with {0}: {1}" -f $r2.ExitCode, $r2.Output)
+
+        $state = Load-SdatState -Root $Root -Profile $p2
+        Assert-True -Condition ([string]::IsNullOrWhiteSpace($state.SuspendPermanentUntil)) -Message "Expected -KeepDaily to avoid daily skip"
 
         Unregister-TaskIfExists -TaskName $names2.Permanent
         Unregister-TaskIfExists -TaskName $names2.Volatile
@@ -266,8 +322,7 @@ function Invoke-SdatSelfTest {
         $r1 = Invoke-SdatScript -Args @("-Profile", $p2, "-DryRun", "-Time", "0200", "-P")
         Assert-True -Condition ($r1.ExitCode -eq 0) -Message ("Script exited with {0}: {1}" -f $r1.ExitCode, $r1.Output)
 
-        $soon = Get-SoonTimeHHMM -MinutesAhead 1
-        $r2 = Invoke-SdatScript -Args @("-Profile", $p2, "-DryRun", "-Time", $soon)
+        $r2 = Invoke-SdatScript -Args @("-Profile", $p2, "-DryRun", "-Time", "2m")
         Assert-True -Condition ($r2.ExitCode -eq 0) -Message ("Script exited with {0}: {1}" -f $r2.ExitCode, $r2.Output)
 
         $r3 = Invoke-SdatScript -Args @("-Profile", $p2, "-A", "-Force")

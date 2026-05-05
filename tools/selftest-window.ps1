@@ -45,7 +45,9 @@ Write-Host ""
 Write-Host "Running... (this can take ~20-30 seconds)" -ForegroundColor Gray
 Write-Host ""
 
-$out = & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $scriptPath -SelfTest -Profile $profileSafe @forward 2>&1
+$psExe = "powershell.exe"
+if (Get-Command pwsh.exe -ErrorAction SilentlyContinue) { $psExe = "pwsh.exe" }
+$out = & $psExe -NoProfile -ExecutionPolicy Bypass -File $scriptPath -SelfTest -Profile $profileSafe @forward 2>&1
 $exitCode = $LASTEXITCODE
 
 Write-Host ($out | Out-String)

@@ -101,6 +101,9 @@ function Load-SdatConfig {
     if ((-not (Test-HasProp -Obj $config -Name "GraceMinutes")) -or $null -eq $config.GraceMinutes) {
         $config | Add-Member -NotePropertyName GraceMinutes -NotePropertyValue 60 -Force
     }
+    if ((-not (Test-HasProp -Obj $config -Name "DailyOverlapWindowMinutes")) -or $null -eq $config.DailyOverlapWindowMinutes) {
+        $config | Add-Member -NotePropertyName DailyOverlapWindowMinutes -NotePropertyValue 120 -Force
+    }
     if ((-not (Test-HasProp -Obj $config -Name "MissedVolatileShutdownMaxDelayMinutes")) -or $null -eq $config.MissedVolatileShutdownMaxDelayMinutes) {
         $config | Add-Member -NotePropertyName MissedVolatileShutdownMaxDelayMinutes -NotePropertyValue 0 -Force
     }

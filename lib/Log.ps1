@@ -77,10 +77,13 @@ function Write-SdatLog {
         if (-not [string]::IsNullOrWhiteSpace($json)) { $suffix = " | " + $json }
     }
     $line = "{0} [{1}] ({2}/{3}) {4}{5}" -f $ts, $Level, $Ctx.Mode, $Ctx.RunId, $Message, $suffix
-    try {
-        Add-Content -LiteralPath $Ctx.LogPath -Value $line -Encoding UTF8
-    } catch {
-        # Ignore logging failures
+    for ($i = 0; $i -lt 3; $i++) {
+        try {
+            Add-Content -LiteralPath $Ctx.LogPath -Value $line -Encoding UTF8 -ErrorAction Stop
+            return
+        } catch {
+            if ($i -lt 2) { Start-Sleep -Milliseconds 80 }
+        }
     }
 }
 
@@ -101,5 +104,12 @@ function Write-SdatJsonl {
     $dir = Split-Path -Parent $Path
     if (-not (Test-Path -LiteralPath $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
     $line = ($Object | ConvertTo-Json -Depth 10 -Compress)
-    Add-Content -LiteralPath $Path -Value $line -Encoding UTF8
+    for ($i = 0; $i -lt 3; $i++) {
+        try {
+            Add-Content -LiteralPath $Path -Value $line -Encoding UTF8 -ErrorAction Stop
+            return
+        } catch {
+            if ($i -lt 2) { Start-Sleep -Milliseconds 80 }
+        }
+    }
 }

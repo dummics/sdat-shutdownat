@@ -1,5 +1,6 @@
 {
   "GraceMinutes": 60,
+  "DailyOverlapWindowMinutes": 120,
   "MissedVolatileShutdownMaxDelayMinutes": 0,
   "MissedPermanentShutdownMaxDelayMinutes": 0
 }

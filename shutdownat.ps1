@@ -3,12 +3,12 @@
 
     Usage:
       sdat                # show status
-      sdat HHMM           # schedule one-time (volatile) shutdown
-      sdat HHMM -p        # schedule daily (permanent) shutdown
-      ssat HHMM           # schedule one-time (volatile) suspend
-      ssat HHMM -p        # schedule daily (permanent) suspend
-      sdat -Test HHMM [-p]
-      ssat -Test HHMM [-p]
+      sdat TIME           # schedule one-time (volatile) shutdown
+      sdat TIME -p        # schedule daily (permanent) shutdown
+      ssat TIME           # schedule one-time (volatile) suspend
+      ssat TIME -p        # schedule daily (permanent) suspend
+      sdat -Test TIME [-p]
+      ssat -Test TIME [-p]
       sdat -tui
       ssat -tui
       sdat -a             # cancel one-time (volatile) task
@@ -27,6 +27,7 @@ param(
     [switch]$Clean,  # alias for -AA (kept for wrapper compatibility)
     [switch]$P,      # permanent (daily)
     [switch]$Suspend, # schedule/run suspend instead of shutdown
+    [Alias('k')][switch]$KeepDaily, # keep daily task even when one-time overlaps it
     [switch]$Tui,
     [Alias('S')][switch]$SkipPermanent,     # skip next permanent run once
     [Alias('h')][switch]$Help,
@@ -60,23 +61,30 @@ $root = Split-Path -Parent $PSCommandPath
 
 function Show-SdatHelp {
     $lines = @(
-        "Usage: sdat|ssat [HHMM / HH:MM [-p]] | sdat|ssat -Test HHMM [-p] | sdat|ssat -tui | sdat|ssat -a | sdat|ssat -aa | sdat|ssat -s | sdat|ssat -h",
+        "Usage: sdat|ssat [TIME [-p]] | sdat|ssat -Test TIME [-p] | sdat|ssat -tui | sdat|ssat -a | sdat|ssat -aa | sdat|ssat -s | sdat|ssat -h",
         "",
         "Commands:",
-        "  (no args)            show status and a notification",
+        "  (no args)            show status, next shutdown time, and quick examples",
         "  -Status              explicit status check (same as no args)",
-        "  HHMM / HH:MM [-p]    schedule a volatile (-p omitted) or permanent (-p) shutdown/suspend",
-        "  -Test HHMM [-p]      dry run the volatile or permanent power action",
+        "  TIME [-p]            schedule one-time (-p omitted) or daily (-p) shutdown/suspend",
+        "  -Test TIME [-p]      dry run the one-time or daily power action",
         "  -Suspend             use suspend action (ssat wrapper always sets this)",
+        "  -k / -KeepDaily      keep the daily task when one-time is near it",
         "  -tui                 open the interactive configuration UI",
         "  -a                   cancel the pending one-time action (use -f / -Force to skip confirm)",
         "  -aa / -Clean         cancel every SDAT and legacy scheduled task (use -f / -Force to skip confirm)",
         "  -s / -SkipPermanent  toggle skip for the next permanent run",
         "  -h / -Help           show this help output",
         "",
+        "TIME examples:",
+        "  2330, 23:30          absolute clock time",
+        "  2h, 23h              relative hours",
+        "  45m, 303min          relative minutes",
+        "  60s, 180sec          relative seconds",
+        "",
         "Special modes: -NotifyStatus, -RunVolatile, -RunPermanent, -SelfTest"
     )
-    foreach ($line in $lines) { Write-Host $line }
+    Write-SdatHelpView -Lines $lines
 }
 
 function Test-FromWinR { return ($env:SDAT_FROM_WINR -eq '1') }
@@ -120,7 +128,7 @@ if ($Status -and $Time) {
 
 if ($Help) {
     Show-SdatHelp
-    Send-SdatNotification -Message "Usage: sdat|ssat [HHMM / HH:MM [-p]] | sdat|ssat -Test HHMM [-p] | sdat|ssat -tui | sdat|ssat -a | sdat|ssat -aa | sdat|ssat -s | sdat|ssat -h"
+    Send-SdatNotification -Message "Usage: sdat|ssat [TIME [-p]] | sdat|ssat -Test TIME [-p] | sdat|ssat -tui | sdat|ssat -a | sdat|ssat -aa | sdat|ssat -s | sdat|ssat -h"
     exit 0
 }
 
@@ -150,7 +158,7 @@ function Normalize-TimeInput {
     param([Parameter(Mandatory)][string]$Value)
     $raw = $Value.Trim()
     if ([string]::IsNullOrWhiteSpace($raw)) {
-        throw "Missing time value. Use HHMM (e.g., 0930) or HH:MM."
+        throw "Missing time value. Use HHMM/HH:MM or a duration like 2h, 45m, 180s."
     }
 
     $digits = $null
@@ -159,7 +167,7 @@ function Normalize-TimeInput {
     } elseif ($raw -match '^\d{1,2}:\d{2}$') {
         $digits = ($raw -replace ':', '')
     } else {
-        throw "Invalid time format. Use HHMM (e.g., 0930) or HH:MM."
+        throw "Invalid time format. Use HHMM/HH:MM or a duration like 2h, 45m, 180s."
     }
 
     if ($digits.Length -eq 3) { $digits = "0$digits" }
@@ -169,6 +177,54 @@ function Normalize-TimeInput {
 function Parse-TimeInput {
     param([Parameter(Mandatory)][string]$Value)
     return Parse-HHMM -Time (Normalize-TimeInput -Value $Value)
+}
+
+function Resolve-SdatTimeInput {
+    param(
+        [Parameter(Mandatory)][string]$Value,
+        [datetime]$Now = (Get-Date)
+    )
+    $raw = $Value.Trim()
+    if ([string]::IsNullOrWhiteSpace($raw)) {
+        throw "Missing time value. Use 2330, 23:30, 2h, 45m, or 180s."
+    }
+
+    if ($raw -match '^(?<amount>\d+)\s*(?<unit>h|hr|hrs|hour|hours|ora|ore|m|min|mins|minute|minutes|s|sec|secs|second|seconds|secondi)$') {
+        $amount = [int]$Matches.amount
+        $unit = $Matches.unit.ToLowerInvariant()
+        if ($amount -le 0) { throw "Duration must be greater than zero." }
+
+        $seconds = 0
+        if ($unit -in @("h", "hr", "hrs", "hour", "hours", "ora", "ore")) { $seconds = $amount * 3600 }
+        elseif ($unit -in @("m", "min", "mins", "minute", "minutes")) { $seconds = $amount * 60 }
+        else { $seconds = $amount }
+
+        $target = $Now.AddSeconds($seconds)
+        if ($target.Second -gt 0 -or $target.Millisecond -gt 0) {
+            $target = $target.AddMinutes(1).AddSeconds(-$target.Second).AddMilliseconds(-$target.Millisecond)
+        }
+        return [pscustomobject]@{
+            Kind = "relative"
+            Raw = $raw
+            Hours = $target.Hour
+            Minutes = $target.Minute
+            TargetLocal = $target
+            DurationSeconds = $seconds
+            Label = ("in {0}" -f (Format-TimeRemaining -Target $target))
+        }
+    }
+
+    $parsed = Parse-TimeInput -Value $raw
+    $targetLocal = Get-NextOccurrenceLocal -Hours $parsed.Hours -Minutes $parsed.Minutes -Now $Now
+    return [pscustomobject]@{
+        Kind = "absolute"
+        Raw = $raw
+        Hours = $parsed.Hours
+        Minutes = $parsed.Minutes
+        TargetLocal = $targetLocal
+        DurationSeconds = $null
+        Label = ("at {0}:{1}" -f $parsed.Hours.ToString('D2'), $parsed.Minutes.ToString('D2'))
+    }
 }
 
 function Format-TimeRemaining {
@@ -334,7 +390,31 @@ function Get-SdatStatusText {
     $legacyCount = if ($legacyTasks) { ($legacyTasks | Measure-Object).Count } else { 0 }
     $legacy = if ($legacyCount -gt 0) { " | Legacy: ${legacyCount}" } else { "" }
 
-    return "One-time: $vol | Daily: $perm | Suppression: $suspend | Grace: $($Config.GraceMinutes)m${legacy}"
+    $overlap = if (Test-HasProp -Obj $Config -Name "DailyOverlapWindowMinutes") { [int]$Config.DailyOverlapWindowMinutes } else { 120 }
+    return "One-time: $vol | Daily: $perm | Suppression: $suspend | Grace: $($Config.GraceMinutes)m | Overlap: $($overlap)m${legacy}"
+}
+
+function Get-SdatStatusViewLines {
+    param(
+        [Parameter(Mandatory)]$State,
+        [Parameter(Mandatory)]$Config
+    )
+    $summary = Get-SdatStatusText -State $State -Config $Config
+    return @(
+        $summary,
+        "Daily overlap: one-time wins within $([int]$Config.DailyOverlapWindowMinutes)m unless -k is used."
+    )
+}
+
+function Get-SdatQuickHints {
+    return @(
+        "sdat 2330       schedule one-time at 23:30",
+        "sdat 2h         schedule one-time in 2 hours",
+        "sdat 45m        schedule one-time in 45 minutes",
+        "sdat 0200 -p    schedule daily at 02:00",
+        "sdat -s         skip next daily once",
+        "sdat -k 45m     keep daily even if one-time overlaps"
+    )
 }
 
 function Get-SdatStatusSummaryLine {
@@ -576,15 +656,16 @@ function Invoke-SkipPermanentOnce {
 
 function Invoke-ScheduleVolatileOnce {
     param(
-        [Parameter(Mandatory)][int]$Hours,
-        [Parameter(Mandatory)][int]$Minutes,
+        [int]$Hours,
+        [int]$Minutes,
+        [AllowNull()][datetime]$TargetLocal,
         [Parameter(Mandatory)][ValidateSet("shutdown", "suspend")][string]$ActionType
     )
     $config = Load-SdatConfig -Root $root -Profile $script:sdatProfile
     $state = Load-SdatState -Root $root -Profile $script:sdatProfile
     $names = Get-SdatTaskNames -Profile $script:sdatProfile
 
-    $target = Get-NextOccurrenceLocal -Hours $Hours -Minutes $Minutes
+    $target = if ($TargetLocal) { Convert-ToLocalDateTime -Value $TargetLocal } else { Get-NextOccurrenceLocal -Hours $Hours -Minutes $Minutes }
     $targetStr = Format-LocalShort -Value $target
 
     $null = Remove-LegacyShutdownAtTasks -Force:([string]::IsNullOrWhiteSpace($script:sdatProfile))
@@ -595,7 +676,50 @@ function Invoke-ScheduleVolatileOnce {
     Save-SdatState -Root $root -Profile $script:sdatProfile -State $state
     Write-SdatLog -Ctx $script:logCtx -Level "INFO" -Message "Scheduled one-time action" -Data @{ Target = $target.ToString("o"); Task = $names.Volatile; GraceMinutes = [int]$config.GraceMinutes; ActionType = $state.Volatile.ActionType }
 
-    return ("Volatile {0} scheduled: {1} (task: {2})" -f (Get-SdatActionLabel -ActionType $state.Volatile.ActionType), $targetStr, $names.Volatile)
+    $msg = ("One-time {0} scheduled: {1} (task: {2})" -f (Get-SdatActionLabel -ActionType $state.Volatile.ActionType), $targetStr, $names.Volatile)
+    if (-not $KeepDaily) {
+        $overlap = Set-DailySkipForVolatileOverlap -TargetLocal $target -State $state -Config $config
+        if ($overlap.Applied) {
+            $msg += (" Daily at {0} will be skipped once." -f (Format-LocalShort -Value $overlap.PermanentRunAt))
+        }
+    }
+    return $msg
+}
+
+function Set-DailySkipForVolatileOverlap {
+    param(
+        [Parameter(Mandatory)][datetime]$TargetLocal,
+        [Parameter(Mandatory)]$State,
+        [Parameter(Mandatory)]$Config
+    )
+    $names = Get-SdatTaskNames -Profile $script:sdatProfile
+    $pinfo = Get-TaskInfoSafe -TaskName $names.Permanent
+    if (-not ($pinfo.Exists -and $pinfo.Info -and $pinfo.Info.NextRunTime -gt [datetime]::MinValue)) {
+        return [pscustomobject]@{ Applied = $false; PermanentRunAt = $null }
+    }
+
+    $nextRun = Convert-ToLocalDateTime -Value $pinfo.Info.NextRunTime
+    $windowMinutes = [int]$Config.DailyOverlapWindowMinutes
+    if ($windowMinutes -le 0) { return [pscustomobject]@{ Applied = $false; PermanentRunAt = $nextRun } }
+
+    $distance = [Math]::Abs(($nextRun - (Convert-ToLocalDateTime -Value $TargetLocal)).TotalMinutes)
+    if ($distance -gt $windowMinutes) {
+        return [pscustomobject]@{ Applied = $false; PermanentRunAt = $nextRun }
+    }
+
+    $culture = [System.Globalization.CultureInfo]::InvariantCulture
+    $until = $nextRun.AddMinutes(5)
+    $State.SuspendPermanentUntil = $until.ToString("o", $culture)
+    $State.SuspendSetAt = (Get-Date).ToString("o", $culture)
+    $State.SuspendReason = ("one-time overlap for {0}" -f (Format-LocalShort -Value (Convert-ToLocalDateTime -Value $TargetLocal)))
+    Save-SdatState -Root $root -Profile $script:sdatProfile -State $State
+    Write-SdatLog -Ctx $script:logCtx -Level "INFO" -Message "Daily run skipped once because one-time overlaps it" -Data @{
+        VolatileTarget = (Convert-ToLocalDateTime -Value $TargetLocal).ToString("o", $culture)
+        PermanentRunAt = $nextRun.ToString("o", $culture)
+        WindowMinutes = $windowMinutes
+        DistanceMinutes = $distance
+    }
+    return [pscustomobject]@{ Applied = $true; PermanentRunAt = $nextRun }
 }
 
 if ($RunVolatile) { exit (Invoke-RunVolatile) }
@@ -807,8 +931,8 @@ if ($Tui) {
                 continue
             }
             try {
-                $parsed = Parse-TimeInput -Value $input
-                $msg = Invoke-ScheduleVolatileOnce -Hours $parsed.Hours -Minutes $parsed.Minutes -ActionType $tuiActionType
+                $resolved = Resolve-SdatTimeInput -Value $input
+                $msg = Invoke-ScheduleVolatileOnce -TargetLocal $resolved.TargetLocal -ActionType $tuiActionType
                 $notice = New-TuiNotice -Kind "info" -Message $msg
             } catch {
                 $notice = New-TuiNotice -Kind "error" -Message $_.Exception.Message
@@ -831,8 +955,9 @@ if ($Tui) {
                 continue
             }
             try {
-                $parsed = Parse-TimeInput -Value $input
-                $msg = Invoke-SchedulePermanentDaily -Hours $parsed.Hours -Minutes $parsed.Minutes -ActionType $tuiActionType
+                $resolved = Resolve-SdatTimeInput -Value $input
+                if ($resolved.Kind -ne "absolute") { throw "Daily schedules need a clock time like 0200 or 02:00. Use durations for one-time only." }
+                $msg = Invoke-SchedulePermanentDaily -Hours $resolved.Hours -Minutes $resolved.Minutes -ActionType $tuiActionType
                 $notice = New-TuiNotice -Kind "info" -Message $msg
             } catch {
                 $notice = New-TuiNotice -Kind "error" -Message $_.Exception.Message
@@ -862,7 +987,8 @@ if ($Tui) {
 if ($Status -or -not $Time) {
     $config = Load-SdatConfig -Root $root -Profile $script:sdatProfile
     $state = Load-SdatState -Root $root -Profile $script:sdatProfile
-    try {
+    if (Test-FromWinR) {
+        try {
         Start-Process -WindowStyle Hidden -FilePath "powershell.exe" -ArgumentList @(
             "-NoProfile",
             "-ExecutionPolicy", "Bypass",
@@ -870,15 +996,16 @@ if ($Status -or -not $Time) {
             "-NotifyStatus",
             "-Profile", $script:sdatProfile
         ) | Out-Null
-    } catch {
-        Write-Host "Could not open background notification process." -ForegroundColor Yellow
+        } catch {
+            Write-Host "Could not open background notification process." -ForegroundColor Yellow
+        }
     }
-    Write-Info (Get-SdatStatusText -State $state -Config $config)
+    Write-SdatStatusView -Lines (Get-SdatStatusViewLines -State $state -Config $config) -Hints (Get-SdatQuickHints)
     exit 0
 }
 
 try {
-    $parsed = Parse-TimeInput -Value $Time
+    $resolved = Resolve-SdatTimeInput -Value $Time
 } catch {
     Write-Host $_.Exception.Message -ForegroundColor Yellow
     exit 1
@@ -889,21 +1016,29 @@ $names = Get-SdatTaskNames -Profile $script:sdatProfile
 
 if ($P) {
     $requestedAction = Get-SdatRequestedActionType
+    if ($resolved.Kind -ne "absolute") {
+        Write-Host "Daily schedules need a clock time like 0200 or 02:00. Use durations for one-time only." -ForegroundColor Yellow
+        exit 1
+    }
     if ($Test) {
-        Write-Info ("Would schedule PERMANENT daily {0} at {1}:{2} (TEST MODE)" -f (Get-SdatActionLabel -ActionType $requestedAction), $parsed.Hours.ToString('D2'), $parsed.Minutes.ToString('D2'))
+        Write-Info ("Would schedule DAILY {0} at {1}:{2} (TEST MODE)" -f (Get-SdatActionLabel -ActionType $requestedAction), $resolved.Hours.ToString('D2'), $resolved.Minutes.ToString('D2'))
         exit 0
     }
-    Write-Info (Invoke-SchedulePermanentDaily -Hours $parsed.Hours -Minutes $parsed.Minutes -ActionType $requestedAction)
+    Write-Info (Invoke-SchedulePermanentDaily -Hours $resolved.Hours -Minutes $resolved.Minutes -ActionType $requestedAction)
     exit 0
 }
 
 if ($Test) {
     $requestedAction = Get-SdatRequestedActionType
-    $target = Get-NextOccurrenceLocal -Hours $parsed.Hours -Minutes $parsed.Minutes
+    $target = $resolved.TargetLocal
     $targetStr = Format-LocalShort -Value $target
-    Write-Info ("Would schedule VOLATILE {0} at {1} (TEST MODE)" -f (Get-SdatActionLabel -ActionType $requestedAction), $targetStr)
-    Write-Info "Would suppress daily action if within $([int]$config.GraceMinutes)m grace window"
+    Write-Info ("Would schedule ONE-TIME {0} at {1} ({2}) (TEST MODE)" -f (Get-SdatActionLabel -ActionType $requestedAction), $targetStr, $resolved.Label)
+    if ($KeepDaily) {
+        Write-Info "Would keep the daily action even if it overlaps (-k / -KeepDaily)"
+    } else {
+        Write-Info "Would skip the next daily action once if within $([int]$config.DailyOverlapWindowMinutes)m overlap window"
+    }
     exit 0
 }
 
-Write-Info (Invoke-ScheduleVolatileOnce -Hours $parsed.Hours -Minutes $parsed.Minutes -ActionType (Get-SdatRequestedActionType))
+Write-Info (Invoke-ScheduleVolatileOnce -TargetLocal $resolved.TargetLocal -ActionType (Get-SdatRequestedActionType))

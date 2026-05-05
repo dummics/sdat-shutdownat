@@ -11,10 +11,10 @@ It supports:
 
 ## Purpose
 
-- Schedule a shutdown/suspend at a specified time (HHmm, 24-hour format).
+- Schedule a shutdown/suspend at a clock time (HHmm / HH:mm) or after a short duration.
 - Keep tasks unique (never multiple volatile/permanent tasks).
 - Provide a simple wrapper for launching via Windows Run (WIN+R) or from other scripts.
-- Allow a smart suspend window so a manual/volatile trigger can temporarily suppress the permanent schedule.
+- Allow a smart overlap window so a one-time trigger can temporarily suppress the next daily schedule.
 
 ## Files
 
@@ -36,7 +36,7 @@ sdat
 ssat
 ```
 
-This also shows a small, dismissible Windows notification with the current scheduled status (best-effort; falls back to console output if notifications are unavailable).
+In a terminal this shows a compact status view. When PowerShell 7 is available, the wrapper uses `PwshSpectreConsole` for a cleaner terminal panel; it falls back to plain console output when needed.
 
 Tip: when launching from Win+R, the `sdat.bat` wrapper starts the notification in a detached GUI host so it can still appear even though the console closes immediately.
 
@@ -44,6 +44,14 @@ Tip: when launching from Win+R, the `sdat.bat` wrapper starts the notification i
 
 ```powershell
 sdat 0030
+```
+
+- Schedule a **volatile** shutdown after a duration:
+
+```powershell
+sdat 2h
+sdat 45m
+sdat 180s
 ```
 
 - Schedule a **volatile** suspend at 00:30 (one-use):
@@ -57,6 +65,8 @@ ssat 0030
 ```powershell
 sdat 0300 -p
 ```
+
+Daily schedules use clock times only. Durations such as `2h` are intentionally limited to one-time actions.
 
 - Schedule a **permanent** daily suspend at 03:00:
 
@@ -119,13 +129,21 @@ sdat 9:30
 sdat 1130
 ```
 
+- Keep the daily schedule even when a one-time action is close to it:
+
+```powershell
+sdat 45m -k
+sdat 45m -KeepDaily
+```
+
 ## Behavior
 
 - Volatile task name: `SDAT_Volatile` (one-shot).
 - Permanent task name: `SDAT_Permanent` (daily).
 - The latest command wins: scheduling with `sdat` or `ssat` updates the same volatile/permanent task slot, so there is never more than one volatile and one permanent task.
 - If the provided time is in the past for the current day, the volatile action schedules for the next day.
-- When a volatile action is scheduled, the permanent schedule is suspended until `volatile + GraceMinutes` (configurable) to avoid unwanted actions near manual usage.
+- When a one-time action is scheduled near the next daily action, the one-time action wins by default and the next daily action is skipped once. The overlap window is controlled by `DailyOverlapWindowMinutes` (default: 120). Use `-k` / `-KeepDaily` to keep both.
+- `GraceMinutes` still protects the daily action around recent or upcoming one-time runs.
 - Use `sdat -s` to toggle suppression of the next permanent shutdown; running it again clears the skip, and the normal daily schedule resumes after the skipped run.
 - In TUI (`-tui`) you can quickly toggle action mode between shutdown/suspend without leaving the menu.
 - The volatile execution cleans up after itself (task + volatile state), so `sdat` shows "Volatile: none" after it runs.

@@ -1,5 +1,79 @@
 Set-StrictMode -Version Latest
 
+$script:SdatSpectreProviderChecked = $false
+$script:SdatSpectreProviderLoaded = $false
+
+function Import-SdatSpectreProvider {
+    if ($script:SdatSpectreProviderChecked) { return $script:SdatSpectreProviderLoaded }
+    $script:SdatSpectreProviderChecked = $true
+    $script:SdatSpectreProviderLoaded = $false
+
+    $modulePath = "C:\Users\domix\.codex\vendor_imports\powershell\PwshSpectreConsole\2.6.3\PwshSpectreConsole.psd1"
+    if (-not (Test-Path -LiteralPath $modulePath)) { return $false }
+
+    try {
+        Import-Module $modulePath -Force -ErrorAction Stop | Out-Null
+        $script:SdatSpectreProviderLoaded = $true
+    } catch {
+        $script:SdatSpectreProviderLoaded = $false
+    }
+
+    return $script:SdatSpectreProviderLoaded
+}
+
+function Escape-SdatSpectre {
+    param([AllowNull()][string]$Text)
+    if ($null -eq $Text) { return "" }
+    if (Get-Command Get-SpectreEscapedText -ErrorAction SilentlyContinue) {
+        return (Get-SpectreEscapedText $Text)
+    }
+    return $Text.Replace("[", "[[").Replace("]", "]]")
+}
+
+function Write-SdatSpectrePanel {
+    param(
+        [Parameter(Mandatory)][string]$Title,
+        [Parameter(Mandatory)][AllowEmptyString()][string[]]$Lines,
+        [string]$Color = "Grey35"
+    )
+    if (-not (Import-SdatSpectreProvider)) { return $false }
+    try {
+        $markup = [Spectre.Console.Markup]::new(($Lines -join "`n"))
+        $panel = [Spectre.Console.Panel]::new($markup)
+        $panel.Header = [Spectre.Console.PanelHeader]::new($Title)
+        $panel.Border = [Spectre.Console.BoxBorder]::Rounded
+        $panel.BorderStyle = [Spectre.Console.Style]::new([Spectre.Console.Color]::Grey35)
+        $panel | Out-Host
+        return $true
+    } catch {
+        return $false
+    }
+}
+
+function Write-SdatStatusView {
+    param(
+        [Parameter(Mandatory)][string[]]$Lines,
+        [Parameter(Mandatory)][string[]]$Hints
+    )
+    $escapedLines = @($Lines | ForEach-Object { "[grey78]$(Escape-SdatSpectre $_)[/]" })
+    $escapedHints = @($Hints | ForEach-Object { "[grey50]$(Escape-SdatSpectre $_)[/]" })
+    $all = @("[bold deepskyblue1]SDAT[/] [grey58]shutdown at[/]", "") + $escapedLines + @("", "[grey58]Quick input[/]") + $escapedHints
+    if (Write-SdatSpectrePanel -Title "[deepskyblue1]Status[/]" -Lines $all -Color "Grey35") { return }
+
+    Write-Host "SDAT" -ForegroundColor Cyan
+    Write-Hr
+    foreach ($line in $Lines) { Write-Host $line }
+    Write-Hr
+    foreach ($hint in $Hints) { Write-Host $hint -ForegroundColor DarkGray }
+}
+
+function Write-SdatHelpView {
+    param([Parameter(Mandatory)][AllowEmptyString()][string[]]$Lines)
+    $escaped = @($Lines | ForEach-Object { "[grey78]$(Escape-SdatSpectre $_)[/]" })
+    if (Write-SdatSpectrePanel -Title "[deepskyblue1]SDAT help[/]" -Lines $escaped -Color "Grey35") { return }
+    foreach ($line in $Lines) { Write-Host $line }
+}
+
 function Get-ConsoleWidthSafe {
     try {
         $w = [Console]::WindowWidth
@@ -434,7 +508,7 @@ function Read-LineWithEsc {
             Write-Host ""
             Write-Host ("{0}> {1}" -f " ", $buf) -ForegroundColor White
             Write-Host ""
-            Write-Host "Type HHMM or HH:MM. Enter=confirm | Esc=back | Empty+Enter=cancel" -ForegroundColor DarkGray
+            Write-Host "Examples: 2330, 23:30, 2h, 45m, 180s. Enter=confirm | Esc=back | Empty+Enter=cancel" -ForegroundColor DarkGray
 
             $k = [Console]::ReadKey($true)
             switch ($k.Key) {
@@ -443,9 +517,8 @@ function Read-LineWithEsc {
                 'Backspace' { if ($buf.Length -gt 0) { $buf = $buf.Substring(0, $buf.Length - 1) } }
                 default {
                     $c = $k.KeyChar
-                    if ($c -and [char]::IsDigit($c) -and $buf.Length -lt 4) { $buf += $c }
-                    elseif ($c -and $c -eq ':') {
-                        if (($buf -notlike "*:*") -and $buf.Length -lt 5) { $buf += $c }
+                    if ($c -and ($c -match '[0-9a-zA-Z:]') -and $buf.Length -lt 12) {
+                        $buf += $c
                     }
                 }
             }
@@ -456,7 +529,7 @@ function Read-LineWithEsc {
     try { $oldCursor = [Console]::CursorVisible; [Console]::CursorVisible = $false } catch { }
     $inputTop = 0
     $inputLeft = 0
-    $maxLen = 5
+    $maxLen = 12
     try {
         [Console]::Clear()
         Write-Host $Title -ForegroundColor Cyan
@@ -472,7 +545,7 @@ function Read-LineWithEsc {
         $inputLeft = [Console]::CursorLeft
         [Console]::WriteLine("")
         Write-Host ""
-        Write-Host "Type HHMM or HH:MM. Enter=confirm | Esc=back | Empty+Enter=cancel" -ForegroundColor DarkGray
+        Write-Host "Examples: 2330, 23:30, 2h, 45m, 180s. Enter=confirm | Esc=back | Empty+Enter=cancel" -ForegroundColor DarkGray
 
         $w = Get-ConsoleWidthSafe
         function Render-InputLine {
@@ -501,14 +574,9 @@ function Read-LineWithEsc {
                 }
                 default {
                 $c = $k.KeyChar
-                if ($c -and [char]::IsDigit($c) -and $buf.Length -lt $maxLen) {
+                if ($c -and ($c -match '[0-9a-zA-Z:]') -and $buf.Length -lt $maxLen) {
                     $buf += $c
                     Render-InputLine -Value $buf
-                } elseif ($c -and $c -eq ':' -and $buf.Length -lt $maxLen) {
-                    if ($buf -notmatch ':') {
-                        $buf += $c
-                        Render-InputLine -Value $buf
-                    }
                 }
                 }
             }
