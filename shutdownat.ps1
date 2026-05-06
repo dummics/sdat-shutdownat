@@ -875,7 +875,7 @@ if ($Tui) {
     function Show-SdatTuiTextScreen {
         param(
             [Parameter(Mandatory)][string]$Title,
-            [Parameter(Mandatory)][string[]]$Lines
+            [Parameter(Mandatory)][AllowEmptyString()][string[]]$Lines
         )
         while ($true) {
             try { [Console]::Clear() } catch { try { Clear-Host } catch { } }

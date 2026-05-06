@@ -293,7 +293,7 @@ function Get-SdatMenuActionRows {
             [Parameter(Mandatory)][string]$Label,
             [int]$Index
         )
-        $plain = (" {0,-5} " -f $Label)
+        $plain = (" {0,-6} " -f $Label)
         if ($Index -eq $Selected) { return "[black on deepskyblue1]$plain[/]" }
         return "[grey70]$plain[/]"
     }
@@ -306,10 +306,9 @@ function Get-SdatMenuActionRows {
     $tasksIndex = Find-OptionIndex "Tasks"
 
     $lines = @()
-    $lines += "            [grey58]once[/]     [grey58]daily[/]"
     foreach ($row in $rows) {
-        $name = if ($row.Name -eq "Shutdown") { "[white]Shutdown[/]" } else { "[grey70]$($row.Name)[/]" }
-        $lines += ("  {0,-19}{1}  {2}" -f $name, (Format-Cell -Label "once" -Index $row.Once), (Format-Cell -Label "daily" -Index $row.Daily))
+        $name = if ($row.Name -eq "Shutdown") { "[white]  Shutdown  [/]" } else { "[grey70]  $($row.Name.PadRight(8))  [/]" }
+        $lines += ("{0}{1}  {2}" -f $name, (Format-Cell -Label "once" -Index $row.Once), (Format-Cell -Label "daily" -Index $row.Daily))
     }
     if ($tasksIndex -ge 0) {
         $taskLine = " Tasks      view scheduled actions "
@@ -322,6 +321,40 @@ function Get-SdatMenuActionRows {
         }
     }
     return $lines
+}
+
+function Move-SdatMenuSelection {
+    param(
+        [Parameter(Mandatory)][int]$Index,
+        [Parameter(Mandatory)][string]$Direction,
+        [Parameter(Mandatory)][int]$Count
+    )
+    if ($Count -le 0) { return 0 }
+    if ($Count -lt 7) {
+        if ($Direction -eq "up") { return [Math]::Max(0, $Index - 1) }
+        if ($Direction -eq "down") { return [Math]::Min($Count - 1, $Index + 1) }
+        return $Index
+    }
+
+    if ($Direction -eq "left") {
+        if ($Index -ge 0 -and $Index -le 5 -and ($Index % 2) -eq 1) { return ($Index - 1) }
+        return $Index
+    }
+    if ($Direction -eq "right") {
+        if ($Index -ge 0 -and $Index -le 5 -and ($Index % 2) -eq 0) { return ($Index + 1) }
+        return $Index
+    }
+    if ($Direction -eq "up") {
+        if ($Index -eq 6) { return 4 }
+        if ($Index -ge 2 -and $Index -le 5) { return ($Index - 2) }
+        return $Index
+    }
+    if ($Direction -eq "down") {
+        if ($Index -ge 0 -and $Index -le 3) { return ($Index + 2) }
+        if ($Index -ge 4 -and $Index -le 5) { return 6 }
+        return $Index
+    }
+    return $Index
 }
 
 function Show-SdatSpectreMainMenu {
@@ -359,8 +392,22 @@ function Show-SdatSpectreMainMenu {
             $k = [Console]::ReadKey($true)
             if (($k.Key -eq [ConsoleKey]::T) -and (($k.Modifiers -band [ConsoleModifiers]::Control) -ne 0)) { return 99 }
             switch ($k.Key) {
-                'UpArrow' { if ($idx -gt 0) { $idx--; $null = Render-SpectreMenu -Current $idx } }
-                'DownArrow' { if ($idx -lt ($Options.Count - 1)) { $idx++; $null = Render-SpectreMenu -Current $idx } }
+                'UpArrow' {
+                    $next = Move-SdatMenuSelection -Index $idx -Direction "up" -Count $Options.Count
+                    if ($next -ne $idx) { $idx = $next; $null = Render-SpectreMenu -Current $idx }
+                }
+                'DownArrow' {
+                    $next = Move-SdatMenuSelection -Index $idx -Direction "down" -Count $Options.Count
+                    if ($next -ne $idx) { $idx = $next; $null = Render-SpectreMenu -Current $idx }
+                }
+                'LeftArrow' {
+                    $next = Move-SdatMenuSelection -Index $idx -Direction "left" -Count $Options.Count
+                    if ($next -ne $idx) { $idx = $next; $null = Render-SpectreMenu -Current $idx }
+                }
+                'RightArrow' {
+                    $next = Move-SdatMenuSelection -Index $idx -Direction "right" -Count $Options.Count
+                    if ($next -ne $idx) { $idx = $next; $null = Render-SpectreMenu -Current $idx }
+                }
                 'Enter' { return $idx }
                 'Escape' { return $null }
             }
@@ -426,8 +473,10 @@ function Show-SdatMainMenu {
             $k = [Console]::ReadKey($true)
             if (($k.Key -eq [ConsoleKey]::T) -and (($k.Modifiers -band [ConsoleModifiers]::Control) -ne 0)) { return 99 }
             switch ($k.Key) {
-                'UpArrow' { if ($idx -gt 0) { $idx-- } }
-                'DownArrow' { if ($idx -lt ($options.Count - 1)) { $idx++ } }
+                'UpArrow' { $idx = Move-SdatMenuSelection -Index $idx -Direction "up" -Count $options.Count }
+                'DownArrow' { $idx = Move-SdatMenuSelection -Index $idx -Direction "down" -Count $options.Count }
+                'LeftArrow' { $idx = Move-SdatMenuSelection -Index $idx -Direction "left" -Count $options.Count }
+                'RightArrow' { $idx = Move-SdatMenuSelection -Index $idx -Direction "right" -Count $options.Count }
                 'Enter' { return $idx }
                 'Escape' { return $null }
             }
@@ -514,17 +563,37 @@ function Show-SdatMainMenu {
             if (($k.Key -eq [ConsoleKey]::T) -and (($k.Modifiers -band [ConsoleModifiers]::Control) -ne 0)) { return 99 }
             switch ($k.Key) {
                 'UpArrow' {
-                    if ($idx -gt 0) {
+                    $next = Move-SdatMenuSelection -Index $idx -Direction "up" -Count $options.Count
+                    if ($next -ne $idx) {
                         $prev = $idx
-                        $idx--
+                        $idx = $next
                         Render-OptionLine -Top ($layout.OptionsTop + $prev) -Index $prev -Selected $false
                         Render-OptionLine -Top ($layout.OptionsTop + $idx) -Index $idx -Selected $true
                     }
                 }
                 'DownArrow' {
-                    if ($idx -lt ($options.Count - 1)) {
+                    $next = Move-SdatMenuSelection -Index $idx -Direction "down" -Count $options.Count
+                    if ($next -ne $idx) {
                         $prev = $idx
-                        $idx++
+                        $idx = $next
+                        Render-OptionLine -Top ($layout.OptionsTop + $prev) -Index $prev -Selected $false
+                        Render-OptionLine -Top ($layout.OptionsTop + $idx) -Index $idx -Selected $true
+                    }
+                }
+                'LeftArrow' {
+                    $next = Move-SdatMenuSelection -Index $idx -Direction "left" -Count $options.Count
+                    if ($next -ne $idx) {
+                        $prev = $idx
+                        $idx = $next
+                        Render-OptionLine -Top ($layout.OptionsTop + $prev) -Index $prev -Selected $false
+                        Render-OptionLine -Top ($layout.OptionsTop + $idx) -Index $idx -Selected $true
+                    }
+                }
+                'RightArrow' {
+                    $next = Move-SdatMenuSelection -Index $idx -Direction "right" -Count $options.Count
+                    if ($next -ne $idx) {
+                        $prev = $idx
+                        $idx = $next
                         Render-OptionLine -Top ($layout.OptionsTop + $prev) -Index $prev -Selected $false
                         Render-OptionLine -Top ($layout.OptionsTop + $idx) -Index $idx -Selected $true
                     }
