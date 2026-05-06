@@ -245,6 +245,16 @@ function Format-TimeRemaining {
     return "{0}m" -f $totalMinutes
 }
 
+function Format-SdatWhenShort {
+    param([Parameter(Mandatory)][datetime]$Value)
+    $local = Convert-ToLocalDateTime -Value $Value
+    $now = Get-Date
+    if ($local.Date -eq $now.Date -or $local.Date -eq $now.Date.AddDays(1)) {
+        return $local.ToString("HH:mm", [System.Globalization.CultureInfo]::InvariantCulture)
+    }
+    return (Format-LocalShort -Value $local)
+}
+
 function Ask-Confirmation {
     param([Parameter(Mandatory)][string]$Prompt)
     if ($Force) { return $true }
@@ -363,14 +373,14 @@ function Get-SdatStatusText {
     if ($v.Exists -and $v.Info -and $v.Info.NextRunTime -gt [datetime]::MinValue) {
         $volAction = Get-SdatActionLabel -ActionType (Resolve-SdatActionType -Value $State.Volatile.ActionType)
         $volRunAt = Convert-ToLocalDateTime -Value $v.Info.NextRunTime
-        $vol = ("{0} @ {1} (in {2})" -f $volAction, (Format-LocalShort -Value $volRunAt), (Format-TimeRemaining -Target $volRunAt))
+        $vol = ("{0} @ {1} (in {2})" -f $volAction, (Format-SdatWhenShort -Value $volRunAt), (Format-TimeRemaining -Target $volRunAt))
     }
 
     $perm = "none"
     if ($pinfo.Exists -and $pinfo.Info -and $pinfo.Info.NextRunTime -gt [datetime]::MinValue) {
         $permAction = Get-SdatActionLabel -ActionType (Resolve-SdatActionType -Value $State.Permanent.ActionType)
         $permRunAt = Convert-ToLocalDateTime -Value $pinfo.Info.NextRunTime
-        $perm = ("{0} @ {1} (in {2})" -f $permAction, (Format-LocalShort -Value $permRunAt), (Format-TimeRemaining -Target $permRunAt))
+        $perm = ("{0} @ {1} (in {2})" -f $permAction, (Format-SdatWhenShort -Value $permRunAt), (Format-TimeRemaining -Target $permRunAt))
     } elseif ($pinfo.Exists) {
         $permAction = Get-SdatActionLabel -ActionType (Resolve-SdatActionType -Value $State.Permanent.ActionType)
         $perm = ("{0} @ active" -f $permAction)
@@ -389,7 +399,7 @@ function Get-SdatStatusText {
             } else {
                 "grace"
             }
-            $suspend = ("{0} [{1}]" -f (Format-LocalShort -Value $sup.Until), $kindLabel)
+            $suspend = ("{0} [{1}]" -f (Format-SdatWhenShort -Value $sup.Until), $kindLabel)
         }
     }
 
@@ -416,7 +426,7 @@ function Get-SdatStatusModel {
     if ($v.Exists -and $v.Info -and $v.Info.NextRunTime -gt [datetime]::MinValue) {
         $volAction = Get-SdatActionLabel -ActionType (Resolve-SdatActionType -Value $State.Volatile.ActionType)
         $volRunAt = Convert-ToLocalDateTime -Value $v.Info.NextRunTime
-        $oneTime = ("{0} at {1}  (in {2})" -f $volAction, (Format-LocalShort -Value $volRunAt), (Format-TimeRemaining -Target $volRunAt))
+        $oneTime = ("{0} at {1}  (in {2})" -f $volAction, (Format-SdatWhenShort -Value $volRunAt), (Format-TimeRemaining -Target $volRunAt))
     }
 
     $daily = "none"
@@ -424,11 +434,11 @@ function Get-SdatStatusModel {
     if ($pinfo.Exists -and $pinfo.Info -and $pinfo.Info.NextRunTime -gt [datetime]::MinValue) {
         $permAction = Get-SdatActionLabel -ActionType (Resolve-SdatActionType -Value $State.Permanent.ActionType)
         $permRunAt = Convert-ToLocalDateTime -Value $pinfo.Info.NextRunTime
-        $daily = ("{0} at {1}  (in {2})" -f $permAction, (Format-LocalShort -Value $permRunAt), (Format-TimeRemaining -Target $permRunAt))
+        $daily = ("{0} at {1}  (in {2})" -f $permAction, (Format-SdatWhenShort -Value $permRunAt), (Format-TimeRemaining -Target $permRunAt))
         $sup = Get-PermanentSuppressionAt -State $State -Config $Config -AtLocal $permRunAt -VolatileTaskExists:($v.Exists)
         if ($sup.Suppressed -and $sup.Until) {
             $skipKind = if ($sup.Kind -eq "manual-skip") { "manual" } elseif ($sup.Kind -eq "volatile-upcoming") { "one-time nearby" } else { "grace window" }
-            $skip = ("next daily skipped until {0}  ({1})" -f (Format-LocalShort -Value $sup.Until), $skipKind)
+            $skip = ("next daily skipped until {0}  ({1})" -f (Format-SdatWhenShort -Value $sup.Until), $skipKind)
         }
     } elseif ($pinfo.Exists) {
         $permAction = Get-SdatActionLabel -ActionType (Resolve-SdatActionType -Value $State.Permanent.ActionType)
@@ -472,7 +482,7 @@ function Get-SdatTuiHeaderLines {
         "[grey58]One-time [/][$oneColor]$($m.OneTime)[/]"
     )
     if ($m.Skip -ne "none") {
-        $lines += "[grey58]Daily pause[/] [yellow]$($m.Skip)[/]"
+        $lines += "[grey58]Pause    [/][yellow]$($m.Skip)[/]"
     }
     return $lines
 }
@@ -687,7 +697,7 @@ function Invoke-SchedulePermanentDaily {
     $state.Permanent.ActionType = (Resolve-SdatActionType -Value $ActionType)
     Save-SdatState -Root $root -Profile $script:sdatProfile -State $state
     Write-SdatLog -Ctx $script:logCtx -Level "INFO" -Message "Scheduled daily action" -Data @{ Hours = $Hours; Minutes = $Minutes; Task = $names.Permanent; ActionType = $state.Permanent.ActionType }
-    return ("Permanent {0} scheduled daily at {1}:{2} (task: {3})" -f (Get-SdatActionLabel -ActionType $state.Permanent.ActionType), $Hours.ToString('D2'), $Minutes.ToString('D2'), $names.Permanent)
+    return ("Daily {0} at {1}:{2}" -f (Get-SdatActionLabel -ActionType $state.Permanent.ActionType), $Hours.ToString('D2'), $Minutes.ToString('D2'))
 }
 
 function Invoke-SkipPermanentOnce {
@@ -712,7 +722,7 @@ function Invoke-SkipPermanentOnce {
         $nextRun = (Get-Date).AddDays(1)
     }
     $culture = [System.Globalization.CultureInfo]::InvariantCulture
-    $targetStr = Format-LocalShort -Value $nextRun
+    $targetStr = Format-SdatWhenShort -Value $nextRun
     $suppressUntil = $nextRun.AddMinutes(5)
     $state.SuspendPermanentUntil = $suppressUntil.ToString("o", $culture)
     $state.SuspendSetAt = (Get-Date).ToString("o", $culture)
@@ -722,7 +732,7 @@ function Invoke-SkipPermanentOnce {
         NextRun = $nextRun.ToString("o", $culture)
         SuppressUntil = $suppressUntil.ToString("o", $culture)
     }
-    return "Permanent shutdown at $targetStr will be skipped once."
+    return "Daily shutdown skipped once at $targetStr."
 }
 
 function Invoke-ScheduleVolatileOnce {
@@ -737,7 +747,7 @@ function Invoke-ScheduleVolatileOnce {
     $names = Get-SdatTaskNames -Profile $script:sdatProfile
 
     $target = if ($TargetLocal) { Convert-ToLocalDateTime -Value $TargetLocal } else { Get-NextOccurrenceLocal -Hours $Hours -Minutes $Minutes }
-    $targetStr = Format-LocalShort -Value $target
+    $targetStr = Format-SdatWhenShort -Value $target
 
     $null = Remove-LegacyShutdownAtTasks -Force:([string]::IsNullOrWhiteSpace($script:sdatProfile))
     Register-VolatileShutdownTask -TargetLocal $target -ScriptPath $PSCommandPath -Profile $script:sdatProfile -SuspendAction:($ActionType -eq "suspend") -RestartAction:($ActionType -eq "restart") -DryRunAction:(Test-SdatDryRun)
@@ -747,11 +757,11 @@ function Invoke-ScheduleVolatileOnce {
     Save-SdatState -Root $root -Profile $script:sdatProfile -State $state
     Write-SdatLog -Ctx $script:logCtx -Level "INFO" -Message "Scheduled one-time action" -Data @{ Target = $target.ToString("o"); Task = $names.Volatile; GraceMinutes = [int]$config.GraceMinutes; ActionType = $state.Volatile.ActionType }
 
-    $msg = ("One-time {0} scheduled: {1} (task: {2})" -f (Get-SdatActionLabel -ActionType $state.Volatile.ActionType), $targetStr, $names.Volatile)
+    $msg = ("One-time {0} at {1}" -f (Get-SdatActionLabel -ActionType $state.Volatile.ActionType), $targetStr)
     if (-not $KeepDaily) {
         $overlap = Set-DailySkipForVolatileOverlap -TargetLocal $target -State $state -Config $config
         if ($overlap.Applied) {
-            $msg += (" Daily at {0} will be skipped once." -f (Format-LocalShort -Value $overlap.PermanentRunAt))
+            $msg += ("; skips daily at {0}" -f (Format-SdatWhenShort -Value $overlap.PermanentRunAt))
         }
     }
     return $msg
@@ -906,7 +916,7 @@ if ($Tui) {
             "",
             "One-time   $($m.OneTime)",
             "Daily      $($m.Daily)",
-            "Skip       $($m.Skip)",
+            "Pause      $($m.Skip)",
             "",
             "$($names.Volatile)   $volState",
             "$($names.Permanent)  $permState"
@@ -1110,12 +1120,12 @@ if ($P) {
 if ($Test) {
     $requestedAction = Get-SdatRequestedActionType
     $target = $resolved.TargetLocal
-    $targetStr = Format-LocalShort -Value $target
-    Write-Info ("Would schedule ONE-TIME {0} at {1} ({2}) (TEST MODE)" -f (Get-SdatActionLabel -ActionType $requestedAction), $targetStr, $resolved.Label)
+    $targetStr = Format-SdatWhenShort -Value $target
+    Write-Info ("Would schedule ONE-TIME {0} at {1} (TEST MODE)" -f (Get-SdatActionLabel -ActionType $requestedAction), $targetStr)
     if ($KeepDaily) {
-        Write-Info "Would keep the daily action even if it overlaps (-k / -KeepDaily)"
+        Write-Info "Would keep daily if nearby"
     } else {
-        Write-Info "Would skip the next daily action once if within $([int]$config.DailyOverlapWindowMinutes)m overlap window"
+        Write-Info "Would skip nearby daily within $([int]$config.DailyOverlapWindowMinutes)m"
     }
     exit 0
 }
