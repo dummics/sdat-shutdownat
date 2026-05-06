@@ -143,6 +143,15 @@ function Invoke-SdatSelfTest {
         Assert-True -Condition ($a.Arguments -like "*-Suspend*") -Message "Missing -Suspend in Arguments"
     }
 
+    Add-Test -Name "Create daily restart task persists restart mode in task arguments" -Body {
+        $r = Invoke-SdatScript -Args @("-Profile", $profileSafe, "-DryRun", "-Time", "0200", "-P", "-Restart")
+        Assert-True -Condition ($r.ExitCode -eq 0) -Message ("Script exited with {0}: {1}" -f $r.ExitCode, $r.Output)
+        $a = Get-TaskArguments -TaskName $names.Permanent
+        Assert-True -Condition ($a.Arguments -like "*-RunPermanent*") -Message "Missing -RunPermanent in Arguments"
+        Assert-True -Condition ($a.Arguments -like "*-Restart*") -Message "Missing -Restart in Arguments"
+        Assert-True -Condition ($a.Arguments -like "*-DryRun*") -Message "Missing -DryRun in Arguments"
+    }
+
     Add-Test -Name "Create one-time task via script (dry-run action)" -Body {
         $hhmm = Get-SoonTimeHHMM -MinutesAhead 90
         $r = Invoke-SdatScript -Args @("-Profile", $profileSafe, "-DryRun", "-Time", $hhmm)

@@ -244,30 +244,26 @@ function Get-SdatMenuActionRows {
         [AllowNull()][string[]]$Options,
         [int]$Selected
     )
-    $actionType = "shutdown"
-    if ($Options -and ($Options -join " ") -match 'suspend') { $actionType = "suspend" }
-    $skipState = "off"
-    if ($Options -and $Options.Count -gt 3 -and $Options[3] -match 'ON') { $skipState = "on" }
-
-    $rows = @(
-        [pscustomobject]@{ Name = "One-time"; Detail = "set once with 2330, 2h, 45m"; Key = "O"; Value = $actionType },
-        [pscustomobject]@{ Name = "Daily"; Detail = "set a clock time like 0130"; Key = "D"; Value = $actionType },
-        [pscustomobject]@{ Name = "Mode"; Detail = "switch shutdown / suspend"; Key = "M"; Value = $actionType },
-        [pscustomobject]@{ Name = "Skip daily"; Detail = "toggle next daily only"; Key = "S"; Value = $skipState }
-    )
-
     $lines = @()
-    for ($i = 0; $i -lt $rows.Count; $i++) {
-        $r = $rows[$i]
-        $name = Escape-SdatSpectre $r.Name
-        $detail = Escape-SdatSpectre $r.Detail
-        $key = Escape-SdatSpectre $r.Key
-        $value = Escape-SdatSpectre $r.Value
+    for ($i = 0; $i -lt $Options.Count; $i++) {
+        $raw = [string]$Options[$i]
+        $name = $raw
+        $value = ""
+        if ($raw -match '^(Power action)\s+(.+)$') {
+            $name = $Matches[1]
+            $value = $Matches[2]
+        }
+        $safeName = Escape-SdatSpectre $name
+        $safeValue = Escape-SdatSpectre $value
         if ($i -eq $Selected) {
-            $plain = ("  {0,-11} {1,-31} {2,8} {3}" -f $r.Name, $r.Detail, $r.Value, $r.Key)
+            $plain = if ($value) { ("  {0,-14} {1}" -f $name, $value) } else { ("  {0}" -f $name) }
             $lines += "[black on deepskyblue1]$plain[/]"
         } else {
-            $lines += ("[white]  {0,-11}[/] [grey58]{1,-31}[/] [grey70]{2,8}[/] [grey50]{3}[/]" -f $name, $detail, $value, $key)
+            if ($value) {
+                $lines += ("[white]  {0,-14}[/] [grey70]{1}[/]" -f $safeName, $safeValue)
+            } else {
+                $lines += ("[white]  {0}[/]" -f $safeName)
+            }
         }
     }
     return $lines
@@ -289,7 +285,7 @@ function Show-SdatSpectreMainMenu {
 
     function Render-SpectreMenu {
         param([int]$Current)
-        $lines = @("[bold deepskyblue1]SDAT[/] [grey58]shutdown at[/]", "")
+        $lines = @("[grey58]shutdown at[/]", "")
         if ($Header) { $lines += ($Header -split "`r?`n") }
         if ($Notice) {
             $kind = if ($Notice.Kind -eq "error") { "red" } else { "deepskyblue1" }
@@ -297,12 +293,8 @@ function Show-SdatSpectreMainMenu {
             $lines += "[$kind]$($Notice.Message)[/]"
         }
         $lines += ""
-        $lines += "[grey58]Actions[/]"
         $lines += (Get-SdatMenuActionRows -Options $Options -Selected $Current)
-        $lines += ""
-        $lines += "[grey58]O[/] one-time   [grey58]D[/] daily   [grey58]M[/] mode   [grey58]S[/] skip   [grey58]Enter[/] select   [grey58]Esc[/] exit"
-        $lines += "[grey35]Ctrl+T diagnostics[/]"
-        return (Write-SdatSpectreFrame -Title "[deepskyblue1]TUI[/]" -Lines $lines -EstimatedLineCount 18)
+        return (Write-SdatSpectreFrame -Title "[deepskyblue1]SDAT[/]" -Lines $lines -EstimatedLineCount 12)
     }
 
     try {
@@ -313,21 +305,9 @@ function Show-SdatSpectreMainMenu {
             if (($k.Key -eq [ConsoleKey]::T) -and (($k.Modifiers -band [ConsoleModifiers]::Control) -ne 0)) { return 99 }
             switch ($k.Key) {
                 'UpArrow' { if ($idx -gt 0) { $idx--; $null = Render-SpectreMenu -Current $idx } }
-                'DownArrow' { if ($idx -lt 3) { $idx++; $null = Render-SpectreMenu -Current $idx } }
+                'DownArrow' { if ($idx -lt ($Options.Count - 1)) { $idx++; $null = Render-SpectreMenu -Current $idx } }
                 'Enter' { return $idx }
                 'Escape' { return $null }
-                'O' { return 0 }
-                'D' { return 1 }
-                'M' { return 2 }
-                'S' { return 3 }
-                'D1' { return 0 }
-                'D2' { return 1 }
-                'D3' { return 2 }
-                'D4' { return 3 }
-                'NumPad1' { return 0 }
-                'NumPad2' { return 1 }
-                'NumPad3' { return 2 }
-                'NumPad4' { return 3 }
             }
         }
     } finally {
@@ -351,9 +331,9 @@ function Show-SdatMainMenu {
         $Options
     } else {
         @(
-            "One-time (volatile)",
-            "Daily (permanent)",
-            "Toggle skip next permanent"
+            "One-time",
+            "Daily",
+            "Power action shutdown"
         )
     }
     $idx = 0
@@ -378,28 +358,17 @@ function Show-SdatMainMenu {
             }
             Write-Host ""
             for ($i = 0; $i -lt $options.Count; $i++) {
-                $line = ("{0}) {1}" -f ($i + 1), $options[$i])
+                $line = $options[$i]
                 if ($i -eq $idx) { Write-Host ("> " + $line) -ForegroundColor Black -BackgroundColor DarkCyan }
                 else { Write-Host ("  " + $line) -ForegroundColor Gray }
             }
             Write-Host ""
-            Write-Host ("1-{0}, Enter=select  |  Esc=back  |  Ctrl+T=diag" -f $options.Count) -ForegroundColor DarkGray
 
             $k = [Console]::ReadKey($true)
             if (($k.Key -eq [ConsoleKey]::T) -and (($k.Modifiers -band [ConsoleModifiers]::Control) -ne 0)) { return 99 }
             switch ($k.Key) {
                 'UpArrow' { if ($idx -gt 0) { $idx-- } }
                 'DownArrow' { if ($idx -lt ($options.Count - 1)) { $idx++ } }
-                'D1' { if ($options.Count -gt 0) { return 0 } }
-                'D2' { if ($options.Count -gt 1) { return 1 } }
-                'D3' { if ($options.Count -gt 2) { return 2 } }
-                'D4' { if ($options.Count -gt 3) { return 3 } }
-                'D5' { if ($options.Count -gt 4) { return 4 } }
-                'NumPad1' { if ($options.Count -gt 0) { return 0 } }
-                'NumPad2' { if ($options.Count -gt 1) { return 1 } }
-                'NumPad3' { if ($options.Count -gt 2) { return 2 } }
-                'NumPad4' { if ($options.Count -gt 3) { return 3 } }
-                'NumPad5' { if ($options.Count -gt 4) { return 4 } }
                 'Enter' { return $idx }
                 'Escape' { return $null }
             }
@@ -428,7 +397,7 @@ function Show-SdatMainMenu {
             [Parameter(Mandatory)][bool]$Selected
         )
         $prefix = if ($Selected) { "> " } else { "  " }
-        $text = ("{0}) {1}" -f ($Index + 1), $options[$Index])
+        $text = $options[$Index]
         $text = $prefix + $text
         if ($Selected) {
             Write-ConsoleAt -Left 0 -Top $Top -Text $text -ForegroundColor $selFg -BackgroundColor $selBg -ClearToEnd
@@ -477,7 +446,7 @@ function Show-SdatMainMenu {
 
         $footerTop = $optionsTop + $options.Count + 1
         Write-ConsoleAt -Left 0 -Top $footerTop -Text "" -ForegroundColor $mutedFg -BackgroundColor $bg -ClearToEnd
-        Write-ConsoleAt -Left 0 -Top ($footerTop + 1) -Text ("1-{0}, Enter=select  |  Esc=back  |  Ctrl+T=diag" -f $options.Count) -ForegroundColor $mutedFg -BackgroundColor $bg -ClearToEnd
+        Write-ConsoleAt -Left 0 -Top ($footerTop + 1) -Text "" -ForegroundColor $mutedFg -BackgroundColor $bg -ClearToEnd
         return [pscustomobject]@{ OptionsTop = $optionsTop }
     }
 
@@ -503,16 +472,6 @@ function Show-SdatMainMenu {
                         Render-OptionLine -Top ($layout.OptionsTop + $idx) -Index $idx -Selected $true
                     }
                 }
-                'D1' { if ($options.Count -gt 0) { return 0 } }
-                'D2' { if ($options.Count -gt 1) { return 1 } }
-                'D3' { if ($options.Count -gt 2) { return 2 } }
-                'D4' { if ($options.Count -gt 3) { return 3 } }
-                'D5' { if ($options.Count -gt 4) { return 4 } }
-                'NumPad1' { if ($options.Count -gt 0) { return 0 } }
-                'NumPad2' { if ($options.Count -gt 1) { return 1 } }
-                'NumPad3' { if ($options.Count -gt 2) { return 2 } }
-                'NumPad4' { if ($options.Count -gt 3) { return 3 } }
-                'NumPad5' { if ($options.Count -gt 4) { return 4 } }
                 'Enter' { return $idx }
                 'Escape' { return $null }
             }

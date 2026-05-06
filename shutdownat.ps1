@@ -5,6 +5,7 @@
       sdat                # show status
       sdat TIME           # schedule one-time (volatile) shutdown
       sdat TIME -p        # schedule daily (permanent) shutdown
+      sdat TIME -Restart  # schedule one-time restart
       ssat TIME           # schedule one-time (volatile) suspend
       ssat TIME -p        # schedule daily (permanent) suspend
       sdat -Test TIME [-p]
@@ -27,6 +28,7 @@ param(
     [switch]$Clean,  # alias for -AA (kept for wrapper compatibility)
     [switch]$P,      # permanent (daily)
     [switch]$Suspend, # schedule/run suspend instead of shutdown
+    [switch]$Restart, # schedule/run restart instead of shutdown
     [Alias('k')][switch]$KeepDaily, # keep daily task even when one-time overlaps it
     [switch]$Tui,
     [Alias('S')][switch]$SkipPermanent,     # skip next permanent run once
@@ -66,9 +68,10 @@ function Show-SdatHelp {
         "Commands:",
         "  (no args)            show status, next shutdown time, and quick examples",
         "  -Status              explicit status check (same as no args)",
-        "  TIME [-p]            schedule one-time (-p omitted) or daily (-p) shutdown/suspend",
+        "  TIME [-p]            schedule one-time (-p omitted) or daily (-p) shutdown/suspend/restart",
         "  -Test TIME [-p]      dry run the one-time or daily power action",
         "  -Suspend             use suspend action (ssat wrapper always sets this)",
+        "  -Restart             use restart action",
         "  -k / -KeepDaily      keep the daily task when one-time is near it",
         "  -tui                 open the interactive configuration UI",
         "  -a                   cancel the pending one-time action (use -f / -Force to skip confirm)",
@@ -127,18 +130,26 @@ function Resolve-SdatActionType {
     )
     if ([string]::IsNullOrWhiteSpace($Value)) { return $Default }
     $v = $Value.Trim().ToLowerInvariant()
-    if ($v -in @("shutdown", "suspend")) { return $v }
+    if ($v -in @("shutdown", "suspend", "restart")) { return $v }
     return $Default
 }
 
 function Get-SdatRequestedActionType {
+    if ($Restart) { return "restart" }
     if ($Suspend) { return "suspend" }
     return "shutdown"
 }
 
 function Get-SdatActionLabel {
     param([Parameter(Mandatory)][string]$ActionType)
-    if ((Resolve-SdatActionType -Value $ActionType) -eq "suspend") { return "suspend" }
+    return (Resolve-SdatActionType -Value $ActionType)
+}
+
+function Get-NextSdatActionType {
+    param([Parameter(Mandatory)][string]$ActionType)
+    $current = Resolve-SdatActionType -Value $ActionType
+    if ($current -eq "shutdown") { return "suspend" }
+    if ($current -eq "suspend") { return "restart" }
     return "shutdown"
 }
 
@@ -301,6 +312,12 @@ function Invoke-SdatShutdown {
         return
     }
 
+    if ($action -eq "restart") {
+        Write-SdatLog -Ctx $script:logCtx -Level "INFO" -Message "Executing restart" -Data @{ Reason = $Reason }
+        shutdown /r /f
+        return
+    }
+
     Write-SdatLog -Ctx $script:logCtx -Level "INFO" -Message "Executing shutdown" -Data @{ Reason = $Reason }
     shutdown /s /f
 }
@@ -446,15 +463,21 @@ function Get-SdatStatusViewLines {
 function Get-SdatTuiHeaderLines {
     param(
         [Parameter(Mandatory)]$State,
-        [Parameter(Mandatory)]$Config
+        [Parameter(Mandatory)]$Config,
+        [Parameter(Mandatory)][string]$CurrentActionType
     )
     $m = Get-SdatStatusModel -State $State -Config $Config
     $oneColor = if ($m.OneTime -eq "none") { "grey58" } else { "yellow" }
-    $skipColor = if ($m.Skip -eq "none") { "grey58" } else { "yellow" }
-    return @(
+    $action = Get-SdatActionLabel -ActionType $CurrentActionType
+    $lines = @(
         "[grey58]Daily    [/][deepskyblue1]$($m.Daily)[/]",
-        "[grey58]One-time [/][$oneColor]$($m.OneTime)[/]   [grey58]Skip[/] [$skipColor]$($m.Skip)[/]"
+        "[grey58]One-time [/][$oneColor]$($m.OneTime)[/]",
+        "[grey58]Power    [/][white]$action[/]"
     )
+    if ($m.Skip -ne "none") {
+        $lines += "[grey58]Daily pause[/] [yellow]$($m.Skip)[/]"
+    }
+    return $lines
 }
 
 function Get-SdatQuickHints {
@@ -563,7 +586,7 @@ function Invoke-RunVolatile {
     $state.Volatile.LastExecutedAt = (Get-Date).ToString("o", [System.Globalization.CultureInfo]::InvariantCulture)
     $state.Volatile.ScheduledFor = $null
     $state.Volatile.CreatedAt = $null
-    $action = if ($Suspend) { "suspend" } else { Resolve-SdatActionType -Value $state.Volatile.ActionType }
+    $action = if ($Restart) { "restart" } elseif ($Suspend) { "suspend" } else { Resolve-SdatActionType -Value $state.Volatile.ActionType }
     $state.Volatile.ActionType = $null
     Save-SdatState -Root $root -Profile $script:sdatProfile -State $state
 
@@ -620,7 +643,7 @@ function Invoke-RunPermanent {
     }
 
     $state.Permanent.LastExecutedAt = (Get-Date).ToString("o", [System.Globalization.CultureInfo]::InvariantCulture)
-    $action = if ($Suspend) { "suspend" } else { Resolve-SdatActionType -Value $state.Permanent.ActionType }
+    $action = if ($Restart) { "restart" } elseif ($Suspend) { "suspend" } else { Resolve-SdatActionType -Value $state.Permanent.ActionType }
     Save-SdatState -Root $root -Profile $script:sdatProfile -State $state
     Invoke-SdatShutdown -Reason "permanent" -ActionType $action
     return 0
@@ -658,12 +681,12 @@ function Invoke-SchedulePermanentDaily {
     param(
         [Parameter(Mandatory)][int]$Hours,
         [Parameter(Mandatory)][int]$Minutes,
-        [Parameter(Mandatory)][ValidateSet("shutdown", "suspend")][string]$ActionType
+        [Parameter(Mandatory)][ValidateSet("shutdown", "suspend", "restart")][string]$ActionType
     )
     $names = Get-SdatTaskNames -Profile $script:sdatProfile
     $state = Load-SdatState -Root $root -Profile $script:sdatProfile
     $null = Remove-LegacyShutdownAtTasks -Force:([string]::IsNullOrWhiteSpace($script:sdatProfile))
-    Register-PermanentShutdownTaskDaily -Hours $Hours -Minutes $Minutes -ScriptPath $PSCommandPath -Profile $script:sdatProfile -SuspendAction:($ActionType -eq "suspend") -DryRunAction:(Test-SdatDryRun)
+    Register-PermanentShutdownTaskDaily -Hours $Hours -Minutes $Minutes -ScriptPath $PSCommandPath -Profile $script:sdatProfile -SuspendAction:($ActionType -eq "suspend") -RestartAction:($ActionType -eq "restart") -DryRunAction:(Test-SdatDryRun)
     $state.Permanent.ActionType = (Resolve-SdatActionType -Value $ActionType)
     Save-SdatState -Root $root -Profile $script:sdatProfile -State $state
     Write-SdatLog -Ctx $script:logCtx -Level "INFO" -Message "Scheduled daily action" -Data @{ Hours = $Hours; Minutes = $Minutes; Task = $names.Permanent; ActionType = $state.Permanent.ActionType }
@@ -710,7 +733,7 @@ function Invoke-ScheduleVolatileOnce {
         [int]$Hours,
         [int]$Minutes,
         [AllowNull()][datetime]$TargetLocal,
-        [Parameter(Mandatory)][ValidateSet("shutdown", "suspend")][string]$ActionType
+        [Parameter(Mandatory)][ValidateSet("shutdown", "suspend", "restart")][string]$ActionType
     )
     $config = Load-SdatConfig -Root $root -Profile $script:sdatProfile
     $state = Load-SdatState -Root $root -Profile $script:sdatProfile
@@ -720,7 +743,7 @@ function Invoke-ScheduleVolatileOnce {
     $targetStr = Format-LocalShort -Value $target
 
     $null = Remove-LegacyShutdownAtTasks -Force:([string]::IsNullOrWhiteSpace($script:sdatProfile))
-    Register-VolatileShutdownTask -TargetLocal $target -ScriptPath $PSCommandPath -Profile $script:sdatProfile -SuspendAction:($ActionType -eq "suspend") -DryRunAction:(Test-SdatDryRun)
+    Register-VolatileShutdownTask -TargetLocal $target -ScriptPath $PSCommandPath -Profile $script:sdatProfile -SuspendAction:($ActionType -eq "suspend") -RestartAction:($ActionType -eq "restart") -DryRunAction:(Test-SdatDryRun)
     $state.Volatile.ScheduledFor = $target.ToString("o", [System.Globalization.CultureInfo]::InvariantCulture)
     $state.Volatile.CreatedAt = (Get-Date).ToString("o", [System.Globalization.CultureInfo]::InvariantCulture)
     $state.Volatile.ActionType = (Resolve-SdatActionType -Value $ActionType)
@@ -854,16 +877,12 @@ if ($Tui) {
     while ($true) {
         $config = Load-SdatConfig -Root $root -Profile $script:sdatProfile      
         $state = Load-SdatState -Root $root -Profile $script:sdatProfile        
-        $header = (Get-SdatTuiHeaderLines -State $state -Config $config) -join "`n"
-        $manualUntil = Parse-LocalDateTimeOrNull -Value $state.SuspendPermanentUntil
-        $skipActive = ($manualUntil -and (Get-Date) -lt $manualUntil)
-        $skipLabel = if ($skipActive) { "Toggle skip next permanent (ON)" } else { "Toggle skip next permanent (off)" }
+        $header = (Get-SdatTuiHeaderLines -State $state -Config $config -CurrentActionType $tuiActionType) -join "`n"
         $actionLabel = (Get-SdatActionLabel -ActionType $tuiActionType)
         $options = @(
-            "One-time $actionLabel",
-            "Daily $actionLabel",
-            "Mode $actionLabel",
-            $skipLabel
+            "One-time",
+            "Daily",
+            "Power action $actionLabel"
         )
 
         $sel = Show-SdatMainMenu -Title "SDAT" -Header $header -Notice $notice -Options $options  
@@ -1027,18 +1046,8 @@ if ($Tui) {
         }
 
         if ($sel -eq 2) {
-            $tuiActionType = if ($tuiActionType -eq "shutdown") { "suspend" } else { "shutdown" }
-            $notice = New-TuiNotice -Kind "info" -Message ("Action mode set to {0}." -f (Get-SdatActionLabel -ActionType $tuiActionType))
-            continue
-        }
-
-        if ($sel -eq 3) {
-            try {
-                $msg = Invoke-SkipPermanentOnce
-                $notice = New-TuiNotice -Kind "info" -Message $msg
-            } catch {
-                $notice = New-TuiNotice -Kind "error" -Message $_.Exception.Message
-            }
+            $tuiActionType = Get-NextSdatActionType -ActionType $tuiActionType
+            $notice = New-TuiNotice -Kind "info" -Message ("Power action: {0}" -f (Get-SdatActionLabel -ActionType $tuiActionType))
             continue
         }
     }

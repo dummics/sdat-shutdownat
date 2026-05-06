@@ -6,12 +6,12 @@ It supports:
 - a **volatile** (one-use) power action time (single task)
 - a **permanent** (daily) power action time (single task)
 - two wrappers with the same syntax:
-  - `sdat` for **shutdown**
+  - `sdat` for **shutdown** (or restart with `-Restart`)
   - `ssat` for **suspend**
 
 ## Purpose
 
-- Schedule a shutdown/suspend at a clock time (HHmm / HH:mm) or after a short duration.
+- Schedule a shutdown/suspend/restart at a clock time (HHmm / HH:mm) or after a short duration.
 - Keep tasks unique (never multiple volatile/permanent tasks).
 - Provide a simple wrapper for terminal use or scripts, without detached helper windows.
 - Allow a smart overlap window so a one-time trigger can temporarily suppress the next daily schedule.
@@ -58,6 +58,12 @@ sdat 180s
 ssat 0030
 ```
 
+- Schedule a **volatile** restart at 00:30 (one-use):
+
+```powershell
+sdat 0030 -Restart
+```
+
 - Schedule a **permanent** daily shutdown at 03:00:
 
 ```powershell
@@ -70,6 +76,12 @@ Daily schedules use clock times only. Durations such as `2h` are intentionally l
 
 ```powershell
 ssat 0300 -p
+```
+
+- Schedule a **permanent** daily restart at 03:00:
+
+```powershell
+sdat 0300 -p -Restart
 ```
 
 - Skip the next scheduled permanent shutdown once (run again to re-enable):
@@ -149,7 +161,7 @@ sdat 45m -KeepDaily
 - When a one-time action is scheduled near the next daily action, the one-time action wins by default and the next daily action is skipped once. The overlap window is controlled by `DailyOverlapWindowMinutes` (default: 120). Use `-k` / `-KeepDaily` to keep both.
 - `GraceMinutes` still protects the daily action around recent or upcoming one-time runs.
 - Use `sdat -s` to toggle suppression of the next permanent shutdown; running it again clears the skip, and the normal daily schedule resumes after the skipped run.
-- In TUI (`-tui`) you can quickly toggle action mode between shutdown/suspend without leaving the menu.
+- In TUI (`-tui`) the `Power action` row cycles between shutdown, suspend, and restart.
 - The volatile execution cleans up after itself (task + volatile state), so `sdat` shows "Volatile: none" after it runs.
 - If a volatile run is triggered late (for example after sleep), it is skipped when more than `MissedVolatileShutdownMaxDelayMinutes` minutes late (default: 0, which means never run late).
 - If a permanent run is triggered late (for example after sleep), it is skipped when more than `MissedPermanentShutdownMaxDelayMinutes` minutes late (default: 0, which means never run late).
@@ -157,7 +169,7 @@ sdat 45m -KeepDaily
 ## Notes & Security
 
 - The scheduled command runs as the current user (`/ru "%USERNAME%"`). On systems with additional restrictions or elevated UAC prompts, the task creation may still succeed, but shutdown operations depend on system policies.
-- This script forces shutdown with `/f`. Warn users to save work before scheduling.
+- Shutdown and restart are forced with `/f`. Save work before scheduling.
 
 ## License
 
