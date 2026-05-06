@@ -87,25 +87,13 @@ function Show-SdatHelp {
     Write-SdatHelpView -Lines $lines
 }
 
-function Test-FromWinR { return ($env:SDAT_FROM_WINR -eq '1') }
+function Test-FromWinR {
+    return $false
+}
 
 function Send-SdatNotification {
     param([AllowNull()][string]$Message)
-    if (-not (Test-FromWinR)) { return }
-    $title = "SDAT"
-    $msg = Truncate-NotificationText -Text (Convert-ToSingleLine -Text $Message) -MaxLength 240
-    if ([string]::IsNullOrWhiteSpace($msg)) { return }
-    $scriptRoot = Split-Path -Parent $PSCommandPath
-    $notifyScript = Join-Path -Path $scriptRoot -ChildPath "tools\\notify-message.ps1"
-    $args = @(
-        "-NoProfile",
-        "-ExecutionPolicy", "Bypass",
-        "-File", $notifyScript,
-        "-Title", $title,
-        "-Message", $msg,
-        "-TimeoutMs", "6500"
-    )
-    Start-Process -WindowStyle Hidden -FilePath "powershell.exe" -ArgumentList $args | Out-Null
+    return
 }
 
 function Write-Info([string]$Msg) {
@@ -260,6 +248,8 @@ function Ask-Confirmation {
 
 function Test-SdatDryRun {
     if ($DryRun) { return $true }
+    if ($SelfTest) { return $true }
+    if ($script:sdatProfile -like "selftest*") { return $true }
     if ($env:SDAT_DRYRUN -eq '1') { return $true }
     return $false
 }
@@ -450,6 +440,20 @@ function Get-SdatStatusViewLines {
         "[grey58]Daily    [/][deepskyblue1]$($m.Daily)[/]",
         "[grey58]Skip     [/][$skipColor]$($m.Skip)[/]",
         "[grey58]Rules    [/][grey70]one-time wins within[/] [white]$($m.OverlapMinutes)m[/] [grey70]| grace[/] [white]$($m.GraceMinutes)m[/] [grey70]| use[/] [deepskyblue1]sdat -k <time>[/] [grey70]to keep daily[/]"
+    )
+}
+
+function Get-SdatTuiHeaderLines {
+    param(
+        [Parameter(Mandatory)]$State,
+        [Parameter(Mandatory)]$Config
+    )
+    $m = Get-SdatStatusModel -State $State -Config $Config
+    $oneColor = if ($m.OneTime -eq "none") { "grey58" } else { "yellow" }
+    $skipColor = if ($m.Skip -eq "none") { "grey58" } else { "yellow" }
+    return @(
+        "[grey58]Daily    [/][deepskyblue1]$($m.Daily)[/]",
+        "[grey58]One-time [/][$oneColor]$($m.OneTime)[/]   [grey58]Skip[/] [$skipColor]$($m.Skip)[/]"
     )
 }
 
@@ -773,6 +777,7 @@ if ($RunVolatile) { exit (Invoke-RunVolatile) }
 if ($RunPermanent) { exit (Invoke-RunPermanent) }
 
 if ($SelfTest) {
+    $env:SDAT_DRYRUN = '1'
     $profile = if ([string]::IsNullOrWhiteSpace($script:sdatProfile)) { "selftest" } else { $script:sdatProfile }
     $summary = Invoke-SdatSelfTest -Root $root -ScriptPath $PSCommandPath -Profile $profile -LogCtx $script:logCtx
     $summary | ConvertTo-Json -Depth 20 | Write-Output
@@ -849,15 +854,15 @@ if ($Tui) {
     while ($true) {
         $config = Load-SdatConfig -Root $root -Profile $script:sdatProfile      
         $state = Load-SdatState -Root $root -Profile $script:sdatProfile        
-        $header = (Get-SdatStatusViewLines -State $state -Config $config) -join "`n"
+        $header = (Get-SdatTuiHeaderLines -State $state -Config $config) -join "`n"
         $manualUntil = Parse-LocalDateTimeOrNull -Value $state.SuspendPermanentUntil
         $skipActive = ($manualUntil -and (Get-Date) -lt $manualUntil)
         $skipLabel = if ($skipActive) { "Toggle skip next permanent (ON)" } else { "Toggle skip next permanent (off)" }
         $actionLabel = (Get-SdatActionLabel -ActionType $tuiActionType)
         $options = @(
-            "One-time (volatile) [$actionLabel]",
-            "Daily (permanent) [$actionLabel]",
-            "Toggle action mode ($actionLabel)",
+            "One-time $actionLabel",
+            "Daily $actionLabel",
+            "Mode $actionLabel",
             $skipLabel
         )
 
@@ -920,9 +925,18 @@ if ($Tui) {
                 if ($null -eq $dsel -or $dsel -eq 4) { break }
 
                 if ($dsel -eq 0) {
-                    $testCtx = New-SdatLogContext -Root $root -Profile $selfTestProfile -Mode "selftest"
-                    $summary = Invoke-SdatSelfTest -Root $root -ScriptPath $PSCommandPath -Profile $selfTestProfile -LogCtx $testCtx
-                    $diagNotice = New-TuiNotice -Kind (if ($summary.passed) { "info" } else { "error" }) -Message ("Self-test {0}: {1} passed, {2} failed" -f ($(if ($summary.passed) { "PASS" } else { "FAIL" })), $summary.passedCount, $summary.failedCount)
+                    $lines = @(
+                        "Self-tests are manual-only so SDAT never opens surprise background shells.",
+                        "",
+                        "Run this from an already-open terminal when needed:",
+                        "  sdat -SelfTest -DryRun",
+                        "",
+                        "Direct script form:",
+                        "  pwsh -NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`" -SelfTest -DryRun -Profile $selfTestProfile",
+                        "",
+                        "Safety: -SelfTest forces dry-run mode for child scheduled-task actions too."
+                    )
+                    Show-TextScreen -Title "Manual self-test" -Lines $lines
                     continue
                 }
 
@@ -1034,19 +1048,6 @@ if ($Tui) {
 if ($Status -or -not $Time) {
     $config = Load-SdatConfig -Root $root -Profile $script:sdatProfile
     $state = Load-SdatState -Root $root -Profile $script:sdatProfile
-    if (Test-FromWinR) {
-        try {
-        Start-Process -WindowStyle Hidden -FilePath "powershell.exe" -ArgumentList @(
-            "-NoProfile",
-            "-ExecutionPolicy", "Bypass",
-            "-File", $PSCommandPath,
-            "-NotifyStatus",
-            "-Profile", $script:sdatProfile
-        ) | Out-Null
-        } catch {
-            Write-Host "Could not open background notification process." -ForegroundColor Yellow
-        }
-    }
     Write-SdatStatusView -Lines (Get-SdatStatusViewLines -State $state -Config $config) -Hints (Get-SdatQuickHints)
     exit 0
 }

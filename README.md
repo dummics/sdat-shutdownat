@@ -13,13 +13,13 @@ It supports:
 
 - Schedule a shutdown/suspend at a clock time (HHmm / HH:mm) or after a short duration.
 - Keep tasks unique (never multiple volatile/permanent tasks).
-- Provide a simple wrapper for launching via Windows Run (WIN+R) or from other scripts.
+- Provide a simple wrapper for terminal use or scripts, without detached helper windows.
 - Allow a smart overlap window so a one-time trigger can temporarily suppress the next daily schedule.
 
 ## Files
 
 - `shutdownat.ps1` - Main entrypoint. Creates/updates scheduled tasks and runs the selected power action when invoked by Task Scheduler.
-- `sdat.bat` - A small wrapper batch to run the PowerShell script with `poweshell.exe` from arbitrary places, such as Win+R.
+- `sdat.bat` - A small wrapper batch to run the PowerShell script with `pwsh.exe` when available, or Windows PowerShell otherwise.
 - `ssat.bat` - Same syntax as `sdat.bat`, but schedules/runs suspend.
 - `data/config.template.json` - Default config template (versioned).
 - `data/config.json` - Local config generated from template (not versioned).
@@ -27,7 +27,7 @@ It supports:
 
 ## Usage
 
-Open a Command Prompt, PowerShell, or Win+R and run:
+Open a Command Prompt or PowerShell and run:
 
 - Show status:
 
@@ -37,8 +37,6 @@ ssat
 ```
 
 In a terminal this shows a compact status view. When PowerShell 7 is available, the wrapper uses `PwshSpectreConsole` for a cleaner terminal panel; it falls back to plain console output when needed.
-
-Tip: when launching from Win+R, the `sdat.bat` wrapper starts the notification in a detached GUI host so it can still appear even though the console closes immediately.
 
 - Schedule a **volatile** shutdown at 00:30 (one-use):
 
@@ -101,6 +99,12 @@ ssat -h
 ```powershell
 sdat -tui
 ssat -tui
+```
+
+- Run the self-test manually when needed. It is intentionally not launched in the background, so it will not open surprise helper windows:
+
+```powershell
+sdat -SelfTest -DryRun
 ```
 
 - Cancel tasks created by this tool (and legacy `ShutdownAt*` tasks):

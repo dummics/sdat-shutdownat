@@ -2,6 +2,7 @@ Set-StrictMode -Version Latest
 
 $script:SdatSpectreProviderChecked = $false
 $script:SdatSpectreProviderLoaded = $false
+$script:SdatSpectreFrameLines = 0
 
 function Import-SdatSpectreProvider {
     if ($script:SdatSpectreProviderChecked) { return $script:SdatSpectreProviderLoaded }
@@ -50,6 +51,33 @@ function Write-SdatSpectrePanel {
         $panel.Border = [Spectre.Console.BoxBorder]::Rounded
         $panel.BorderStyle = [Spectre.Console.Style]::new([Spectre.Console.Color]::Grey35)
         $panel | Out-Host
+        return $true
+    } catch {
+        return $false
+    }
+}
+
+function Write-SdatSpectreFrame {
+    param(
+        [Parameter(Mandatory)][string]$Title,
+        [Parameter(Mandatory)][AllowEmptyString()][string[]]$Lines,
+        [int]$EstimatedLineCount = 18
+    )
+    if (-not (Import-SdatSpectreProvider)) { return $false }
+    try {
+        if ([Console]::WindowWidth -le 0) { return $false }
+        [Console]::SetCursorPosition(0, 0)
+        $null = Write-SdatSpectrePanel -Title $Title -Lines $Lines
+        $width = [Math]::Max(1, [Console]::WindowWidth - 1)
+        $currentTop = [Console]::CursorTop
+        $target = [Math]::Max($EstimatedLineCount, $script:SdatSpectreFrameLines)
+        for ($line = $currentTop; $line -lt $target; $line++) {
+            if ($line -ge [Console]::WindowHeight) { break }
+            [Console]::SetCursorPosition(0, $line)
+            [Console]::Write(("").PadRight($width))
+        }
+        [Console]::SetCursorPosition(0, 0)
+        $script:SdatSpectreFrameLines = [Math]::Max($EstimatedLineCount, $currentTop)
         return $true
     } catch {
         return $false
@@ -211,6 +239,107 @@ function Write-SdatHeaderLineAt {
     Write-ConsoleAt -Left 0 -Top $Top -Text $plain -ForegroundColor DarkGray -BackgroundColor $BackgroundColor -ClearToEnd
 }
 
+function Get-SdatMenuActionRows {
+    param(
+        [AllowNull()][string[]]$Options,
+        [int]$Selected
+    )
+    $actionType = "shutdown"
+    if ($Options -and ($Options -join " ") -match 'suspend') { $actionType = "suspend" }
+    $skipState = "off"
+    if ($Options -and $Options.Count -gt 3 -and $Options[3] -match 'ON') { $skipState = "on" }
+
+    $rows = @(
+        [pscustomobject]@{ Name = "One-time"; Detail = "set once with 2330, 2h, 45m"; Key = "O"; Value = $actionType },
+        [pscustomobject]@{ Name = "Daily"; Detail = "set a clock time like 0130"; Key = "D"; Value = $actionType },
+        [pscustomobject]@{ Name = "Mode"; Detail = "switch shutdown / suspend"; Key = "M"; Value = $actionType },
+        [pscustomobject]@{ Name = "Skip daily"; Detail = "toggle next daily only"; Key = "S"; Value = $skipState }
+    )
+
+    $lines = @()
+    for ($i = 0; $i -lt $rows.Count; $i++) {
+        $r = $rows[$i]
+        $name = Escape-SdatSpectre $r.Name
+        $detail = Escape-SdatSpectre $r.Detail
+        $key = Escape-SdatSpectre $r.Key
+        $value = Escape-SdatSpectre $r.Value
+        if ($i -eq $Selected) {
+            $plain = ("  {0,-11} {1,-31} {2,8} {3}" -f $r.Name, $r.Detail, $r.Value, $r.Key)
+            $lines += "[black on deepskyblue1]$plain[/]"
+        } else {
+            $lines += ("[white]  {0,-11}[/] [grey58]{1,-31}[/] [grey70]{2,8}[/] [grey50]{3}[/]" -f $name, $detail, $value, $key)
+        }
+    }
+    return $lines
+}
+
+function Show-SdatSpectreMainMenu {
+    param(
+        [Parameter(Mandatory)][string]$Title,
+        [string]$Header = "",
+        $Notice,
+        [AllowNull()][string[]]$Options
+    )
+    if (-not (Import-SdatSpectreProvider)) { return "fallback" }
+    try { if ([Console]::WindowWidth -le 0) { return "fallback" } } catch { return "fallback" }
+
+    $idx = 0
+    $oldCursor = $true
+    try { $oldCursor = [Console]::CursorVisible; [Console]::CursorVisible = $false } catch { }
+
+    function Render-SpectreMenu {
+        param([int]$Current)
+        $lines = @("[bold deepskyblue1]SDAT[/] [grey58]shutdown at[/]", "")
+        if ($Header) { $lines += ($Header -split "`r?`n") }
+        if ($Notice) {
+            $kind = if ($Notice.Kind -eq "error") { "red" } else { "deepskyblue1" }
+            $lines += ""
+            $lines += "[$kind]$($Notice.Message)[/]"
+        }
+        $lines += ""
+        $lines += "[grey58]Actions[/]"
+        $lines += (Get-SdatMenuActionRows -Options $Options -Selected $Current)
+        $lines += ""
+        $lines += "[grey58]O[/] one-time   [grey58]D[/] daily   [grey58]M[/] mode   [grey58]S[/] skip   [grey58]Enter[/] select   [grey58]Esc[/] exit"
+        $lines += "[grey35]Ctrl+T diagnostics[/]"
+        return (Write-SdatSpectreFrame -Title "[deepskyblue1]TUI[/]" -Lines $lines -EstimatedLineCount 18)
+    }
+
+    try {
+        try { [Console]::Clear() } catch { }
+        if (-not (Render-SpectreMenu -Current $idx)) { return "fallback" }
+        while ($true) {
+            $k = [Console]::ReadKey($true)
+            if (($k.Key -eq [ConsoleKey]::T) -and (($k.Modifiers -band [ConsoleModifiers]::Control) -ne 0)) { return 99 }
+            switch ($k.Key) {
+                'UpArrow' { if ($idx -gt 0) { $idx--; $null = Render-SpectreMenu -Current $idx } }
+                'DownArrow' { if ($idx -lt 3) { $idx++; $null = Render-SpectreMenu -Current $idx } }
+                'Enter' { return $idx }
+                'Escape' { return $null }
+                'O' { return 0 }
+                'D' { return 1 }
+                'M' { return 2 }
+                'S' { return 3 }
+                'D1' { return 0 }
+                'D2' { return 1 }
+                'D3' { return 2 }
+                'D4' { return 3 }
+                'NumPad1' { return 0 }
+                'NumPad2' { return 1 }
+                'NumPad3' { return 2 }
+                'NumPad4' { return 3 }
+            }
+        }
+    } finally {
+        try { [Console]::CursorVisible = $oldCursor } catch { }
+        try {
+            $target = [Math]::Min([Math]::Max(0, [Console]::WindowHeight - 1), [Math]::Max(0, $script:SdatSpectreFrameLines + 1))
+            [Console]::SetCursorPosition(0, $target)
+            [Console]::WriteLine("")
+        } catch { }
+    }
+}
+
 function Show-SdatMainMenu {
     param(
         [Parameter(Mandatory)][string]$Title,
@@ -231,6 +360,11 @@ function Show-SdatMainMenu {
 
     $consoleReady = $true
     try { $null = [Console]::WindowWidth } catch { $consoleReady = $false }
+
+    if ($consoleReady -and (Import-SdatSpectreProvider)) {
+        $spectreResult = Show-SdatSpectreMainMenu -Title $Title -Header $Header -Notice $Notice -Options $options
+        if ($spectreResult -ne "fallback") { return $spectreResult }
+    }
 
     if (-not $consoleReady) {
         while ($true) {
@@ -402,7 +536,7 @@ function Show-SdatDiagnosticsMenu {
         $Notice
     )
     $options = @(
-        "Run self-test (dry run)",
+        "Show self-test command",
         "Show last self-test summary",
         "Tail self-test log",
         "Tail self-test JSONL",
