@@ -24,7 +24,7 @@ function Import-SdatSpectreProvider {
 
 function Escape-SdatSpectre {
     param([AllowNull()][string]$Text)
-    if ($null -eq $Text) { return "" }
+    if ([string]::IsNullOrEmpty($Text)) { return " " }
     if (Get-Command Get-SpectreEscapedText -ErrorAction SilentlyContinue) {
         return (Get-SpectreEscapedText $Text)
     }
@@ -45,7 +45,10 @@ function Write-SdatSpectrePanel {
     )
     if (-not (Import-SdatSpectreProvider)) { return $false }
     try {
-        $markup = [Spectre.Console.Markup]::new(($Lines -join "`n"))
+        $safeLines = @($Lines | ForEach-Object {
+            if ([string]::IsNullOrEmpty($_)) { " " } else { [string]$_ }
+        })
+        $markup = [Spectre.Console.Markup]::new(($safeLines -join "`n"))
         $panel = [Spectre.Console.Panel]::new($markup)
         $panel.Header = [Spectre.Console.PanelHeader]::new($Title)
         $panel.Border = [Spectre.Console.BoxBorder]::Rounded
@@ -285,14 +288,14 @@ function Show-SdatSpectreMainMenu {
 
     function Render-SpectreMenu {
         param([int]$Current)
-        $lines = @("[grey58]shutdown at[/]", "")
+        $lines = @("[grey58]shutdown at[/]", " ")
         if ($Header) { $lines += ($Header -split "`r?`n") }
         if ($Notice) {
             $kind = if ($Notice.Kind -eq "error") { "red" } else { "deepskyblue1" }
-            $lines += ""
+            $lines += " "
             $lines += "[$kind]$($Notice.Message)[/]"
         }
-        $lines += ""
+        $lines += " "
         $lines += (Get-SdatMenuActionRows -Options $Options -Selected $Current)
         return (Write-SdatSpectreFrame -Title "[deepskyblue1]SDAT[/]" -Lines $lines -EstimatedLineCount 12)
     }
