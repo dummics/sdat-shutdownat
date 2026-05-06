@@ -394,26 +394,73 @@ function Get-SdatStatusText {
     return "One-time: $vol | Daily: $perm | Suppression: $suspend | Grace: $($Config.GraceMinutes)m | Overlap: $($overlap)m${legacy}"
 }
 
+function Get-SdatStatusModel {
+    param(
+        [Parameter(Mandatory)]$State,
+        [Parameter(Mandatory)]$Config
+    )
+    $names = Get-SdatTaskNames -Profile $script:sdatProfile
+    $v = Get-TaskInfoSafe -TaskName $names.Volatile
+    $pinfo = Get-TaskInfoSafe -TaskName $names.Permanent
+    $overlap = if (Test-HasProp -Obj $Config -Name "DailyOverlapWindowMinutes") { [int]$Config.DailyOverlapWindowMinutes } else { 120 }
+    $grace = [int]$Config.GraceMinutes
+
+    $oneTime = "none"
+    if ($v.Exists -and $v.Info -and $v.Info.NextRunTime -gt [datetime]::MinValue) {
+        $volAction = Get-SdatActionLabel -ActionType (Resolve-SdatActionType -Value $State.Volatile.ActionType)
+        $volRunAt = Convert-ToLocalDateTime -Value $v.Info.NextRunTime
+        $oneTime = ("{0} at {1}  (in {2})" -f $volAction, (Format-LocalShort -Value $volRunAt), (Format-TimeRemaining -Target $volRunAt))
+    }
+
+    $daily = "none"
+    $skip = "none"
+    if ($pinfo.Exists -and $pinfo.Info -and $pinfo.Info.NextRunTime -gt [datetime]::MinValue) {
+        $permAction = Get-SdatActionLabel -ActionType (Resolve-SdatActionType -Value $State.Permanent.ActionType)
+        $permRunAt = Convert-ToLocalDateTime -Value $pinfo.Info.NextRunTime
+        $daily = ("{0} at {1}  (in {2})" -f $permAction, (Format-LocalShort -Value $permRunAt), (Format-TimeRemaining -Target $permRunAt))
+        $sup = Get-PermanentSuppressionAt -State $State -Config $Config -AtLocal $permRunAt -VolatileTaskExists:($v.Exists)
+        if ($sup.Suppressed -and $sup.Until) {
+            $skipKind = if ($sup.Kind -eq "manual-skip") { "manual" } elseif ($sup.Kind -eq "volatile-upcoming") { "one-time nearby" } else { "grace window" }
+            $skip = ("next daily skipped until {0}  ({1})" -f (Format-LocalShort -Value $sup.Until), $skipKind)
+        }
+    } elseif ($pinfo.Exists) {
+        $permAction = Get-SdatActionLabel -ActionType (Resolve-SdatActionType -Value $State.Permanent.ActionType)
+        $daily = ("{0} active" -f $permAction)
+    }
+
+    return [pscustomobject]@{
+        OneTime = $oneTime
+        Daily = $daily
+        Skip = $skip
+        GraceMinutes = $grace
+        OverlapMinutes = $overlap
+    }
+}
+
 function Get-SdatStatusViewLines {
     param(
         [Parameter(Mandatory)]$State,
         [Parameter(Mandatory)]$Config
     )
-    $summary = Get-SdatStatusText -State $State -Config $Config
+    $m = Get-SdatStatusModel -State $State -Config $Config
+    $oneColor = if ($m.OneTime -eq "none") { "grey58" } else { "yellow" }
+    $skipColor = if ($m.Skip -eq "none") { "grey58" } else { "yellow" }
     return @(
-        $summary,
-        "Daily overlap: one-time wins within $([int]$Config.DailyOverlapWindowMinutes)m unless -k is used."
+        "[grey58]One-time  [/][$oneColor]$($m.OneTime)[/]",
+        "[grey58]Daily    [/][deepskyblue1]$($m.Daily)[/]",
+        "[grey58]Skip     [/][$skipColor]$($m.Skip)[/]",
+        "[grey58]Rules    [/][grey70]one-time wins within[/] [white]$($m.OverlapMinutes)m[/] [grey70]| grace[/] [white]$($m.GraceMinutes)m[/] [grey70]| use[/] [deepskyblue1]sdat -k <time>[/] [grey70]to keep daily[/]"
     )
 }
 
 function Get-SdatQuickHints {
     return @(
-        "sdat 2330       schedule one-time at 23:30",
-        "sdat 2h         schedule one-time in 2 hours",
-        "sdat 45m        schedule one-time in 45 minutes",
-        "sdat 0200 -p    schedule daily at 02:00",
-        "sdat -s         skip next daily once",
-        "sdat -k 45m     keep daily even if one-time overlaps"
+        "[deepskyblue1]sdat 2330[/]     [grey58]one-time at 23:30[/]",
+        "[deepskyblue1]sdat 2h[/]       [grey58]one-time in 2 hours[/]",
+        "[deepskyblue1]sdat 45m[/]      [grey58]one-time in 45 minutes[/]",
+        "[deepskyblue1]sdat 0200 -p[/]  [grey58]daily at 02:00[/]",
+        "[deepskyblue1]sdat -s[/]       [grey58]skip next daily once[/]",
+        "[deepskyblue1]sdat -k 45m[/]   [grey58]keep daily even if close[/]"
     )
 }
 
@@ -802,7 +849,7 @@ if ($Tui) {
     while ($true) {
         $config = Load-SdatConfig -Root $root -Profile $script:sdatProfile      
         $state = Load-SdatState -Root $root -Profile $script:sdatProfile        
-        $header = Get-SdatStatusText -State $state -Config $config
+        $header = (Get-SdatStatusViewLines -State $state -Config $config) -join "`n"
         $manualUntil = Parse-LocalDateTimeOrNull -Value $state.SuspendPermanentUntil
         $skipActive = ($manualUntil -and (Get-Date) -lt $manualUntil)
         $skipLabel = if ($skipActive) { "Toggle skip next permanent (ON)" } else { "Toggle skip next permanent (off)" }
