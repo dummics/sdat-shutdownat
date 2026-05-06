@@ -161,7 +161,7 @@ sdat 45m -KeepDaily
 - When a one-time action is scheduled near the next daily action, the one-time action wins by default and the next daily action is skipped once. The overlap window is controlled by `DailyOverlapWindowMinutes` (default: 120). Use `-k` / `-KeepDaily` to keep both.
 - `GraceMinutes` still protects the daily action around recent or upcoming one-time runs.
 - Use `sdat -s` to toggle suppression of the next permanent shutdown; running it again clears the skip, and the normal daily schedule resumes after the skipped run.
-- In TUI (`-tui`) the `Power action` row cycles between shutdown, suspend, and restart.
+- In TUI (`-tui`) scheduling is mode-aware: choose shutdown/suspend/restart and once/daily directly. The `Tasks` row is read-only and uses a short in-memory cache while the TUI is open.
 - The volatile execution cleans up after itself (task + volatile state), so `sdat` shows "Volatile: none" after it runs.
 - If a volatile run is triggered late (for example after sleep), it is skipped when more than `MissedVolatileShutdownMaxDelayMinutes` minutes late (default: 0, which means never run late).
 - If a permanent run is triggered late (for example after sleep), it is skipped when more than `MissedPermanentShutdownMaxDelayMinutes` minutes late (default: 0, which means never run late).

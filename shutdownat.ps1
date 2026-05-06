@@ -463,16 +463,13 @@ function Get-SdatStatusViewLines {
 function Get-SdatTuiHeaderLines {
     param(
         [Parameter(Mandatory)]$State,
-        [Parameter(Mandatory)]$Config,
-        [Parameter(Mandatory)][string]$CurrentActionType
+        [Parameter(Mandatory)]$Config
     )
     $m = Get-SdatStatusModel -State $State -Config $Config
     $oneColor = if ($m.OneTime -eq "none") { "grey58" } else { "yellow" }
-    $action = Get-SdatActionLabel -ActionType $CurrentActionType
     $lines = @(
         "[grey58]Daily    [/][deepskyblue1]$($m.Daily)[/]",
-        "[grey58]One-time [/][$oneColor]$($m.OneTime)[/]",
-        "[grey58]Power    [/][white]$action[/]"
+        "[grey58]One-time [/][$oneColor]$($m.OneTime)[/]"
     )
     if ($m.Skip -ne "none") {
         $lines += "[grey58]Daily pause[/] [yellow]$($m.Skip)[/]"
@@ -873,16 +870,61 @@ if ($A) {
 
 if ($Tui) {
     $notice = $null
-    $tuiActionType = Get-SdatRequestedActionType
+    $taskCache = $null
+
+    function Show-SdatTuiTextScreen {
+        param(
+            [Parameter(Mandatory)][string]$Title,
+            [Parameter(Mandatory)][string[]]$Lines
+        )
+        while ($true) {
+            try { [Console]::Clear() } catch { try { Clear-Host } catch { } }
+            Write-SdatTuiTitle -Title "SDAT"
+            Write-Host ""
+            Write-Host $Title -ForegroundColor Gray
+            Write-Host ""
+            foreach ($ln in $Lines) { Write-Host (Remove-SdatSpectreMarkup -Text $ln) }
+            $k = [Console]::ReadKey($true)
+            if ($k.Key -eq [ConsoleKey]::Escape -or $k.Key -eq [ConsoleKey]::Enter) { return }
+        }
+    }
+
+    function Get-SdatTaskSnapshotLines {
+        param(
+            [Parameter(Mandatory)]$State,
+            [Parameter(Mandatory)]$Config
+        )
+        $m = Get-SdatStatusModel -State $State -Config $Config
+        $names = Get-SdatTaskNames -Profile $script:sdatProfile
+        $v = Get-TaskInfoSafe -TaskName $names.Volatile
+        $p = Get-TaskInfoSafe -TaskName $names.Permanent
+        $stamp = (Get-Date).ToString("HH:mm:ss", [System.Globalization.CultureInfo]::InvariantCulture)
+        $volState = if ($v.Exists -and $v.Task) { $v.Task.State } else { "none" }
+        $permState = if ($p.Exists -and $p.Task) { $p.Task.State } else { "none" }
+        return @(
+            "cached $stamp",
+            "",
+            "One-time   $($m.OneTime)",
+            "Daily      $($m.Daily)",
+            "Skip       $($m.Skip)",
+            "",
+            "$($names.Volatile)   $volState",
+            "$($names.Permanent)  $permState"
+        )
+    }
+
     while ($true) {
         $config = Load-SdatConfig -Root $root -Profile $script:sdatProfile      
         $state = Load-SdatState -Root $root -Profile $script:sdatProfile        
-        $header = (Get-SdatTuiHeaderLines -State $state -Config $config -CurrentActionType $tuiActionType) -join "`n"
-        $actionLabel = (Get-SdatActionLabel -ActionType $tuiActionType)
+        $header = (Get-SdatTuiHeaderLines -State $state -Config $config) -join "`n"
         $options = @(
-            "One-time",
-            "Daily",
-            "Power action $actionLabel"
+            "Shutdown once",
+            "Shutdown daily",
+            "Suspend once",
+            "Suspend daily",
+            "Restart once",
+            "Restart daily",
+            "Tasks"
         )
 
         $sel = Show-SdatMainMenu -Title "SDAT" -Header $header -Notice $notice -Options $options  
@@ -905,23 +947,6 @@ if ($Tui) {
                 }
                 if ($summaries.Count -eq 0) { return $null }
                 return $summaries[-1]
-            }
-
-            function Show-TextScreen {
-                param(
-                    [Parameter(Mandatory)][string]$Title,
-                    [Parameter(Mandatory)][string[]]$Lines
-                )
-                while ($true) {
-                    try { [Console]::Clear() } catch { try { Clear-Host } catch { } }
-                    Write-SdatTuiTitle -Title "SDAT"
-                    Write-Host ""
-                    Write-Host $Title -ForegroundColor Gray
-                    Write-Host ""
-                    foreach ($ln in $Lines) { Write-Host $ln }
-                    $k = [Console]::ReadKey($true)
-                    if ($k.Key -eq [ConsoleKey]::Escape) { return }
-                }
             }
 
             $diagNotice = $null
@@ -955,7 +980,7 @@ if ($Tui) {
                         "",
                         "Safety: -SelfTest forces dry-run mode for child scheduled-task actions too."
                     )
-                    Show-TextScreen -Title "Manual self-test" -Lines $lines
+                    Show-SdatTuiTextScreen -Title "Manual self-test" -Lines $lines
                     continue
                 }
 
@@ -972,7 +997,7 @@ if ($Tui) {
                         "Log:     $($last.logPath)",
                         "JSONL:   $($last.resultsPath)"
                     )
-                    Show-TextScreen -Title "Self-test summary" -Lines $lines
+                    Show-SdatTuiTextScreen -Title "Self-test summary" -Lines $lines
                     continue
                 }
 
@@ -980,7 +1005,7 @@ if ($Tui) {
                     $lines = @()
                     if (Test-Path -LiteralPath $paths.Log) { $lines = Get-Content -LiteralPath $paths.Log -Tail 80 -ErrorAction SilentlyContinue }
                     if (-not $lines) { $lines = @("(no log file found)") }
-                    Show-TextScreen -Title "Self-test log (tail)" -Lines $lines
+                    Show-SdatTuiTextScreen -Title "Self-test log (tail)" -Lines $lines
                     continue
                 }
 
@@ -988,7 +1013,7 @@ if ($Tui) {
                     $lines = @()
                     if (Test-Path -LiteralPath $paths.Jsonl) { $lines = Get-Content -LiteralPath $paths.Jsonl -Tail 80 -ErrorAction SilentlyContinue }
                     if (-not $lines) { $lines = @("(no JSONL file found)") }
-                    Show-TextScreen -Title "Self-test JSONL (tail)" -Lines $lines
+                    Show-SdatTuiTextScreen -Title "Self-test JSONL (tail)" -Lines $lines
                     continue
                 }
             }
@@ -996,58 +1021,55 @@ if ($Tui) {
             continue
         }
 
-        if ($sel -eq 0) {
+        if ($sel -eq 6) {
+            if (-not $taskCache -or $taskCache.ExpiresAt -lt (Get-Date)) {
+                $taskCache = [pscustomobject]@{
+                    ExpiresAt = (Get-Date).AddSeconds(15)
+                    Lines = (Get-SdatTaskSnapshotLines -State $state -Config $config)
+                }
+            }
+            Show-SdatTuiTextScreen -Title "Tasks" -Lines $taskCache.Lines
+            continue
+        }
+
+        if ($sel -ge 0 -and $sel -le 5) {
+            $actionTypes = @("shutdown", "shutdown", "suspend", "suspend", "restart", "restart")
+            $isDaily = ($sel % 2 -eq 1)
+            $selectedAction = $actionTypes[$sel]
+            $actionLabel = Get-SdatActionLabel -ActionType $selectedAction
+            $prompt = if ($isDaily) { ("{0} daily" -f (Get-Culture).TextInfo.ToTitleCase($actionLabel)) } else { ("{0} once" -f (Get-Culture).TextInfo.ToTitleCase($actionLabel)) }
             $input = $null
             try {
-                $input = Read-LineWithEsc -Title "SDAT" -Header $header -Prompt ("One-time {0}" -f $actionLabel)
+                $input = Read-LineWithEsc -Title "SDAT" -Header $header -Prompt $prompt
             } catch {
                 $notice = New-TuiNotice -Kind "error" -Message $_.Exception.Message
                 continue
             }
             if ($null -eq $input) { continue }
             if ([string]::IsNullOrWhiteSpace($input)) {
-                Invoke-CancelVolatile
-                $notice = New-TuiNotice -Kind "info" -Message ("One-time {0} canceled." -f $actionLabel)
+                if ($isDaily) {
+                    Invoke-CancelPermanent
+                    $notice = New-TuiNotice -Kind "info" -Message ("Daily {0} canceled." -f $actionLabel)
+                } else {
+                    Invoke-CancelVolatile
+                    $notice = New-TuiNotice -Kind "info" -Message ("One-time {0} canceled." -f $actionLabel)
+                }
+                $taskCache = $null
                 continue
             }
             try {
                 $resolved = Resolve-SdatTimeInput -Value $input
-                $msg = Invoke-ScheduleVolatileOnce -TargetLocal $resolved.TargetLocal -ActionType $tuiActionType
+                if ($isDaily -and $resolved.Kind -ne "absolute") { throw "Daily schedules need a clock time like 0200 or 02:00. Use durations for one-time only." }
+                $msg = if ($isDaily) {
+                    Invoke-SchedulePermanentDaily -Hours $resolved.Hours -Minutes $resolved.Minutes -ActionType $selectedAction
+                } else {
+                    Invoke-ScheduleVolatileOnce -TargetLocal $resolved.TargetLocal -ActionType $selectedAction
+                }
                 $notice = New-TuiNotice -Kind "info" -Message $msg
+                $taskCache = $null
             } catch {
                 $notice = New-TuiNotice -Kind "error" -Message $_.Exception.Message
             }
-            continue
-        }
-
-        if ($sel -eq 1) {
-            $input = $null
-            try {
-                $input = Read-LineWithEsc -Title "SDAT" -Header $header -Prompt ("Daily {0}" -f $actionLabel)
-            } catch {
-                $notice = New-TuiNotice -Kind "error" -Message $_.Exception.Message
-                continue
-            }
-            if ($null -eq $input) { continue }
-            if ([string]::IsNullOrWhiteSpace($input)) {
-                Invoke-CancelPermanent
-                $notice = New-TuiNotice -Kind "info" -Message ("Daily {0} canceled." -f $actionLabel)
-                continue
-            }
-            try {
-                $resolved = Resolve-SdatTimeInput -Value $input
-                if ($resolved.Kind -ne "absolute") { throw "Daily schedules need a clock time like 0200 or 02:00. Use durations for one-time only." }
-                $msg = Invoke-SchedulePermanentDaily -Hours $resolved.Hours -Minutes $resolved.Minutes -ActionType $tuiActionType
-                $notice = New-TuiNotice -Kind "info" -Message $msg
-            } catch {
-                $notice = New-TuiNotice -Kind "error" -Message $_.Exception.Message
-            }
-            continue
-        }
-
-        if ($sel -eq 2) {
-            $tuiActionType = Get-NextSdatActionType -ActionType $tuiActionType
-            $notice = New-TuiNotice -Kind "info" -Message ("Power action: {0}" -f (Get-SdatActionLabel -ActionType $tuiActionType))
             continue
         }
     }

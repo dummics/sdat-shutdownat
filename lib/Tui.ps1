@@ -53,7 +53,15 @@ function Write-SdatSpectrePanel {
         $panel.Header = [Spectre.Console.PanelHeader]::new($Title)
         $panel.Border = [Spectre.Console.BoxBorder]::Rounded
         $panel.BorderStyle = [Spectre.Console.Style]::new([Spectre.Console.Color]::Grey35)
-        $panel | Out-Host
+        $panel.Expand = $false
+        $panel.Padding = [Spectre.Console.Padding]::new(1, 0, 1, 0)
+        $contentWidth = 0
+        foreach ($line in $safeLines) {
+            $plain = Remove-SdatSpectreMarkup -Text $line
+            if ($plain.Length -gt $contentWidth) { $contentWidth = $plain.Length }
+        }
+        $panel.Width = [Math]::Min([Math]::Max(44, $contentWidth + 4), [Math]::Max(44, (Get-ConsoleWidthSafe) - 4))
+        [Spectre.Console.Align]::Center($panel, $null) | Out-Host
         return $true
     } catch {
         return $false
@@ -115,6 +123,22 @@ function Get-ConsoleWidthSafe {
         if ($w -gt 0) { return $w }
     } catch { }
     return 100
+}
+
+function Get-SdatCenteredLeft {
+    param([int]$Width)
+    $w = Get-ConsoleWidthSafe
+    return [Math]::Max(0, [int][Math]::Floor(($w - $Width) / 2))
+}
+
+function Format-SdatCenteredLine {
+    param(
+        [AllowNull()][string]$Text,
+        [int]$Width = 54
+    )
+    $value = if ($null -eq $Text) { "" } else { [string]$Text }
+    $left = Get-SdatCenteredLeft -Width $Width
+    return ((' ' * $left) + $value)
 }
 
 function Write-ConsoleAt {
@@ -256,26 +280,45 @@ function Get-SdatMenuActionRows {
         [AllowNull()][string[]]$Options,
         [int]$Selected
     )
-    $lines = @()
-    for ($i = 0; $i -lt $Options.Count; $i++) {
-        $raw = [string]$Options[$i]
-        $name = $raw
-        $value = ""
-        if ($raw -match '^(Power action)\s+(.+)$') {
-            $name = $Matches[1]
-            $value = $Matches[2]
+    function Find-OptionIndex {
+        param([Parameter(Mandatory)][string]$Value)
+        for ($i = 0; $i -lt $Options.Count; $i++) {
+            if ([string]$Options[$i] -eq $Value) { return $i }
         }
-        $safeName = Escape-SdatSpectre $name
-        $safeValue = Escape-SdatSpectre $value
-        if ($i -eq $Selected) {
-            $plain = if ($value) { ("  {0,-14} {1}" -f $name, $value) } else { ("  {0}" -f $name) }
-            $lines += "[black on deepskyblue1]$plain[/]"
+        return -1
+    }
+
+    function Format-Cell {
+        param(
+            [Parameter(Mandatory)][string]$Label,
+            [int]$Index
+        )
+        $plain = (" {0,-5} " -f $Label)
+        if ($Index -eq $Selected) { return "[black on deepskyblue1]$plain[/]" }
+        return "[grey70]$plain[/]"
+    }
+
+    $rows = @(
+        [pscustomobject]@{ Name = "Shutdown"; Once = (Find-OptionIndex "Shutdown once"); Daily = (Find-OptionIndex "Shutdown daily") },
+        [pscustomobject]@{ Name = "Suspend"; Once = (Find-OptionIndex "Suspend once"); Daily = (Find-OptionIndex "Suspend daily") },
+        [pscustomobject]@{ Name = "Restart"; Once = (Find-OptionIndex "Restart once"); Daily = (Find-OptionIndex "Restart daily") }
+    )
+    $tasksIndex = Find-OptionIndex "Tasks"
+
+    $lines = @()
+    $lines += "            [grey58]once[/]     [grey58]daily[/]"
+    foreach ($row in $rows) {
+        $name = if ($row.Name -eq "Shutdown") { "[white]Shutdown[/]" } else { "[grey70]$($row.Name)[/]" }
+        $lines += ("  {0,-19}{1}  {2}" -f $name, (Format-Cell -Label "once" -Index $row.Once), (Format-Cell -Label "daily" -Index $row.Daily))
+    }
+    if ($tasksIndex -ge 0) {
+        $taskLine = " Tasks      view scheduled actions "
+        if ($tasksIndex -eq $Selected) {
+            $lines += " "
+            $lines += "[black on deepskyblue1]$taskLine[/]"
         } else {
-            if ($value) {
-                $lines += ("[white]  {0,-14}[/] [grey70]{1}[/]" -f $safeName, $safeValue)
-            } else {
-                $lines += ("[white]  {0}[/]" -f $safeName)
-            }
+            $lines += " "
+            $lines += "[grey70]$taskLine[/]"
         }
     }
     return $lines
@@ -343,9 +386,13 @@ function Show-SdatMainMenu {
         $Options
     } else {
         @(
-            "One-time",
-            "Daily",
-            "Power action shutdown"
+            "Shutdown once",
+            "Shutdown daily",
+            "Suspend once",
+            "Suspend daily",
+            "Restart once",
+            "Restart daily",
+            "Tasks"
         )
     }
     $idx = 0
@@ -370,9 +417,9 @@ function Show-SdatMainMenu {
             }
             Write-Host ""
             for ($i = 0; $i -lt $options.Count; $i++) {
-                $line = $options[$i]
-                if ($i -eq $idx) { Write-Host ("> " + $line) -ForegroundColor Black -BackgroundColor DarkCyan }
-                else { Write-Host ("  " + $line) -ForegroundColor Gray }
+                $line = Format-SdatCenteredLine -Text $options[$i] -Width 34
+                if ($i -eq $idx) { Write-Host $line -ForegroundColor Black -BackgroundColor DarkCyan }
+                else { Write-Host $line -ForegroundColor Gray }
             }
             Write-Host ""
 
@@ -408,9 +455,7 @@ function Show-SdatMainMenu {
             [Parameter(Mandatory)][int]$Index,
             [Parameter(Mandatory)][bool]$Selected
         )
-        $prefix = if ($Selected) { "> " } else { "  " }
-        $text = $options[$Index]
-        $text = $prefix + $text
+        $text = Format-SdatCenteredLine -Text $options[$Index] -Width 34
         if ($Selected) {
             Write-ConsoleAt -Left 0 -Top $Top -Text $text -ForegroundColor $selFg -BackgroundColor $selBg -ClearToEnd
         } else {
@@ -530,8 +575,9 @@ function Show-SdatDiagnosticsMenu {
             }
             Write-Host ""
             for ($i = 0; $i -lt $options.Count; $i++) {
-                if ($i -eq $idx) { Write-Host ("> " + $options[$i]) -ForegroundColor Black -BackgroundColor DarkCyan }
-                else { Write-Host ("  " + $options[$i]) -ForegroundColor Gray }
+                $line = Format-SdatCenteredLine -Text $options[$i] -Width 36
+                if ($i -eq $idx) { Write-Host $line -ForegroundColor Black -BackgroundColor DarkCyan }
+                else { Write-Host $line -ForegroundColor Gray }
             }
             Write-Host ""
 
@@ -561,8 +607,7 @@ function Show-SdatDiagnosticsMenu {
             [Parameter(Mandatory)][int]$Index,
             [Parameter(Mandatory)][bool]$Selected
         )
-        $prefix = if ($Selected) { "> " } else { "  " }
-        $text = $prefix + $options[$Index]
+        $text = Format-SdatCenteredLine -Text $options[$Index] -Width 36
         if ($Selected) {
             Write-ConsoleAt -Left 0 -Top $Top -Text $text -ForegroundColor $selFg -BackgroundColor $selBg -ClearToEnd
         } else {
@@ -673,11 +718,12 @@ function Read-LineWithEsc {
                 Write-Host ""
             }
             Write-Host ""
-            Write-Host $Prompt -ForegroundColor Gray
+            Write-Host (Format-SdatCenteredLine -Text $Prompt -Width 34) -ForegroundColor Gray
             Write-Host ""
-            Write-Host ("{0}> {1}" -f " ", $buf) -ForegroundColor White
+            $field = ("[ {0,-18} ]" -f $buf)
+            Write-Host (Format-SdatCenteredLine -Text $field -Width 24) -ForegroundColor White
             Write-Host ""
-            Write-Host "2330  23:30  2h  45m  180s" -ForegroundColor DarkGray
+            Write-Host (Format-SdatCenteredLine -Text "2330  23:30  2h  45m" -Width 30) -ForegroundColor DarkGray
 
             $k = [Console]::ReadKey($true)
             switch ($k.Key) {
@@ -695,7 +741,7 @@ function Read-LineWithEsc {
     }
 
     $oldCursor = $true
-    try { $oldCursor = [Console]::CursorVisible; [Console]::CursorVisible = $false } catch { }
+    try { $oldCursor = [Console]::CursorVisible; [Console]::CursorVisible = $true } catch { }
     $inputTop = 0
     $inputLeft = 0
     $maxLen = 12
@@ -707,26 +753,28 @@ function Read-LineWithEsc {
             foreach ($line in ($Header -split "`r?`n")) { Write-SdatHeaderLine -Line $line }
             Write-Host ""
         }
-        Write-Host $Prompt -ForegroundColor Gray
+        Write-Host (Format-SdatCenteredLine -Text $Prompt -Width 34) -ForegroundColor Gray
         Write-Host ""
 
         $inputTop = [Console]::CursorTop
-        $inputLeft = 0
-        [Console]::Write("> ")
-        $inputLeft = [Console]::CursorLeft
+        $fieldWidth = 22
+        $fieldLeft = Get-SdatCenteredLeft -Width $fieldWidth
+        $inputLeft = $fieldLeft + 2
+        [Console]::SetCursorPosition($fieldLeft, $inputTop)
+        [Console]::Write("[ " + (' ' * ($fieldWidth - 4)) + " ]")
         [Console]::WriteLine("")
         Write-Host ""
-        Write-Host "2330  23:30  2h  45m  180s" -ForegroundColor DarkGray
+        Write-Host (Format-SdatCenteredLine -Text "2330  23:30  2h  45m" -Width 30) -ForegroundColor DarkGray
 
         $w = Get-ConsoleWidthSafe
         function Render-InputLine {
             param([AllowEmptyString()][string]$Value)
             try {
-                [Console]::SetCursorPosition($inputLeft, $inputTop)
+                [Console]::SetCursorPosition($fieldLeft, $inputTop)
                 $out = $Value
                 if ($out.Length -gt $maxLen) { $out = $out.Substring(0, $maxLen) }
-                $pad = [Math]::Max(0, ($w - 3) - $out.Length) # width minus '> ' and 1
-                [Console]::Write($out + (' ' * $pad))
+                $pad = [Math]::Max(0, ($fieldWidth - 4) - $out.Length)
+                [Console]::Write("[ " + $out + (' ' * $pad) + " ]")
                 [Console]::SetCursorPosition($inputLeft + [Math]::Min($out.Length, $maxLen), $inputTop)
             } catch { }
         }
