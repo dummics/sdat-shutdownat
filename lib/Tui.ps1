@@ -34,7 +34,7 @@ function Escape-SdatSpectre {
 function Remove-SdatSpectreMarkup {
     param([AllowNull()][string]$Text)
     if ($null -eq $Text) { return "" }
-    return ([regex]::Replace($Text, '\[[^\]]+\]', ''))
+    return ([regex]::Replace($Text, '\[/?[^\]]+\]', ''))
 }
 
 function Write-SdatSpectrePanel {
@@ -171,6 +171,12 @@ function Write-Hr {
     Write-Host ('-' * [Math]::Max(10, $w - 1)) -ForegroundColor DarkGray
 }
 
+function Write-SdatTuiTitle {
+    param([string]$Title = "SDAT")
+    Write-Host $Title -ForegroundColor Cyan
+    Write-Host "shutdown at" -ForegroundColor DarkGray
+}
+
 function Write-NoticeBar {
     param($Notice)
     if ($null -eq $Notice) { return }
@@ -184,7 +190,6 @@ function Write-NoticeBar {
 
     Write-Host ("[$tag] ") -NoNewline -ForegroundColor $tagColor
     Write-Host $Notice.Message -ForegroundColor $msgColor
-    Write-Hr
 }
 
 function Write-SdatHeaderLine {
@@ -195,16 +200,18 @@ function Write-SdatHeaderLine {
         return
     }
 
-    if ($plain -match '^(One-time|Daily|Skip|Rules)\s{2,}(.*)$') {
+    if ($plain -match '^(One-time|Daily|Skip|Rules|Power|Daily pause)\s{2,}(.*)$') {
         $label = $Matches[1]
         $value = $Matches[2]
         $valueColor = 'Gray'
         if ($label -eq 'Daily') { $valueColor = 'Cyan' }
         if ($label -eq 'One-time' -and $value -notmatch '^none\b') { $valueColor = 'Yellow' }
         if ($label -eq 'Skip' -and $value -notmatch '^none\b') { $valueColor = 'Yellow' }
+        if ($label -eq 'Power') { $valueColor = 'White' }
+        if ($label -eq 'Daily pause') { $valueColor = 'Yellow' }
         if ($label -eq 'Rules') { $valueColor = 'DarkGray' }
 
-        Write-Host ("{0,-9} " -f $label) -NoNewline -ForegroundColor DarkGray
+        Write-Host ("{0,-11} " -f $label) -NoNewline -ForegroundColor DarkGray
         Write-Host $value -ForegroundColor $valueColor
         return
     }
@@ -224,16 +231,18 @@ function Write-SdatHeaderLineAt {
         return
     }
 
-    if ($plain -match '^(One-time|Daily|Skip|Rules)\s{2,}(.*)$') {
+    if ($plain -match '^(One-time|Daily|Skip|Rules|Power|Daily pause)\s{2,}(.*)$') {
         $label = $Matches[1]
         $value = $Matches[2]
         $valueColor = [ConsoleColor]::Gray
         if ($label -eq 'Daily') { $valueColor = [ConsoleColor]::Cyan }
         if ($label -eq 'One-time' -and $value -notmatch '^none\b') { $valueColor = [ConsoleColor]::Yellow }
         if ($label -eq 'Skip' -and $value -notmatch '^none\b') { $valueColor = [ConsoleColor]::Yellow }
+        if ($label -eq 'Power') { $valueColor = [ConsoleColor]::White }
+        if ($label -eq 'Daily pause') { $valueColor = [ConsoleColor]::Yellow }
         if ($label -eq 'Rules') { $valueColor = [ConsoleColor]::DarkGray }
 
-        $prefix = ("{0,-9} " -f $label)
+        $prefix = ("{0,-11} " -f $label)
         Write-ConsoleAt -Left 0 -Top $Top -Text ($prefix + $value) -ForegroundColor $valueColor -BackgroundColor $BackgroundColor -ClearToEnd
         Write-ConsoleAt -Left 0 -Top $Top -Text $prefix -ForegroundColor DarkGray -BackgroundColor $BackgroundColor
         return
@@ -352,12 +361,12 @@ function Show-SdatMainMenu {
     if (-not $consoleReady) {
         while ($true) {
             Clear-Host
-            Write-Host $Title -ForegroundColor Cyan
-            Write-Hr
+            Write-SdatTuiTitle -Title $Title
+            Write-Host ""
             Write-NoticeBar -Notice $Notice
             if ($Header) {
                 foreach ($line in ($Header -split "`r?`n")) { Write-SdatHeaderLine -Line $line }
-                Write-Hr
+                Write-Host ""
             }
             Write-Host ""
             for ($i = 0; $i -lt $options.Count; $i++) {
@@ -512,17 +521,19 @@ function Show-SdatDiagnosticsMenu {
     if (-not $consoleReady) {
         while ($true) {
             Clear-Host
-            Write-Host $Title -ForegroundColor Cyan
-            Write-Hr
+            Write-SdatTuiTitle -Title "SDAT"
+            Write-Host ""
             Write-NoticeBar -Notice $Notice
-            if ($Header) { Write-Host $Header -ForegroundColor DarkGray; Write-Hr }
+            if ($Header) {
+                foreach ($line in ($Header -split "`r?`n")) { Write-SdatHeaderLine -Line $line }
+                Write-Host ""
+            }
             Write-Host ""
             for ($i = 0; $i -lt $options.Count; $i++) {
                 if ($i -eq $idx) { Write-Host ("> " + $options[$i]) -ForegroundColor Black -BackgroundColor DarkCyan }
                 else { Write-Host ("  " + $options[$i]) -ForegroundColor Gray }
             }
             Write-Host ""
-            Write-Host "Enter=select  |  Esc=back" -ForegroundColor DarkGray
 
             $k = [Console]::ReadKey($true)
             switch ($k.Key) {
@@ -539,15 +550,10 @@ function Show-SdatDiagnosticsMenu {
     $oldCursor = $true
     try { $oldCursor = [Console]::CursorVisible; [Console]::CursorVisible = $false } catch { }
 
-    $titleFg = [ConsoleColor]::Cyan
     $mutedFg = [ConsoleColor]::DarkGray
     $optFg = [ConsoleColor]::Gray
     $selFg = [ConsoleColor]::Black
     $selBg = [ConsoleColor]::DarkCyan
-
-    function Get-HrLine {
-        return ('-' * [Math]::Max(10, $w - 1))
-    }
 
     function Render-OptionLine {
         param(
@@ -569,9 +575,11 @@ function Show-SdatDiagnosticsMenu {
         try { [Console]::Clear() } catch { try { Clear-Host } catch { } }
         $row = 0
         $row++
-        Write-ConsoleAt -Left 0 -Top $row -Text $Title -ForegroundColor $titleFg -BackgroundColor $bg -ClearToEnd
+        Write-ConsoleAt -Left 0 -Top $row -Text "SDAT" -ForegroundColor ([ConsoleColor]::Cyan) -BackgroundColor $bg -ClearToEnd
         $row++
-        Write-ConsoleAt -Left 0 -Top $row -Text (Get-HrLine) -ForegroundColor $mutedFg -BackgroundColor $bg -ClearToEnd
+        Write-ConsoleAt -Left 0 -Top $row -Text "shutdown at" -ForegroundColor $mutedFg -BackgroundColor $bg -ClearToEnd
+        $row++
+        Write-ConsoleAt -Left 0 -Top $row -Text "" -ForegroundColor $mutedFg -BackgroundColor $bg -ClearToEnd
         $row++
 
         if ($Notice) {
@@ -583,16 +591,16 @@ function Show-SdatDiagnosticsMenu {
             Write-ConsoleAt -Left 0 -Top $row -Text $line -ForegroundColor $msgColor -BackgroundColor $bg -ClearToEnd
             Write-ConsoleAt -Left 0 -Top $row -Text "[${tag}]" -ForegroundColor $tagColor -BackgroundColor $bg
             $row++
-            Write-ConsoleAt -Left 0 -Top $row -Text (Get-HrLine) -ForegroundColor $mutedFg -BackgroundColor $bg -ClearToEnd
+            Write-ConsoleAt -Left 0 -Top $row -Text "" -ForegroundColor $mutedFg -BackgroundColor $bg -ClearToEnd
             $row++
         }
 
         if ($Header) {
             foreach ($line in ($Header -split "`r?`n")) {
-                Write-ConsoleAt -Left 0 -Top $row -Text $line -ForegroundColor $mutedFg -BackgroundColor $bg -ClearToEnd
+                Write-SdatHeaderLineAt -Top $row -Line $line -BackgroundColor $bg
                 $row++
             }
-            Write-ConsoleAt -Left 0 -Top $row -Text (Get-HrLine) -ForegroundColor $mutedFg -BackgroundColor $bg -ClearToEnd
+            Write-ConsoleAt -Left 0 -Top $row -Text "" -ForegroundColor $mutedFg -BackgroundColor $bg -ClearToEnd
             $row++
         }
 
@@ -604,7 +612,7 @@ function Show-SdatDiagnosticsMenu {
 
         $footerTop = $optionsTop + $options.Count + 1
         Write-ConsoleAt -Left 0 -Top $footerTop -Text "" -ForegroundColor $mutedFg -BackgroundColor $bg -ClearToEnd
-        Write-ConsoleAt -Left 0 -Top ($footerTop + 1) -Text "Enter=select  |  Esc=back" -ForegroundColor $mutedFg -BackgroundColor $bg -ClearToEnd
+        Write-ConsoleAt -Left 0 -Top ($footerTop + 1) -Text "" -ForegroundColor $mutedFg -BackgroundColor $bg -ClearToEnd
         return [pscustomobject]@{ OptionsTop = $optionsTop }
     }
 
@@ -658,15 +666,18 @@ function Read-LineWithEsc {
     if (-not $consoleReady) {
         while ($true) {
             Clear-Host
-            Write-Host $Title -ForegroundColor Cyan
-            Write-Hr
-            if ($Header) { Write-Host $Header -ForegroundColor DarkGray; Write-Hr }
+            Write-SdatTuiTitle -Title $Title
+            Write-Host ""
+            if ($Header) {
+                foreach ($line in ($Header -split "`r?`n")) { Write-SdatHeaderLine -Line $line }
+                Write-Host ""
+            }
             Write-Host ""
             Write-Host $Prompt -ForegroundColor Gray
             Write-Host ""
             Write-Host ("{0}> {1}" -f " ", $buf) -ForegroundColor White
             Write-Host ""
-            Write-Host "Examples: 2330, 23:30, 2h, 45m, 180s. Enter=confirm | Esc=back | Empty+Enter=cancel" -ForegroundColor DarkGray
+            Write-Host "2330  23:30  2h  45m  180s" -ForegroundColor DarkGray
 
             $k = [Console]::ReadKey($true)
             switch ($k.Key) {
@@ -690,10 +701,12 @@ function Read-LineWithEsc {
     $maxLen = 12
     try {
         [Console]::Clear()
-        Write-Host $Title -ForegroundColor Cyan
-        Write-Hr
-        if ($Header) { Write-Host $Header -ForegroundColor DarkGray; Write-Hr }
+        Write-SdatTuiTitle -Title $Title
         Write-Host ""
+        if ($Header) {
+            foreach ($line in ($Header -split "`r?`n")) { Write-SdatHeaderLine -Line $line }
+            Write-Host ""
+        }
         Write-Host $Prompt -ForegroundColor Gray
         Write-Host ""
 
@@ -703,7 +716,7 @@ function Read-LineWithEsc {
         $inputLeft = [Console]::CursorLeft
         [Console]::WriteLine("")
         Write-Host ""
-        Write-Host "Examples: 2330, 23:30, 2h, 45m, 180s. Enter=confirm | Esc=back | Empty+Enter=cancel" -ForegroundColor DarkGray
+        Write-Host "2330  23:30  2h  45m  180s" -ForegroundColor DarkGray
 
         $w = Get-ConsoleWidthSafe
         function Render-InputLine {

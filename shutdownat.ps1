@@ -914,11 +914,11 @@ if ($Tui) {
                 )
                 while ($true) {
                     try { [Console]::Clear() } catch { try { Clear-Host } catch { } }
-                    Write-Host $Title -ForegroundColor Cyan
-                    Write-Hr
+                    Write-SdatTuiTitle -Title "SDAT"
+                    Write-Host ""
+                    Write-Host $Title -ForegroundColor Gray
+                    Write-Host ""
                     foreach ($ln in $Lines) { Write-Host $ln }
-                    Write-Hr
-                    Write-Host "Esc=back" -ForegroundColor DarkGray
                     $k = [Console]::ReadKey($true)
                     if ($k.Key -eq [ConsoleKey]::Escape) { return }
                 }
@@ -999,7 +999,7 @@ if ($Tui) {
         if ($sel -eq 0) {
             $input = $null
             try {
-                $input = Read-LineWithEsc -Title "SDAT" -Header $header -Prompt ("Set one-time (volatile) {0}." -f $actionLabel)
+                $input = Read-LineWithEsc -Title "SDAT" -Header $header -Prompt ("One-time {0}" -f $actionLabel)
             } catch {
                 $notice = New-TuiNotice -Kind "error" -Message $_.Exception.Message
                 continue
@@ -1023,7 +1023,7 @@ if ($Tui) {
         if ($sel -eq 1) {
             $input = $null
             try {
-                $input = Read-LineWithEsc -Title "SDAT" -Header $header -Prompt ("Set daily (permanent) {0}." -f $actionLabel)
+                $input = Read-LineWithEsc -Title "SDAT" -Header $header -Prompt ("Daily {0}" -f $actionLabel)
             } catch {
                 $notice = New-TuiNotice -Kind "error" -Message $_.Exception.Message
                 continue
