@@ -81,8 +81,8 @@ function Show-SdatHelp {
         "",
         "TIME examples:",
         "  2330, 23:30          absolute clock time",
-        "  2h, 23h              relative hours",
-        "  45m, 303min          relative minutes",
+        "  2h, 3.5h             relative hours",
+        "  45m, mezzora         relative minutes",
         "  60s, 180sec          relative seconds",
         "",
         "Special modes: -NotifyStatus, -RunVolatile, -RunPermanent, -SelfTest"
@@ -178,6 +178,43 @@ function Parse-TimeInput {
     return Parse-HHMM -Time (Normalize-TimeInput -Value $Value)
 }
 
+function Resolve-SdatDurationSeconds {
+    param([Parameter(Mandatory)][string]$Value)
+
+    $raw = $Value.Trim().ToLowerInvariant()
+    $compact = ($raw -replace "\s+", "")
+    if ($compact -in @("mezzora", "mezz'ora", "mezzaora", "mezzhour", "halfhour")) {
+        return 1800
+    }
+    if ($raw -match "^(mezz|mezza|half)\s*(ora|hour)$") {
+        return 1800
+    }
+
+    $unitPattern = "h|hr|hrs|hour|hours|ora|ore|m|min|mins|minute|minutes|s|sec|secs|second|seconds|secondi"
+    $partPattern = "(?<amount>\d+(?:[\.,]\d+)?)\s*(?<unit>$unitPattern)"
+    $matches = [regex]::Matches($raw, $partPattern, [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
+    if ($matches.Count -eq 0) { return $null }
+
+    $consumed = (($matches | ForEach-Object { $_.Value }) -join "") -replace "\s+", ""
+    if ($consumed -ne $compact) { return $null }
+
+    [double]$seconds = 0
+    foreach ($match in $matches) {
+        $amountText = $match.Groups["amount"].Value.Replace(",", ".")
+        $amount = [double]::Parse($amountText, [System.Globalization.CultureInfo]::InvariantCulture)
+        if ($amount -lt 0) { throw "Duration must be greater than zero." }
+
+        $unit = $match.Groups["unit"].Value.ToLowerInvariant()
+        if ($unit -in @("h", "hr", "hrs", "hour", "hours", "ora", "ore")) { $seconds += $amount * 3600 }
+        elseif ($unit -in @("m", "min", "mins", "minute", "minutes")) { $seconds += $amount * 60 }
+        else { $seconds += $amount }
+    }
+
+    $rounded = [int][Math]::Round($seconds, [System.MidpointRounding]::AwayFromZero)
+    if ($rounded -le 0) { throw "Duration must be greater than zero." }
+    return $rounded
+}
+
 function Resolve-SdatTimeInput {
     param(
         [Parameter(Mandatory)][string]$Value,
@@ -185,19 +222,11 @@ function Resolve-SdatTimeInput {
     )
     $raw = $Value.Trim()
     if ([string]::IsNullOrWhiteSpace($raw)) {
-        throw "Missing time value. Use 2330, 23:30, 2h, 45m, or 180s."
+        throw "Missing time value. Use 2330, 23:30, 2h, 3.5h, 45m, mezzora, or 180s."
     }
 
-    if ($raw -match '^(?<amount>\d+)\s*(?<unit>h|hr|hrs|hour|hours|ora|ore|m|min|mins|minute|minutes|s|sec|secs|second|seconds|secondi)$') {
-        $amount = [int]$Matches.amount
-        $unit = $Matches.unit.ToLowerInvariant()
-        if ($amount -le 0) { throw "Duration must be greater than zero." }
-
-        $seconds = 0
-        if ($unit -in @("h", "hr", "hrs", "hour", "hours", "ora", "ore")) { $seconds = $amount * 3600 }
-        elseif ($unit -in @("m", "min", "mins", "minute", "minutes")) { $seconds = $amount * 60 }
-        else { $seconds = $amount }
-
+    $seconds = Resolve-SdatDurationSeconds -Value $raw
+    if ($null -ne $seconds) {
         $target = $Now.AddSeconds($seconds)
         if ($target.Second -gt 0 -or $target.Millisecond -gt 0) {
             $target = $target.AddMinutes(1).AddSeconds(-$target.Second).AddMilliseconds(-$target.Millisecond)
@@ -490,7 +519,7 @@ function Get-SdatTuiHeaderLines {
 function Get-SdatQuickHints {
     return @(
         "[deepskyblue1]sdat 2330[/]     [grey58]one-time at 23:30[/]",
-        "[deepskyblue1]sdat 2h[/]       [grey58]one-time in 2 hours[/]",
+        "[deepskyblue1]sdat 3.5h[/]     [grey58]one-time in 3h 30m[/]",
         "[deepskyblue1]sdat 45m[/]      [grey58]one-time in 45 minutes[/]",
         "[deepskyblue1]sdat 0200 -p[/]  [grey58]daily at 02:00[/]",
         "[deepskyblue1]sdat -s[/]       [grey58]skip next daily once[/]",

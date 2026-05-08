@@ -172,6 +172,20 @@ function Invoke-SdatSelfTest {
         Assert-True -Condition $info.Exists -Message "Expected $($names.Volatile) to exist"
     }
 
+    Add-Test -Name "Create one-time task from fractional hours input" -Body {
+        $r = Invoke-SdatScript -Args @("-Profile", $profileSafe, "-DryRun", "-Time", "3.5h", "-KeepDaily")
+        Assert-True -Condition ($r.ExitCode -eq 0) -Message ("Script exited with {0}: {1}" -f $r.ExitCode, $r.Output)
+        $info = Get-TaskInfoSafe -TaskName $names.Volatile
+        Assert-True -Condition $info.Exists -Message "Expected $($names.Volatile) to exist"
+    }
+
+    Add-Test -Name "Create one-time task from half-hour text input" -Body {
+        $r = Invoke-SdatScript -Args @("-Profile", $profileSafe, "-DryRun", "-Time", "mezz ora", "-KeepDaily")
+        Assert-True -Condition ($r.ExitCode -eq 0) -Message ("Script exited with {0}: {1}" -f $r.ExitCode, $r.Output)
+        $info = Get-TaskInfoSafe -TaskName $names.Volatile
+        Assert-True -Condition $info.Exists -Message "Expected $($names.Volatile) to exist"
+    }
+
     Add-Test -Name "Reject relative input for daily schedules" -Body {
         $r = Invoke-SdatScript -Args @("-Profile", $profileSafe, "-DryRun", "-Time", "2h", "-P")
         Assert-True -Condition ($r.ExitCode -ne 0) -Message "Expected relative daily schedule to be rejected"

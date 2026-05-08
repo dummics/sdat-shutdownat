@@ -1,6 +1,6 @@
-# SDAT / SSAT / shutdownat.ps1
+# SDAT / SSAT
 
-A small PowerShell helper script and wrapper intended to schedule power actions using Windows Scheduled Tasks.
+Small Windows power-action scheduler built around PowerShell and Scheduled Tasks.
 
 It supports:
 - a **volatile** (one-use) power action time (single task)
@@ -11,7 +11,7 @@ It supports:
 
 ## Purpose
 
-- Schedule a shutdown/suspend/restart at a clock time (HHmm / HH:mm) or after a short duration.
+- Schedule a shutdown/suspend/restart at a clock time (`HHmm` / `HH:mm`) or after a duration.
 - Keep tasks unique (never multiple volatile/permanent tasks).
 - Provide a simple wrapper for terminal use or scripts, without detached helper windows.
 - Allow a smart overlap window so a one-time trigger can temporarily suppress the next daily schedule.
@@ -48,7 +48,10 @@ sdat 0030
 
 ```powershell
 sdat 2h
+sdat 3.5h
+sdat 1h30m
 sdat 45m
+sdat mezzora
 sdat 180s
 ```
 
@@ -70,7 +73,7 @@ sdat 0030 -Restart
 sdat 0300 -p
 ```
 
-Daily schedules use clock times only. Durations such as `2h` are intentionally limited to one-time actions.
+Daily schedules use clock times only. Durations such as `2h`, `3.5h`, or `45m` are intentionally limited to one-time actions.
 
 - Schedule a **permanent** daily suspend at 03:00:
 
@@ -138,11 +141,25 @@ sdat -a -f
 sdat -aa -f
 ```
 
-- Accept HHMM and HH:MM formats:
+## Time Input
+
+Clock times work for one-time and daily schedules:
 
 ```powershell
 sdat 9:30
 sdat 1130
+sdat 0300 -p
+```
+
+Durations work for one-time schedules only:
+
+```powershell
+sdat 3.5h
+sdat 1,5h
+sdat 1h30m
+sdat 90m
+sdat mezzora
+sdat mezza ora
 ```
 
 - Keep the daily schedule even when a one-time action is close to it:
