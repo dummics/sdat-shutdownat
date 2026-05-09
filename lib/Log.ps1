@@ -5,7 +5,14 @@ function Get-SdatLogsDir {
         [Parameter(Mandatory)][string]$Root,
         [AllowNull()][string]$Profile
     )
-    $base = Join-Path -Path $Root -ChildPath "logs"
+    $local = $env:LOCALAPPDATA
+    if ([string]::IsNullOrWhiteSpace($local)) {
+        try { $local = [Environment]::GetFolderPath("LocalApplicationData") } catch { $local = $null }
+    }
+    if ([string]::IsNullOrWhiteSpace($local)) {
+        $local = $Root
+    }
+    $base = Join-Path -Path (Join-Path -Path $local -ChildPath "SDAT") -ChildPath "logs"
     $p = Get-SdatProfileSafe -Profile $Profile
     if ($p) { return (Join-Path -Path $base -ChildPath $p) }
     return $base

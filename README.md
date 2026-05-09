@@ -21,6 +21,7 @@ It supports:
 - `shutdownat.ps1` - Main entrypoint. Creates/updates scheduled tasks and runs the selected power action when invoked by Task Scheduler.
 - `sdat.bat` - A small wrapper batch to run the PowerShell script with `pwsh.exe` when available, or Windows PowerShell otherwise.
 - `ssat.bat` - Same syntax as `sdat.bat`, but schedules/runs suspend.
+- `sdatui.bat` - Opens the interactive terminal UI directly.
 - `data/config.template.json` - Default config template (versioned).
 - `data/config.json` - Local config generated from template (not versioned).
 - `data/state.json` - Local runtime state (not versioned).
@@ -113,6 +114,10 @@ ssat -h
 
 ```powershell
 sdat -tui
+sdat -t
+sdat t
+sdat tui
+sdatui
 ssat -tui
 ```
 
@@ -179,6 +184,8 @@ sdat 45m -KeepDaily
 - `GraceMinutes` still protects the daily action around recent or upcoming one-time runs.
 - Use `sdat -s` to toggle suppression of the next permanent shutdown; running it again clears the skip, and the normal daily schedule resumes after the skipped run.
 - In TUI (`-tui`) scheduling is mode-aware: choose shutdown/suspend/restart and once/daily directly. The `Tasks` row is read-only and uses a short in-memory cache while the TUI is open.
+- Runtime logs are written outside the repo at `%LOCALAPPDATA%\SDAT\logs` so command history survives normal repo updates and stays untracked.
+- Plain `-DryRun` commands without an explicit `-Profile` use an isolated `dryrun` profile, so verification commands cannot overwrite real `SDAT_Volatile` / `SDAT_Permanent` tasks.
 - The volatile execution cleans up after itself (task + volatile state), so `sdat` shows "Volatile: none" after it runs.
 - If a volatile run is triggered late (for example after sleep), it is skipped when more than `MissedVolatileShutdownMaxDelayMinutes` minutes late (default: 0, which means never run late).
 - If a permanent run is triggered late (for example after sleep), it is skipped when more than `MissedPermanentShutdownMaxDelayMinutes` minutes late (default: 0, which means never run late).

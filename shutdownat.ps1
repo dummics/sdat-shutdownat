@@ -11,6 +11,8 @@
       sdat -Test TIME [-p]
       ssat -Test TIME [-p]
       sdat -tui
+      sdat t
+      sdat tui
       ssat -tui
       sdat -a             # cancel one-time (volatile) task
       sdat -aa            # cancel all SDAT + legacy tasks
@@ -30,7 +32,7 @@ param(
     [switch]$Suspend, # schedule/run suspend instead of shutdown
     [switch]$Restart, # schedule/run restart instead of shutdown
     [Alias('k')][switch]$KeepDaily, # keep daily task even when one-time overlaps it
-    [switch]$Tui,
+    [Alias('t')][switch]$Tui,
     [Alias('S')][switch]$SkipPermanent,     # skip next permanent run once
     [Alias('h')][switch]$Help,
     [Alias('f')][switch]$Force,
@@ -63,7 +65,7 @@ $root = Split-Path -Parent $PSCommandPath
 
 function Show-SdatHelp {
     $lines = @(
-        "Usage: sdat|ssat [TIME [-p]] | sdat|ssat -Test TIME [-p] | sdat|ssat -tui | sdat|ssat -a | sdat|ssat -aa | sdat|ssat -s | sdat|ssat -h",
+        "Usage: sdat|ssat [TIME [-p]] | sdat|ssat -Test TIME [-p] | sdat|ssat -tui | sdat t | sdat tui | sdat|ssat -a | sdat|ssat -aa | sdat|ssat -s | sdat|ssat -h",
         "",
         "Commands:",
         "  (no args)            show status, next shutdown time, and quick examples",
@@ -73,7 +75,7 @@ function Show-SdatHelp {
         "  -Suspend             use suspend action (ssat wrapper always sets this)",
         "  -Restart             use restart action",
         "  -k / -KeepDaily      keep the daily task when one-time is near it",
-        "  -tui                 open the interactive configuration UI",
+        "  -tui, -t, t, tui     open the interactive configuration UI",
         "  -a                   cancel the pending one-time action (use -f / -Force to skip confirm)",
         "  -aa / -Clean         cancel every SDAT and legacy scheduled task (use -f / -Force to skip confirm)",
         "  -s / -SkipPermanent  toggle skip for the next permanent run",
@@ -104,6 +106,11 @@ function Write-Info([string]$Msg) {
     Send-SdatNotification -Message $Msg
 }
 
+if ($Time -and $Time.Trim().ToLowerInvariant() -in @("t", "tui") -and -not ($P -or $Test -or $A -or $AA -or $Clean -or $SkipPermanent -or $RunVolatile -or $RunPermanent -or $NotifyStatus -or $SelfTest -or $Status)) {
+    $Tui = $true
+    $Time = $null
+}
+
 if ($ExtraArgs -and $ExtraArgs.Count -gt 0) {
     Write-Host "Unsupported parameter: $($ExtraArgs -join ' ')" -ForegroundColor Yellow
     Show-SdatHelp
@@ -119,7 +126,7 @@ if ($Status -and $Time) {
 
 if ($Help) {
     Show-SdatHelp
-    Send-SdatNotification -Message "Usage: sdat|ssat [TIME [-p]] | sdat|ssat -Test TIME [-p] | sdat|ssat -tui | sdat|ssat -a | sdat|ssat -aa | sdat|ssat -s | sdat|ssat -h"
+    Send-SdatNotification -Message "Usage: sdat|ssat [TIME [-p]] | sdat|ssat -Test TIME [-p] | sdat|ssat -tui | sdat t | sdat tui | sdat|ssat -a | sdat|ssat -aa | sdat|ssat -s | sdat|ssat -h"
     exit 0
 }
 
@@ -305,6 +312,9 @@ function Test-SdatDryRun {
 }
 
 $script:sdatProfile = Get-SdatProfileSafe -Profile $Profile
+if ($DryRun -and [string]::IsNullOrWhiteSpace($script:sdatProfile) -and -not ($SelfTest -or $RunVolatile -or $RunPermanent -or $NotifyStatus)) {
+    $script:sdatProfile = "dryrun"
+}
 $script:logMode = if ($SelfTest) { "selftest" }
 elseif ($RunVolatile) { "run-volatile" }
 elseif ($RunPermanent) { "run-permanent" }
@@ -764,6 +774,20 @@ function Invoke-SkipPermanentOnce {
     return "Daily shutdown skipped once at $targetStr."
 }
 
+function Clear-VolatileOverlapSuppression {
+    param(
+        [Parameter(Mandatory)]$State,
+        [Parameter(Mandatory)][string]$Reason
+    )
+    if ($State.SuspendReason -notlike "one-time overlap*") { return $false }
+    $State.SuspendPermanentUntil = $null
+    $State.SuspendSetAt = $null
+    $State.SuspendReason = $null
+    Save-SdatState -Root $root -Profile $script:sdatProfile -State $State
+    Write-SdatLog -Ctx $script:logCtx -Level "INFO" -Message "Cleared one-time overlap skip for daily action" -Data @{ Reason = $Reason }
+    return $true
+}
+
 function Invoke-ScheduleVolatileOnce {
     param(
         [int]$Hours,
@@ -791,7 +815,11 @@ function Invoke-ScheduleVolatileOnce {
         $overlap = Set-DailySkipForVolatileOverlap -TargetLocal $target -State $state -Config $config
         if ($overlap.Applied) {
             $msg += ("; skips daily at {0}" -f (Format-SdatWhenShort -Value $overlap.PermanentRunAt))
+        } else {
+            $null = Clear-VolatileOverlapSuppression -State $state -Reason "new one-time does not overlap daily"
         }
+    } else {
+        $null = Clear-VolatileOverlapSuppression -State $state -Reason "KeepDaily"
     }
     return $msg
 }
@@ -867,10 +895,10 @@ if ($Clean) { $AA = $true }
 if ($AA) {
     $names = Get-SdatTaskNames -Profile $script:sdatProfile
     $v = Get-TaskInfoSafe -TaskName $names.Volatile
-    $p = Get-TaskInfoSafe -TaskName $names.Permanent
+    $permanentInfo = Get-TaskInfoSafe -TaskName $names.Permanent
     $legacyTasks = Get-ScheduledTask -ErrorAction SilentlyContinue | Where-Object { $_.TaskName -like 'ShutdownAt*' }
     $legacyCount = if ($legacyTasks) { ($legacyTasks | Measure-Object).Count } else { 0 }
-    if (-not ($v.Exists -or $p.Exists -or $legacyCount -gt 0)) {
+    if (-not ($v.Exists -or $permanentInfo.Exists -or $legacyCount -gt 0)) {
         Write-Info "No scheduled tasks to cancel."
         exit 0
     }
@@ -936,10 +964,10 @@ if ($Tui) {
         $m = Get-SdatStatusModel -State $State -Config $Config
         $names = Get-SdatTaskNames -Profile $script:sdatProfile
         $v = Get-TaskInfoSafe -TaskName $names.Volatile
-        $p = Get-TaskInfoSafe -TaskName $names.Permanent
+        $permanentInfo = Get-TaskInfoSafe -TaskName $names.Permanent
         $stamp = (Get-Date).ToString("HH:mm:ss", [System.Globalization.CultureInfo]::InvariantCulture)
         $volState = if ($v.Exists -and $v.Task) { $v.Task.State } else { "none" }
-        $permState = if ($p.Exists -and $p.Task) { $p.Task.State } else { "none" }
+        $permState = if ($permanentInfo.Exists -and $permanentInfo.Task) { $permanentInfo.Task.State } else { "none" }
         return @(
             "cached $stamp",
             "",
