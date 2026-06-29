@@ -127,13 +127,13 @@ ssat -tui
 sdat -SelfTest -DryRun
 ```
 
-- Cancel tasks created by this tool (and legacy `ShutdownAt*` tasks):
+- Emergency-cancel any Windows shutdown already in progress, then cancel tasks created by this tool (and legacy `ShutdownAt*` tasks):
 
 ```powershell
 sdat -aa
 ```
 
-- Cancel only the one-time (volatile) shutdown:
+- Emergency-cancel any Windows shutdown already in progress, then cancel only the one-time (volatile) shutdown:
 
 ```powershell
 sdat -a

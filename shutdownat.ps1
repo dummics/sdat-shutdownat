@@ -106,6 +106,8 @@ function Write-Info([string]$Msg) {
     Send-SdatNotification -Message $Msg
 }
 
+if ($Clean) { $AA = $true }
+
 if ($Time -and $Time.Trim().ToLowerInvariant() -in @("t", "tui") -and -not ($P -or $Test -or $A -or $AA -or $Clean -or $SkipPermanent -or $RunVolatile -or $RunPermanent -or $NotifyStatus -or $SelfTest -or $Status)) {
     $Tui = $true
     $Time = $null
@@ -369,6 +371,26 @@ function Invoke-SdatShutdown {
 
     Write-SdatLog -Ctx $script:logCtx -Level "INFO" -Message "Executing shutdown" -Data @{ Reason = $Reason }
     shutdown /s /f
+}
+
+function Invoke-AbortPendingSystemShutdown {
+    if (Test-SdatDryRun) {
+        Write-SdatLog -Ctx $script:logCtx -Level "INFO" -Message "DRY RUN: pending system shutdown abort suppressed"
+        return $false
+    }
+
+    $abortResult = cmd /c "shutdown /a 2>&1"
+    $exitCode = $LASTEXITCODE
+    if ($exitCode -eq 0) {
+        Write-SdatLog -Ctx $script:logCtx -Level "INFO" -Message "Aborted pending system shutdown"
+        return $true
+    }
+
+    # Error 1116 means no shutdown is in progress.
+    if ($exitCode -ne 1116) {
+        Write-SdatLog -Ctx $script:logCtx -Level "WARN" -Message "Failed to abort pending system shutdown (exit code: $exitCode)" -Data @{ Output = ($abortResult -join "`n") }
+    }
+    return $false
 }
 
 function Invoke-CleanupStaleVolatile {
@@ -703,17 +725,6 @@ function Invoke-CancelVolatile {
     $state.Volatile.CreatedAt = $null
     $state.Volatile.ActionType = $null
     Save-SdatState -Root $root -Profile $script:sdatProfile -State $state
-    $abortResult = cmd /c "shutdown /a 2>&1"
-    $exitCode = $LASTEXITCODE
-    if ($exitCode -eq 0) {
-        Write-SdatLog -Ctx $script:logCtx -Level "INFO" -Message "Aborted pending system shutdown"
-    } else {
-        # Error 1116 means no shutdown is in progress - this is expected when canceling already-canceled tasks
-        # Suppress the error message and log silently
-        if ($exitCode -ne 1116) {
-            Write-SdatLog -Ctx $script:logCtx -Level "WARN" -Message "Failed to abort pending system shutdown (exit code: $exitCode)"
-        }
-    }
     Write-SdatLog -Ctx $script:logCtx -Level "INFO" -Message "Canceled one-time action"
 }
 
@@ -890,16 +901,16 @@ if ($SkipPermanent) {
     exit 0
 }
 
-if ($Clean) { $AA = $true }
-
 if ($AA) {
+    $systemAbortDone = Invoke-AbortPendingSystemShutdown
     $names = Get-SdatTaskNames -Profile $script:sdatProfile
     $v = Get-TaskInfoSafe -TaskName $names.Volatile
     $permanentInfo = Get-TaskInfoSafe -TaskName $names.Permanent
     $legacyTasks = Get-ScheduledTask -ErrorAction SilentlyContinue | Where-Object { $_.TaskName -like 'ShutdownAt*' }
     $legacyCount = if ($legacyTasks) { ($legacyTasks | Measure-Object).Count } else { 0 }
     if (-not ($v.Exists -or $permanentInfo.Exists -or $legacyCount -gt 0)) {
-        Write-Info "No scheduled tasks to cancel."
+        $prefix = if ($systemAbortDone) { "Pending Windows shutdown aborted. " } else { "" }
+        Write-Info "${prefix}No scheduled tasks to cancel."
         exit 0
     }
 
@@ -911,17 +922,20 @@ if ($AA) {
     $result = Invoke-CancelAllAndResetState
     $config = Load-SdatConfig -Root $root -Profile $script:sdatProfile
     $state = Load-SdatState -Root $root -Profile $script:sdatProfile
-    Write-Info ("Canceled all scheduled power tasks. Removed legacy tasks: {0}. Status: {1}" -f $result.LegacyRemoved, (Get-SdatStatusText -State $state -Config $config))
+    $prefix = if ($systemAbortDone) { "Pending Windows shutdown aborted. " } else { "" }
+    Write-Info ("{0}Canceled all scheduled power tasks. Removed legacy tasks: {1}. Status: {2}" -f $prefix, $result.LegacyRemoved, (Get-SdatStatusText -State $state -Config $config))
     exit 0
 }
 
 if ($A) {
+    $systemAbortDone = Invoke-AbortPendingSystemShutdown
     $names = Get-SdatTaskNames -Profile $script:sdatProfile
     $v = Get-TaskInfoSafe -TaskName $names.Volatile
     $state = Load-SdatState -Root $root -Profile $script:sdatProfile
     $actionLabel = Get-SdatActionLabel -ActionType (Resolve-SdatActionType -Value $state.Volatile.ActionType)
     if (-not $v.Exists) {
-        Write-Info ("No pending one-time {0} to cancel." -f $actionLabel)
+        $prefix = if ($systemAbortDone) { "Pending Windows shutdown aborted. " } else { "" }
+        Write-Info ("{0}No pending one-time {1} to cancel." -f $prefix, $actionLabel)
         exit 0
     }
     if (-not (Ask-Confirmation -Prompt ("Cancel one-time scheduled {0}?" -f $actionLabel))) {
@@ -931,7 +945,8 @@ if ($A) {
     Invoke-CancelVolatile
     $config = Load-SdatConfig -Root $root -Profile $script:sdatProfile
     $state = Load-SdatState -Root $root -Profile $script:sdatProfile
-    Write-Info ("Canceled one-time action. Status: {0}" -f (Get-SdatStatusText -State $state -Config $config))
+    $prefix = if ($systemAbortDone) { "Pending Windows shutdown aborted. " } else { "" }
+    Write-Info ("{0}Canceled one-time action. Status: {1}" -f $prefix, (Get-SdatStatusText -State $state -Config $config))
     exit 0
 }
 
