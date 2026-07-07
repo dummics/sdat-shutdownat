@@ -41,17 +41,6 @@ function Unregister-TaskIfExists {
     try { Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false -ErrorAction Stop | Out-Null } catch { }
 }
 
-function Remove-LegacyShutdownAtTasks {
-    param([switch]$Force)
-    if (-not $Force) { return 0 }
-    $tasks = Get-ScheduledTask -ErrorAction SilentlyContinue | Where-Object { $_.TaskName -like 'ShutdownAt*' }
-    if (-not $tasks) { return 0 }
-    foreach ($t in $tasks) {
-        try { Unregister-ScheduledTask -TaskName $t.TaskName -Confirm:$false -ErrorAction Stop | Out-Null } catch { }
-    }
-    return ($tasks | Measure-Object).Count
-}
-
 function Build-ScheduledActionCommand {
     param(
         [Parameter(Mandatory)][string]$ScriptPath,

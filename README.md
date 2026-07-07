@@ -127,7 +127,7 @@ ssat -tui
 sdat -SelfTest -DryRun
 ```
 
-- Emergency-cancel any Windows shutdown already in progress, then cancel tasks created by this tool (and legacy `ShutdownAt*` tasks):
+- Emergency-cancel any Windows shutdown already in progress, then cancel SDAT scheduled tasks:
 
 ```powershell
 sdat -aa
@@ -137,13 +137,6 @@ sdat -aa
 
 ```powershell
 sdat -a
-```
-
-- Skip confirmations with `-f` / `-Force`:
-
-```powershell
-sdat -a -f
-sdat -aa -f
 ```
 
 ## Time Input

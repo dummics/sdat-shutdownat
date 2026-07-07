@@ -76,8 +76,8 @@ function Show-SdatHelp {
         "  -Restart             use restart action",
         "  -k / -KeepDaily      keep the daily task when one-time is near it",
         "  -tui, -t, t, tui     open the interactive configuration UI",
-        "  -a                   cancel the pending one-time action (use -f / -Force to skip confirm)",
-        "  -aa / -Clean         cancel every SDAT and legacy scheduled task (use -f / -Force to skip confirm)",
+        "  -a                   abort any pending Windows shutdown and cancel the pending one-time action",
+        "  -aa / -Clean         abort any pending Windows shutdown and cancel SDAT scheduled tasks",
         "  -s / -SkipPermanent  toggle skip for the next permanent run",
         "  -h / -Help           show this help output",
         "",
@@ -293,18 +293,6 @@ function Format-SdatWhenShort {
     return (Format-LocalShort -Value $local)
 }
 
-function Ask-Confirmation {
-    param([Parameter(Mandatory)][string]$Prompt)
-    if ($Force) { return $true }
-    $reply = $null
-    try {
-        $reply = Read-Host "$Prompt (y/N)"
-    } catch {
-        return $false
-    }
-    return $reply -match '^(?i:y|yes)$'
-}
-
 function Test-SdatDryRun {
     if ($DryRun) { return $true }
     if ($SelfTest) { return $true }
@@ -464,12 +452,8 @@ function Get-SdatStatusText {
         }
     }
 
-    $legacyTasks = Get-ScheduledTask -ErrorAction SilentlyContinue | Where-Object { $_.TaskName -like 'ShutdownAt*' }
-    $legacyCount = if ($legacyTasks) { ($legacyTasks | Measure-Object).Count } else { 0 }
-    $legacy = if ($legacyCount -gt 0) { " | Legacy: ${legacyCount}" } else { "" }
-
     $overlap = if (Test-HasProp -Obj $Config -Name "DailyOverlapWindowMinutes") { [int]$Config.DailyOverlapWindowMinutes } else { 120 }
-    return "One-time: $vol | Daily: $perm | Suppression: $suspend | Grace: $($Config.GraceMinutes)m | Overlap: $($overlap)m${legacy}"
+    return "One-time: $vol | Daily: $perm | Suppression: $suspend | Grace: $($Config.GraceMinutes)m | Overlap: $($overlap)m"
 }
 
 function Get-SdatStatusModel {
@@ -624,10 +608,9 @@ function Invoke-CancelAllAndResetState {
     $names = Get-SdatTaskNames -Profile $script:sdatProfile
     Unregister-TaskIfExists -TaskName $names.Volatile
     Unregister-TaskIfExists -TaskName $names.Permanent
-    $legacy = Remove-LegacyShutdownAtTasks -Force:([string]::IsNullOrWhiteSpace($script:sdatProfile))
     $state = New-DefaultSdatState
     Save-SdatState -Root $root -Profile $script:sdatProfile -State $state
-    return [pscustomobject]@{ LegacyRemoved = $legacy; Names = $names }
+    return [pscustomobject]@{ Names = $names }
 }
 
 function Invoke-RunVolatile {
@@ -742,7 +725,6 @@ function Invoke-SchedulePermanentDaily {
     )
     $names = Get-SdatTaskNames -Profile $script:sdatProfile
     $state = Load-SdatState -Root $root -Profile $script:sdatProfile
-    $null = Remove-LegacyShutdownAtTasks -Force:([string]::IsNullOrWhiteSpace($script:sdatProfile))
     Register-PermanentShutdownTaskDaily -Hours $Hours -Minutes $Minutes -ScriptPath $PSCommandPath -Profile $script:sdatProfile -SuspendAction:($ActionType -eq "suspend") -RestartAction:($ActionType -eq "restart") -DryRunAction:(Test-SdatDryRun)
     $state.Permanent.ActionType = (Resolve-SdatActionType -Value $ActionType)
     Save-SdatState -Root $root -Profile $script:sdatProfile -State $state
@@ -813,7 +795,6 @@ function Invoke-ScheduleVolatileOnce {
     $target = if ($TargetLocal) { Convert-ToLocalDateTime -Value $TargetLocal } else { Get-NextOccurrenceLocal -Hours $Hours -Minutes $Minutes }
     $targetStr = Format-SdatWhenShort -Value $target
 
-    $null = Remove-LegacyShutdownAtTasks -Force:([string]::IsNullOrWhiteSpace($script:sdatProfile))
     Register-VolatileShutdownTask -TargetLocal $target -ScriptPath $PSCommandPath -Profile $script:sdatProfile -SuspendAction:($ActionType -eq "suspend") -RestartAction:($ActionType -eq "restart") -DryRunAction:(Test-SdatDryRun)
     $state.Volatile.ScheduledFor = $target.ToString("o", [System.Globalization.CultureInfo]::InvariantCulture)
     $state.Volatile.CreatedAt = (Get-Date).ToString("o", [System.Globalization.CultureInfo]::InvariantCulture)
@@ -906,24 +887,17 @@ if ($AA) {
     $names = Get-SdatTaskNames -Profile $script:sdatProfile
     $v = Get-TaskInfoSafe -TaskName $names.Volatile
     $permanentInfo = Get-TaskInfoSafe -TaskName $names.Permanent
-    $legacyTasks = Get-ScheduledTask -ErrorAction SilentlyContinue | Where-Object { $_.TaskName -like 'ShutdownAt*' }
-    $legacyCount = if ($legacyTasks) { ($legacyTasks | Measure-Object).Count } else { 0 }
-    if (-not ($v.Exists -or $permanentInfo.Exists -or $legacyCount -gt 0)) {
+    if (-not ($v.Exists -or $permanentInfo.Exists)) {
         $prefix = if ($systemAbortDone) { "Pending Windows shutdown aborted. " } else { "" }
         Write-Info "${prefix}No scheduled tasks to cancel."
         exit 0
     }
 
-    if (-not (Ask-Confirmation -Prompt "Remove all SDAT + legacy scheduled tasks?")) {
-        Write-Info "Cancellation aborted."
-        exit 0
-    }
-
-    $result = Invoke-CancelAllAndResetState
+    $null = Invoke-CancelAllAndResetState
     $config = Load-SdatConfig -Root $root -Profile $script:sdatProfile
     $state = Load-SdatState -Root $root -Profile $script:sdatProfile
     $prefix = if ($systemAbortDone) { "Pending Windows shutdown aborted. " } else { "" }
-    Write-Info ("{0}Canceled all scheduled power tasks. Removed legacy tasks: {1}. Status: {2}" -f $prefix, $result.LegacyRemoved, (Get-SdatStatusText -State $state -Config $config))
+    Write-Info ("{0}Canceled all SDAT scheduled power tasks. Status: {1}" -f $prefix, (Get-SdatStatusText -State $state -Config $config))
     exit 0
 }
 
@@ -936,10 +910,6 @@ if ($A) {
     if (-not $v.Exists) {
         $prefix = if ($systemAbortDone) { "Pending Windows shutdown aborted. " } else { "" }
         Write-Info ("{0}No pending one-time {1} to cancel." -f $prefix, $actionLabel)
-        exit 0
-    }
-    if (-not (Ask-Confirmation -Prompt ("Cancel one-time scheduled {0}?" -f $actionLabel))) {
-        Write-Info "Cancellation aborted."
         exit 0
     }
     Invoke-CancelVolatile
