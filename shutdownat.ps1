@@ -14,8 +14,8 @@
       sdat t
       sdat tui
       ssat -tui
-      sdat -a             # cancel one-time (volatile) task
-      sdat -aa            # cancel all SDAT + legacy tasks
+      sdat -a             # abort Windows shutdown, then cancel one-time task
+      sdat -aa            # abort Windows shutdown, then cancel SDAT tasks
       sdat -s             # toggle skip for next permanent run
       sdat -h             # help
 #>
@@ -55,7 +55,7 @@ param(
 # logs, config, state, or Task Scheduler helpers. The normal cancel branch below
 # still handles SDAT task cleanup after this immediate best-effort abort.
 if (($A -or $AA -or $Clean) -and -not $DryRun -and -not $SelfTest -and [string]::IsNullOrWhiteSpace($Profile)) {
-    cmd /c "shutdown /a 2>nul" | Out-Null
+    & "$env:SystemRoot\System32\shutdown.exe" /a 2>$null | Out-Null
 }
 
 Set-StrictMode -Version Latest
@@ -359,13 +359,13 @@ function Invoke-SdatShutdown {
     }
 
     if ($action -eq "restart") {
-        Write-SdatLog -Ctx $script:logCtx -Level "INFO" -Message "Executing restart" -Data @{ Reason = $Reason }
-        shutdown /r /f
+        Write-SdatLog -Ctx $script:logCtx -Level "INFO" -Message "Executing restart" -Data @{ Reason = $Reason; TimeoutSeconds = 30 }
+        & "$env:SystemRoot\System32\shutdown.exe" /r /f /t 30
         return
     }
 
-    Write-SdatLog -Ctx $script:logCtx -Level "INFO" -Message "Executing shutdown" -Data @{ Reason = $Reason }
-    shutdown /s /f
+    Write-SdatLog -Ctx $script:logCtx -Level "INFO" -Message "Executing shutdown" -Data @{ Reason = $Reason; TimeoutSeconds = 30 }
+    & "$env:SystemRoot\System32\shutdown.exe" /s /f /t 30
 }
 
 function Invoke-AbortPendingSystemShutdown {
@@ -374,7 +374,7 @@ function Invoke-AbortPendingSystemShutdown {
         return $false
     }
 
-    $abortResult = cmd /c "shutdown /a 2>&1"
+    $abortResult = & "$env:SystemRoot\System32\shutdown.exe" /a 2>&1
     $exitCode = $LASTEXITCODE
     if ($exitCode -eq 0) {
         Write-SdatLog -Ctx $script:logCtx -Level "INFO" -Message "Aborted pending system shutdown"

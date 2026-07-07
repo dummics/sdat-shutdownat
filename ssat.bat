@@ -5,6 +5,15 @@
 setlocal
 set "ROOT=%~dp0"
 set "SDAT_DIR=%ROOT%..\_sdat"
+
+set "SDAT_CANCEL_FAST=0"
+for %%A in (%*) do (
+    if /I "%%~A"=="-a" set "SDAT_CANCEL_FAST=1"
+    if /I "%%~A"=="-aa" set "SDAT_CANCEL_FAST=1"
+    if /I "%%~A"=="-clean" set "SDAT_CANCEL_FAST=1"
+)
+if "%SDAT_CANCEL_FAST%"=="1" "%SystemRoot%\System32\shutdown.exe" /a >nul 2>nul
+
 set "PS_EXE=powershell.exe"
 where pwsh.exe >nul 2>nul && set "PS_EXE=pwsh.exe"
 

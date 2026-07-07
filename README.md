@@ -139,6 +139,8 @@ sdat -aa
 sdat -a
 ```
 
+- Shutdown/restart execution uses a 30-second Windows timeout, so `sdat -a` / `sdat -aa` can still abort an accidentally triggered power action.
+
 ## Time Input
 
 Clock times work for one-time and daily schedules:
