@@ -51,6 +51,13 @@ param(
     [string[]]$ExtraArgs
 )
 
+# Emergency cancel path: abort a pending Windows shutdown before loading SDAT modules,
+# logs, config, state, or Task Scheduler helpers. The normal cancel branch below
+# still handles SDAT task cleanup after this immediate best-effort abort.
+if (($A -or $AA -or $Clean) -and -not $DryRun -and -not $SelfTest -and [string]::IsNullOrWhiteSpace($Profile)) {
+    cmd /c "shutdown /a 2>nul" | Out-Null
+}
+
 Set-StrictMode -Version Latest
 
 $root = Split-Path -Parent $PSCommandPath
