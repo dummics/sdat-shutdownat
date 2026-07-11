@@ -101,6 +101,18 @@ function Show-SdatHelp {
 
 $script:SdatFromWinR = $null
 
+function Test-SdatWinRProcessChain {
+    param(
+        [Parameter(Mandatory)]$Wrapper,
+        [Parameter(Mandatory)]$Caller
+    )
+    return (
+        $Wrapper.Name -ieq 'cmd.exe' -and
+        $Wrapper.CommandLine -match '(?i)(?:^|\s)/c(?:\s|$)' -and
+        $Caller.Name -ieq 'explorer.exe'
+    )
+}
+
 function Test-FromWinR {
     if ($null -ne $script:SdatFromWinR) { return [bool]$script:SdatFromWinR }
 
@@ -111,7 +123,7 @@ function Test-FromWinR {
 
     $detected = $false
     try {
-        if ($env:SDAT_WRAPPER_PROCESS -ne '1' -or $env:CMDCMDLINE -notmatch '(?i)(?:^|\s)/c(?:\s|$)') {
+        if ($env:SDAT_WRAPPER_PROCESS -ne '1') {
             $script:SdatFromWinR = $false
             return $false
         }
@@ -120,7 +132,7 @@ function Test-FromWinR {
         $wrapper = Get-CimInstance Win32_Process -Filter "ProcessId = $($current.ParentProcessId)" -ErrorAction Stop
         if ($wrapper.Name -ieq 'cmd.exe') {
             $caller = Get-CimInstance Win32_Process -Filter "ProcessId = $($wrapper.ParentProcessId)" -ErrorAction Stop
-            $detected = ($caller.Name -ieq 'explorer.exe')
+            $detected = Test-SdatWinRProcessChain -Wrapper $wrapper -Caller $caller
         }
     } catch {
         $detected = $false

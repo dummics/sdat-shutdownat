@@ -232,6 +232,17 @@ function Invoke-SdatSelfTest {
         Assert-True -Condition ($linearLeft -eq 1) -Message "Expected left to move one item in a linear menu"
     }
 
+    Add-Test -Name "Win+R detection requires transient cmd launched by Explorer" -Body {
+        $runWrapper = [pscustomobject]@{ Name = 'cmd.exe'; CommandLine = 'cmd.exe /c "sdat"' }
+        $interactiveWrapper = [pscustomobject]@{ Name = 'cmd.exe'; CommandLine = 'cmd.exe' }
+        $explorerCaller = [pscustomobject]@{ Name = 'explorer.exe' }
+        $terminalCaller = [pscustomobject]@{ Name = 'pwsh.exe' }
+
+        Assert-True -Condition (Test-SdatWinRProcessChain -Wrapper $runWrapper -Caller $explorerCaller) -Message "Expected Explorer -> cmd /c to be detected as Win+R"
+        Assert-True -Condition (-not (Test-SdatWinRProcessChain -Wrapper $interactiveWrapper -Caller $explorerCaller)) -Message "Expected interactive cmd to remain non-transient"
+        Assert-True -Condition (-not (Test-SdatWinRProcessChain -Wrapper $runWrapper -Caller $terminalCaller)) -Message "Expected terminal -> cmd /c to remain non-Win+R"
+    }
+
     Add-Test -Name "UTC task times render like local times" -Body {
         $localTarget = (Get-Date).AddMinutes(90)
         $utcTarget = $localTarget.ToUniversalTime()
