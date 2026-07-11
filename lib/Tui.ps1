@@ -412,6 +412,11 @@ function Get-SdatMenuHint {
     return 'Arrows / W A S D move  Enter select  Esc exit  Ctrl+T diagnostics'
 }
 
+function Test-SdatTuiInputCharacter {
+    param([Parameter(Mandatory)][char]$Character)
+    return ([char]::IsLetterOrDigit($Character) -or $Character -in @(':', '.', ',', ' '))
+}
+
 function Show-SdatSpectreMainMenu {
     param(
         [Parameter(Mandatory)][string]$Title,
@@ -814,7 +819,7 @@ function Read-LineWithEsc {
                 'Backspace' { if ($buf.Length -gt 0) { $buf = $buf.Substring(0, $buf.Length - 1) } }
                 default {
                     $c = $k.KeyChar
-                    if ($c -and ($c -match '[0-9a-zA-Z:]') -and $buf.Length -lt 12) {
+                    if ($c -and (Test-SdatTuiInputCharacter -Character $c) -and $buf.Length -lt 12) {
                         $buf += $c
                     }
                 }
@@ -878,7 +883,7 @@ function Read-LineWithEsc {
                 }
                 default {
                 $c = $k.KeyChar
-                if ($c -and ($c -match '[0-9a-zA-Z:]') -and $buf.Length -lt $maxLen) {
+                if ($c -and (Test-SdatTuiInputCharacter -Character $c) -and $buf.Length -lt $maxLen) {
                     $buf += $c
                     Render-InputLine -Value $buf
                 }

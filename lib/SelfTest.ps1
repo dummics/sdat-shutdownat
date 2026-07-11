@@ -232,6 +232,15 @@ function Invoke-SdatSelfTest {
         Assert-True -Condition ($linearLeft -eq 1) -Message "Expected left to move one item in a linear menu"
     }
 
+    Add-Test -Name "TUI input preserves documented time formats" -Body {
+        foreach ($value in @('3.5h', '1,5h', '23:30', 'mezza ora')) {
+            foreach ($character in $value.ToCharArray()) {
+                Assert-True -Condition (Test-SdatTuiInputCharacter -Character $character) -Message "Expected TUI to accept '$character' from '$value'"
+            }
+        }
+        Assert-True -Condition (-not (Test-SdatTuiInputCharacter -Character ';')) -Message "Expected TUI to reject unsupported punctuation"
+    }
+
     Add-Test -Name "Win+R detection requires transient cmd launched by Explorer" -Body {
         $runWrapper = [pscustomobject]@{ Name = 'cmd.exe'; CommandLine = 'cmd.exe /c "sdat"' }
         $interactiveWrapper = [pscustomobject]@{ Name = 'cmd.exe'; CommandLine = 'cmd.exe' }
