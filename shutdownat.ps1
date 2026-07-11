@@ -934,17 +934,22 @@ if ($Tui) {
     function Show-SdatTuiTextScreen {
         param(
             [Parameter(Mandatory)][string]$Title,
-            [Parameter(Mandatory)][AllowEmptyString()][string[]]$Lines
+            [Parameter(Mandatory)][AllowEmptyString()][string[]]$Lines,
+            [switch]$AllowRefresh
         )
+        try { [Console]::Clear() } catch { try { Clear-Host } catch { } }
+        Write-SdatTuiTitle -Title "SDAT"
+        Write-Host ""
+        Write-Host $Title -ForegroundColor Gray
+        Write-Host ""
+        foreach ($ln in $Lines) { Write-Host (Remove-SdatSpectreMarkup -Text $ln) }
+        Write-Host ""
+        $hint = if ($AllowRefresh) { "R refresh  Enter / Esc back" } else { "Enter / Esc back" }
+        Write-Host $hint -ForegroundColor DarkGray
         while ($true) {
-            try { [Console]::Clear() } catch { try { Clear-Host } catch { } }
-            Write-SdatTuiTitle -Title "SDAT"
-            Write-Host ""
-            Write-Host $Title -ForegroundColor Gray
-            Write-Host ""
-            foreach ($ln in $Lines) { Write-Host (Remove-SdatSpectreMarkup -Text $ln) }
             $k = [Console]::ReadKey($true)
-            if ($k.Key -eq [ConsoleKey]::Escape -or $k.Key -eq [ConsoleKey]::Enter) { return }
+            if ($AllowRefresh -and $k.Key -eq [ConsoleKey]::R) { return "refresh" }
+            if ($k.Key -eq [ConsoleKey]::Escape -or $k.Key -eq [ConsoleKey]::Enter) { return "back" }
         }
     }
 
@@ -961,7 +966,7 @@ if ($Tui) {
         $volState = if ($v.Exists -and $v.Task) { $v.Task.State } else { "none" }
         $permState = if ($permanentInfo.Exists -and $permanentInfo.Task) { $permanentInfo.Task.State } else { "none" }
         return @(
-            "cached $stamp",
+            "Updated    $stamp",
             "",
             "One-time   $($m.OneTime)",
             "Daily      $($m.Daily)",
@@ -1018,7 +1023,9 @@ if ($Tui) {
                 $last = Read-LastSelfTestSummary -JsonlPath $paths.Jsonl
                 $diagHeader = "Self-test profile: $selfTestProfile"
                 if ($last) {
-                    $diagHeader += "`nLast run: $($last.startedAt) => $($last.endedAt) | Passed: $($last.passed) ($($last.passedCount)/$($last.passedCount + $last.failedCount))"
+                    $lastRunLabel = try { ([datetimeoffset]$last.startedAt).ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss") } catch { [string]$last.startedAt }
+                    $resultLabel = if ($last.passed) { "PASS" } else { "FAIL" }
+                    $diagHeader += "`nLast run: $lastRunLabel`nResult: $resultLabel | $($last.passedCount)/$($last.passedCount + $last.failedCount) passed"
                 } else {
                     $diagHeader += "`nLast run: none"
                 }
@@ -1081,13 +1088,19 @@ if ($Tui) {
         }
 
         if ($sel -eq 6) {
-            if (-not $taskCache -or $taskCache.ExpiresAt -lt (Get-Date)) {
-                $taskCache = [pscustomobject]@{
-                    ExpiresAt = (Get-Date).AddSeconds(15)
-                    Lines = (Get-SdatTaskSnapshotLines -State $state -Config $config)
+            while ($true) {
+                if (-not $taskCache -or $taskCache.ExpiresAt -lt (Get-Date)) {
+                    $taskCache = [pscustomobject]@{
+                        ExpiresAt = (Get-Date).AddSeconds(15)
+                        Lines = (Get-SdatTaskSnapshotLines -State $state -Config $config)
+                    }
                 }
+                $taskAction = Show-SdatTuiTextScreen -Title "Tasks" -Lines $taskCache.Lines -AllowRefresh
+                if ($taskAction -ne "refresh") { break }
+                $config = Load-SdatConfig -Root $root -Profile $script:sdatProfile
+                $state = Load-SdatState -Root $root -Profile $script:sdatProfile
+                $taskCache = $null
             }
-            Show-SdatTuiTextScreen -Title "Tasks" -Lines $taskCache.Lines
             continue
         }
 
@@ -1097,9 +1110,11 @@ if ($Tui) {
             $selectedAction = $actionTypes[$sel]
             $actionLabel = Get-SdatActionLabel -ActionType $selectedAction
             $prompt = if ($isDaily) { ("{0} daily" -f (Get-Culture).TextInfo.ToTitleCase($actionLabel)) } else { ("{0} once" -f (Get-Culture).TextInfo.ToTitleCase($actionLabel)) }
+            $emptyAction = if ($isDaily) { ("cancel daily {0}" -f $actionLabel) } else { ("cancel one-time {0}" -f $actionLabel) }
+            $examples = if ($isDaily) { "2330  23:30" } else { "2330  23:30  2h  45m" }
             $input = $null
             try {
-                $input = Read-LineWithEsc -Title "SDAT" -Header $header -Prompt $prompt
+                $input = Read-LineWithEsc -Title "SDAT" -Header $header -Prompt $prompt -EmptyAction $emptyAction -Examples $examples
             } catch {
                 $notice = New-TuiNotice -Kind "error" -Message $_.Exception.Message
                 continue

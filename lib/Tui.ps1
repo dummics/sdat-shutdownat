@@ -622,10 +622,10 @@ function Show-SdatDiagnosticsMenu {
         $Notice
     )
     $options = @(
-        "Show self-test command",
-        "Show last self-test summary",
-        "Tail self-test log",
-        "Tail self-test JSONL",
+        "Self-test command",
+        "Last self-test summary",
+        "Self-test log",
+        "Self-test JSONL",
         "Back"
     )
     $idx = 0
@@ -637,6 +637,8 @@ function Show-SdatDiagnosticsMenu {
         while ($true) {
             Clear-Host
             Write-SdatTuiTitle -Title "SDAT"
+            Write-Host ""
+            Write-Host "Diagnostics" -ForegroundColor Gray
             Write-Host ""
             Write-NoticeBar -Notice $Notice
             if ($Header) {
@@ -692,6 +694,8 @@ function Show-SdatDiagnosticsMenu {
         Write-ConsoleAt -Left 0 -Top $row -Text "SDAT" -ForegroundColor ([ConsoleColor]::Cyan) -BackgroundColor $bg -ClearToEnd
         $row++
         Write-ConsoleAt -Left 0 -Top $row -Text "shutdown at" -ForegroundColor $mutedFg -BackgroundColor $bg -ClearToEnd
+        $row++
+        Write-ConsoleAt -Left 0 -Top $row -Text "Diagnostics" -ForegroundColor ([ConsoleColor]::Gray) -BackgroundColor $bg -ClearToEnd
         $row++
         Write-ConsoleAt -Left 0 -Top $row -Text "" -ForegroundColor $mutedFg -BackgroundColor $bg -ClearToEnd
         $row++
@@ -763,7 +767,9 @@ function Read-LineWithEsc {
     param(
         [Parameter(Mandatory)][string]$Title,
         [Parameter(Mandatory)][string]$Prompt,
-        [string]$Header = ""
+        [string]$Header = "",
+        [string]$EmptyAction = "cancel the current schedule",
+        [string]$Examples = "2330  23:30  2h  45m"
     )
     $buf = ""
 
@@ -784,7 +790,10 @@ function Read-LineWithEsc {
             $field = ("[ {0,-18} ]" -f $buf)
             Write-Host (Format-SdatCenteredLine -Text $field -Width 24) -ForegroundColor White
             Write-Host ""
-            Write-Host (Format-SdatCenteredLine -Text "2330  23:30  2h  45m" -Width 30) -ForegroundColor DarkGray
+            Write-Host (Format-SdatCenteredLine -Text $Examples -Width 30) -ForegroundColor DarkGray
+            Write-Host ""
+            Write-Host (Format-SdatCenteredLine -Text "Enter save  Esc back" -Width 30) -ForegroundColor DarkGray
+            Write-Host (Format-SdatCenteredLine -Text ("Empty Enter: {0}" -f $EmptyAction) -Width 42) -ForegroundColor DarkGray
 
             $k = [Console]::ReadKey($true)
             switch ($k.Key) {
@@ -825,7 +834,10 @@ function Read-LineWithEsc {
         [Console]::Write("[ " + (' ' * ($fieldWidth - 4)) + " ]")
         [Console]::WriteLine("")
         Write-Host ""
-        Write-Host (Format-SdatCenteredLine -Text "2330  23:30  2h  45m" -Width 30) -ForegroundColor DarkGray
+        Write-Host (Format-SdatCenteredLine -Text $Examples -Width 30) -ForegroundColor DarkGray
+        Write-Host ""
+        Write-Host (Format-SdatCenteredLine -Text "Enter save  Esc back" -Width 30) -ForegroundColor DarkGray
+        Write-Host (Format-SdatCenteredLine -Text ("Empty Enter: {0}" -f $EmptyAction) -Width 42) -ForegroundColor DarkGray
 
         $w = Get-ConsoleWidthSafe
         function Render-InputLine {

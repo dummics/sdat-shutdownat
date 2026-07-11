@@ -121,6 +121,13 @@ sdatui
 ssat -tui
 ```
 
+TUI controls:
+
+- Use the arrow keys or `W` / `A` / `S` / `D` to move; `Home` and `End` jump to the first and last action.
+- Press `Enter` to select and `Esc` to go back or exit. `Ctrl+T` opens diagnostics from the main screen.
+- The Tasks screen supports `R` to refresh immediately.
+- On a schedule input screen, pressing `Enter` with an empty value cancels that one-time or daily schedule; the consequence is shown before submission.
+
 - Run the self-test manually when needed. It is intentionally not launched in the background, so it will not open surprise helper windows:
 
 ```powershell
