@@ -94,7 +94,7 @@ function Invoke-SdatSelfTest {
         }
 
         $hiddenLauncher = Join-Path -Path $Root -ChildPath "lib\RunHidden.vbs"
-        $processArgs = @('//B', '//NoLogo', $hiddenLauncher, 'powershell.exe', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-File', $ScriptPath) + $Args
+        $processArgs = @('//B', '//NoLogo', $hiddenLauncher, $ScriptPath) + $Args
         $psi = [System.Diagnostics.ProcessStartInfo]::new()
         $psi.FileName = (Get-Command wscript.exe -ErrorAction Stop).Source
         $psi.Arguments = (($processArgs | ForEach-Object { Quote-ProcessArgument -Value ([string]$_) }) -join ' ')
@@ -151,7 +151,7 @@ function Invoke-SdatSelfTest {
         $a = Get-TaskArguments -TaskName $names.Permanent
         Assert-True -Condition ($a.Execute -ieq "wscript.exe") -Message "Unexpected Execute: $($a.Execute)"
         Assert-True -Condition ($a.Arguments -like "*RunHidden.vbs*") -Message "Missing hidden launcher in Arguments"
-        Assert-True -Condition ($a.Arguments -like "*powershell.exe*") -Message "Missing PowerShell child in Arguments"
+        Assert-True -Condition ($a.Arguments -like "*shutdownat.ps1*") -Message "Missing SDAT script in Arguments"
         Assert-True -Condition ($a.Arguments -like "*-RunPermanent*") -Message "Missing -RunPermanent in Arguments"
         Assert-True -Condition ($a.Arguments -like "*-DryRun*") -Message "Missing -DryRun in Arguments"
         Assert-True -Condition ($a.Arguments -like "*-Profile $profileSafe*") -Message "Missing -Profile in Arguments"

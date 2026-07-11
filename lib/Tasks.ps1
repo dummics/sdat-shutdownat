@@ -58,7 +58,7 @@ function Build-ScheduledActionCommand {
     if ($SuspendAction) { $args += "-Suspend" }
     if ($RestartAction) { $args += "-Restart" }
     if ($DryRunAction) { $args += "-DryRun" }
-    return "wscript.exe //B //NoLogo ""$hiddenLauncher"" powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ""$p"" " + ($args -join " ")
+    return "wscript.exe //B //NoLogo ""$hiddenLauncher"" ""$p"" " + ($args -join " ")
 }
 
 function Set-SdatTaskDefaultSettings {
