@@ -86,8 +86,32 @@ function Invoke-SdatSelfTest {
 
     function Invoke-SdatScript {
         param([Parameter(Mandatory)][string[]]$Args)
-        $out = & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $ScriptPath @Args 2>&1
-        $code = $LASTEXITCODE
+
+        function Quote-ProcessArgument {
+            param([Parameter(Mandatory)][AllowEmptyString()][string]$Value)
+            if ($Value -notmatch '[\s"]') { return $Value }
+            return ('"{0}"' -f ($Value -replace '"', '\"'))
+        }
+
+        $processArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-File', $ScriptPath) + $Args
+        $psi = [System.Diagnostics.ProcessStartInfo]::new()
+        $psi.FileName = (Get-Command powershell.exe -ErrorAction Stop).Source
+        $psi.Arguments = (($processArgs | ForEach-Object { Quote-ProcessArgument -Value ([string]$_) }) -join ' ')
+        $psi.UseShellExecute = $false
+        $psi.CreateNoWindow = $true
+        $psi.WindowStyle = [System.Diagnostics.ProcessWindowStyle]::Hidden
+        $psi.RedirectStandardOutput = $true
+        $psi.RedirectStandardError = $true
+
+        $process = [System.Diagnostics.Process]::new()
+        $process.StartInfo = $psi
+        $null = $process.Start()
+        $stdout = $process.StandardOutput.ReadToEnd()
+        $stderr = $process.StandardError.ReadToEnd()
+        $process.WaitForExit()
+        $code = $process.ExitCode
+        $process.Dispose()
+        $out = @($stdout, $stderr) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
         return [pscustomobject]@{
             ExitCode = $code
             Output = ($out | Out-String)
