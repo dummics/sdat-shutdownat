@@ -196,6 +196,20 @@ function Invoke-SdatSelfTest {
         Assert-True -Condition ($r.ExitCode -ne 0) -Message "Expected malformed time to be rejected"
     }
 
+    Add-Test -Name "TUI navigation supports arrows, WASD, Home, and End" -Body {
+        $wasdAction = Get-SdatMenuKeyAction -KeyInfo ([pscustomobject]@{ Key = 'W' })
+        $gridDown = Get-SdatMenuTargetIndex -Index 0 -Action 'down' -Count 7 -Grid
+        $gridRight = Get-SdatMenuTargetIndex -Index 0 -Action 'right' -Count 7 -Grid
+        $gridEnd = Get-SdatMenuTargetIndex -Index 0 -Action 'last' -Count 7 -Grid
+        $linearLeft = Get-SdatMenuTargetIndex -Index 2 -Action 'left' -Count 5
+
+        Assert-True -Condition ($wasdAction -eq 'up') -Message "Expected W to map to up"
+        Assert-True -Condition ($gridDown -eq 2) -Message "Expected grid down from 0 to select 2"
+        Assert-True -Condition ($gridRight -eq 1) -Message "Expected grid right from 0 to select 1"
+        Assert-True -Condition ($gridEnd -eq 6) -Message "Expected End to select the last grid item"
+        Assert-True -Condition ($linearLeft -eq 1) -Message "Expected left to move one item in a linear menu"
+    }
+
     Add-Test -Name "UTC task times render like local times" -Body {
         $localTarget = (Get-Date).AddMinutes(90)
         $utcTarget = $localTarget.ToUniversalTime()
