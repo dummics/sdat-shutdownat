@@ -463,12 +463,17 @@ function Invoke-SdatSelfTest {
     }
 
     Add-Test -Name "Cleanup" -Body {
-        $taskPrefix = "SDAT_${profileSafe}"
-        Get-ScheduledTask -ErrorAction SilentlyContinue |
-            Where-Object { $_.TaskName -like "${taskPrefix}*" } |
-            ForEach-Object { Unregister-TaskIfExists -TaskName $_.TaskName }
-        $remaining = @(Get-ScheduledTask -ErrorAction SilentlyContinue | Where-Object { $_.TaskName -like "${taskPrefix}*" })
-        Assert-True -Condition ($remaining.Count -eq 0) -Message ("Expected all {0}* tasks removed; remaining: {1}" -f $taskPrefix, (($remaining.TaskName) -join ', '))
+        $testProfiles = @($profileSafe, "${profileSafe}_sup", "${profileSafe}_overlap", "${profileSafe}_keep", "${profileSafe}_skip", "${profileSafe}_cancel", "${profileSafe}_legacy")
+        $expectedNames = @($testProfiles | ForEach-Object {
+            $profileNames = Get-SdatTaskNames -Profile $_
+            $profileNames.Volatile
+            $profileNames.Permanent
+        })
+        foreach ($taskName in $expectedNames) {
+            try { Unregister-ScheduledTask -TaskPath '\' -TaskName $taskName -Confirm:$false -ErrorAction Stop | Out-Null } catch { }
+        }
+        $remaining = @(Get-ScheduledTask -TaskPath '\' -ErrorAction SilentlyContinue | Where-Object { $_.TaskName -in $expectedNames })
+        Assert-True -Condition ($remaining.Count -eq 0) -Message ("Expected exact self-test tasks removed; remaining: {0}" -f (($remaining.TaskName) -join ', '))
     }
 
     $results = @()
