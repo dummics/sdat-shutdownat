@@ -30,6 +30,12 @@ It supports:
 
 Open a Command Prompt or PowerShell and run:
 
+### Win+R
+
+`sdat` and `ssat` are designed to work directly from the Windows Run dialog. Status and command results remain visible for about six seconds, then the transient window closes silently. There is no countdown, pause message, or "press any key" prompt.
+
+Commands launched from an existing terminal return immediately. Interactive TUI commands (`sdat t`, `sdat tui`, or `sdat -tui`) remain open until you exit them.
+
 - Show status:
 
 ```powershell

@@ -117,6 +117,18 @@ function Write-SdatHelpView {
     foreach ($line in $Lines) { Write-Host $line }
 }
 
+function Write-SdatCommandResult {
+    param([Parameter(Mandatory)][string]$Message)
+
+    $safeMessage = Escape-SdatSpectre -Text $Message
+    if (Write-SdatSpectrePanel -Title "[deepskyblue1]SDAT[/]" -Lines @("[grey78]$safeMessage[/]") -Color "Grey35") { return }
+
+    Write-Host "SDAT" -ForegroundColor Cyan
+    Write-Hr
+    Write-Host $Message -ForegroundColor Gray
+    Write-Hr
+}
+
 function Get-ConsoleWidthSafe {
     try {
         $w = [Console]::WindowWidth

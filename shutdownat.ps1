@@ -99,8 +99,41 @@ function Show-SdatHelp {
     Write-SdatHelpView -Lines $lines
 }
 
+$script:SdatFromWinR = $null
+
 function Test-FromWinR {
-    return $false
+    if ($null -ne $script:SdatFromWinR) { return [bool]$script:SdatFromWinR }
+
+    if ($env:SDAT_FROM_WINR -eq '1') {
+        $script:SdatFromWinR = $true
+        return $true
+    }
+
+    $detected = $false
+    try {
+        if ($env:SDAT_WRAPPER_PROCESS -ne '1' -or $env:CMDCMDLINE -notmatch '(?i)(?:^|\s)/c(?:\s|$)') {
+            $script:SdatFromWinR = $false
+            return $false
+        }
+
+        $current = Get-CimInstance Win32_Process -Filter "ProcessId = $PID" -ErrorAction Stop
+        $wrapper = Get-CimInstance Win32_Process -Filter "ProcessId = $($current.ParentProcessId)" -ErrorAction Stop
+        if ($wrapper.Name -ieq 'cmd.exe') {
+            $caller = Get-CimInstance Win32_Process -Filter "ProcessId = $($wrapper.ParentProcessId)" -ErrorAction Stop
+            $detected = ($caller.Name -ieq 'explorer.exe')
+        }
+    } catch {
+        $detected = $false
+    }
+
+    $script:SdatFromWinR = $detected
+    return $detected
+}
+
+function Wait-SdatWinRResult {
+    if ($Tui -or $RunVolatile -or $RunPermanent -or $NotifyStatus -or $SelfTest) { return }
+    if (-not (Test-FromWinR)) { return }
+    Start-Sleep -Seconds 6
 }
 
 function Send-SdatNotification {
@@ -109,8 +142,17 @@ function Send-SdatNotification {
 }
 
 function Write-Info([string]$Msg) {
-    Write-Host $Msg
+    if (Test-FromWinR) {
+        Write-SdatCommandResult -Message $Msg
+    } else {
+        Write-Host $Msg
+    }
     Send-SdatNotification -Message $Msg
+}
+
+try {
+if (Test-FromWinR) {
+    try { [Console]::Title = 'SDAT' } catch { }
 }
 
 if ($Clean) { $AA = $true }
@@ -1185,13 +1227,16 @@ if ($Test) {
     $requestedAction = Get-SdatRequestedActionType
     $target = $resolved.TargetLocal
     $targetStr = Format-SdatWhenShort -Value $target
-    Write-Info ("Would schedule ONE-TIME {0} at {1} (TEST MODE)" -f (Get-SdatActionLabel -ActionType $requestedAction), $targetStr)
-    if ($KeepDaily) {
-        Write-Info "Would keep daily if nearby"
+    $dailyDecision = if ($KeepDaily) {
+        "Would keep daily if nearby"
     } else {
-        Write-Info "Would skip nearby daily within $([int]$config.DailyOverlapWindowMinutes)m"
+        "Would skip nearby daily within $([int]$config.DailyOverlapWindowMinutes)m"
     }
+    Write-Info (("Would schedule ONE-TIME {0} at {1} (TEST MODE)" -f (Get-SdatActionLabel -ActionType $requestedAction), $targetStr) + "`n" + $dailyDecision)
     exit 0
 }
 
 Write-Info (Invoke-ScheduleVolatileOnce -TargetLocal $resolved.TargetLocal -ActionType (Get-SdatRequestedActionType))
+} finally {
+    Wait-SdatWinRResult
+}
