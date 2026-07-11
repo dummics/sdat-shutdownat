@@ -51,13 +51,14 @@ function Build-ScheduledActionCommand {
         [switch]$DryRunAction
     )
     $p = $ScriptPath.Replace('"', '""')
+    $hiddenLauncher = (Join-Path -Path (Split-Path -Parent $ScriptPath) -ChildPath "lib\RunHidden.vbs").Replace('"', '""')
     $args = @($ModeSwitch)
     $pp = Get-SdatProfileSafe -Profile $Profile
     if ($pp) { $args += @("-Profile", $pp) }
     if ($SuspendAction) { $args += "-Suspend" }
     if ($RestartAction) { $args += "-Restart" }
     if ($DryRunAction) { $args += "-DryRun" }
-    return "powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ""$p"" " + ($args -join " ")
+    return "wscript.exe //B //NoLogo ""$hiddenLauncher"" powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ""$p"" " + ($args -join " ")
 }
 
 function Set-SdatTaskDefaultSettings {

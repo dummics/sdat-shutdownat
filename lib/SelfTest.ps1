@@ -93,28 +93,24 @@ function Invoke-SdatSelfTest {
             return ('"{0}"' -f ($Value -replace '"', '\"'))
         }
 
-        $processArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-File', $ScriptPath) + $Args
+        $hiddenLauncher = Join-Path -Path $Root -ChildPath "lib\RunHidden.vbs"
+        $processArgs = @('//B', '//NoLogo', $hiddenLauncher, 'powershell.exe', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-File', $ScriptPath) + $Args
         $psi = [System.Diagnostics.ProcessStartInfo]::new()
-        $psi.FileName = (Get-Command powershell.exe -ErrorAction Stop).Source
+        $psi.FileName = (Get-Command wscript.exe -ErrorAction Stop).Source
         $psi.Arguments = (($processArgs | ForEach-Object { Quote-ProcessArgument -Value ([string]$_) }) -join ' ')
         $psi.UseShellExecute = $false
         $psi.CreateNoWindow = $true
         $psi.WindowStyle = [System.Diagnostics.ProcessWindowStyle]::Hidden
-        $psi.RedirectStandardOutput = $true
-        $psi.RedirectStandardError = $true
 
         $process = [System.Diagnostics.Process]::new()
         $process.StartInfo = $psi
         $null = $process.Start()
-        $stdout = $process.StandardOutput.ReadToEnd()
-        $stderr = $process.StandardError.ReadToEnd()
         $process.WaitForExit()
         $code = $process.ExitCode
         $process.Dispose()
-        $out = @($stdout, $stderr) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
         return [pscustomobject]@{
             ExitCode = $code
-            Output = ($out | Out-String)
+            Output = if ($code -eq 0) { "" } else { "Hidden child exited with code $code; see the SDAT profile log for details." }
         }
     }
 
@@ -153,7 +149,9 @@ function Invoke-SdatSelfTest {
         Assert-True -Condition $info.Exists -Message "Expected $($names.Permanent) to exist"
 
         $a = Get-TaskArguments -TaskName $names.Permanent
-        Assert-True -Condition ($a.Execute -ieq "powershell.exe") -Message "Unexpected Execute: $($a.Execute)"
+        Assert-True -Condition ($a.Execute -ieq "wscript.exe") -Message "Unexpected Execute: $($a.Execute)"
+        Assert-True -Condition ($a.Arguments -like "*RunHidden.vbs*") -Message "Missing hidden launcher in Arguments"
+        Assert-True -Condition ($a.Arguments -like "*powershell.exe*") -Message "Missing PowerShell child in Arguments"
         Assert-True -Condition ($a.Arguments -like "*-RunPermanent*") -Message "Missing -RunPermanent in Arguments"
         Assert-True -Condition ($a.Arguments -like "*-DryRun*") -Message "Missing -DryRun in Arguments"
         Assert-True -Condition ($a.Arguments -like "*-Profile $profileSafe*") -Message "Missing -Profile in Arguments"
