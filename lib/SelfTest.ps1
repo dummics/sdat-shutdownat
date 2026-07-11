@@ -463,12 +463,12 @@ function Invoke-SdatSelfTest {
     }
 
     Add-Test -Name "Cleanup" -Body {
-        Unregister-TaskIfExists -TaskName $names.Permanent
-        Unregister-TaskIfExists -TaskName $names.Volatile
-        $info1 = Get-TaskInfoSafe -TaskName $names.Permanent
-        $info2 = Get-TaskInfoSafe -TaskName $names.Volatile
-        Assert-True -Condition (-not $info1.Exists) -Message "Expected $($names.Permanent) removed"
-        Assert-True -Condition (-not $info2.Exists) -Message "Expected $($names.Volatile) removed"
+        $taskPrefix = "SDAT_${profileSafe}"
+        Get-ScheduledTask -ErrorAction SilentlyContinue |
+            Where-Object { $_.TaskName -like "${taskPrefix}*" } |
+            ForEach-Object { Unregister-TaskIfExists -TaskName $_.TaskName }
+        $remaining = @(Get-ScheduledTask -ErrorAction SilentlyContinue | Where-Object { $_.TaskName -like "${taskPrefix}*" })
+        Assert-True -Condition ($remaining.Count -eq 0) -Message ("Expected all {0}* tasks removed; remaining: {1}" -f $taskPrefix, (($remaining.TaskName) -join ', '))
     }
 
     $results = @()
