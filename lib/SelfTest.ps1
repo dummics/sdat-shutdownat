@@ -93,24 +93,28 @@ function Invoke-SdatSelfTest {
             return ('"{0}"' -f ($Value -replace '"', '\"'))
         }
 
-        $hiddenLauncher = Join-Path -Path $Root -ChildPath "lib\RunHidden.vbs"
-        $processArgs = @('//B', '//NoLogo', $hiddenLauncher, $ScriptPath) + $Args
+        $processArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-File', $ScriptPath) + $Args
         $psi = [System.Diagnostics.ProcessStartInfo]::new()
-        $psi.FileName = (Get-Command wscript.exe -ErrorAction Stop).Source
+        $psi.FileName = (Get-Command powershell.exe -ErrorAction Stop).Source
         $psi.Arguments = (($processArgs | ForEach-Object { Quote-ProcessArgument -Value ([string]$_) }) -join ' ')
         $psi.UseShellExecute = $false
         $psi.CreateNoWindow = $true
         $psi.WindowStyle = [System.Diagnostics.ProcessWindowStyle]::Hidden
+        $psi.RedirectStandardOutput = $true
+        $psi.RedirectStandardError = $true
 
         $process = [System.Diagnostics.Process]::new()
         $process.StartInfo = $psi
         $null = $process.Start()
+        $stdout = $process.StandardOutput.ReadToEnd()
+        $stderr = $process.StandardError.ReadToEnd()
         $process.WaitForExit()
         $code = $process.ExitCode
         $process.Dispose()
+        $out = @($stdout, $stderr) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
         return [pscustomobject]@{
             ExitCode = $code
-            Output = if ($code -eq 0) { "" } else { "Hidden child exited with code $code; see the SDAT profile log for details." }
+            Output = ($out | Out-String)
         }
     }
 
@@ -239,6 +243,9 @@ function Invoke-SdatSelfTest {
             }
         }
         Assert-True -Condition (-not (Test-SdatTuiInputCharacter -Character ';')) -Message "Expected TUI to reject unsupported punctuation"
+        Assert-True -Condition ((Resolve-SdatDurationSeconds -Value '3.5h') -eq 12600) -Message "Expected 3.5h to resolve to 12600 seconds"
+        Assert-True -Condition ((Resolve-SdatDurationSeconds -Value '1,5h') -eq 5400) -Message "Expected 1,5h to resolve to 5400 seconds"
+        Assert-True -Condition ((Resolve-SdatDurationSeconds -Value 'mezza ora') -eq 1800) -Message "Expected mezza ora to resolve to 1800 seconds"
     }
 
     Add-Test -Name "Win+R detection requires transient cmd launched by Explorer" -Body {
