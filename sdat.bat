@@ -10,7 +10,15 @@ for %%A in (%*) do (
     if /I "%%~A"=="-aa" set "SDAT_CANCEL_FAST=1"
     if /I "%%~A"=="-clean" set "SDAT_CANCEL_FAST=1"
 )
-if "%SDAT_CANCEL_FAST%"=="1" "%SystemRoot%\System32\shutdown.exe" /a >nul 2>nul
+if "%SDAT_CANCEL_FAST%"=="1" (
+    "%SystemRoot%\System32\shutdown.exe" /a >nul 2>nul
+    set "SDAT_FAST_ABORT_ATTEMPTED=1"
+    if errorlevel 1 (
+        set "SDAT_FAST_ABORT_SUCCEEDED=0"
+    ) else (
+        set "SDAT_FAST_ABORT_SUCCEEDED=1"
+    )
+)
 
 set "PS_EXE=powershell.exe"
 where pwsh.exe >nul 2>nul && set "PS_EXE=pwsh.exe"

@@ -52,10 +52,16 @@ param(
 )
 
 # Emergency cancel path: abort a pending Windows shutdown before loading SDAT modules,
-# logs, config, state, or Task Scheduler helpers. The normal cancel branch below
-# still handles SDAT task cleanup after this immediate best-effort abort.
+# logs, config, state, or Task Scheduler helpers. Wrappers do this even earlier and
+# pass the result through the environment so the abort is never repeated.
+$script:SdatEarlyAbortAttempted = ($env:SDAT_FAST_ABORT_ATTEMPTED -eq '1')
+$script:SdatEarlyAbortSucceeded = ($env:SDAT_FAST_ABORT_SUCCEEDED -eq '1')
 if (($A -or $AA -or $Clean) -and -not $DryRun -and -not $SelfTest -and [string]::IsNullOrWhiteSpace($Profile)) {
-    & "$env:SystemRoot\System32\shutdown.exe" /a 2>$null | Out-Null
+    if (-not $script:SdatEarlyAbortAttempted) {
+        & "$env:SystemRoot\System32\shutdown.exe" /a 2>$null | Out-Null
+        $script:SdatEarlyAbortAttempted = $true
+        $script:SdatEarlyAbortSucceeded = ($LASTEXITCODE -eq 0)
+    }
 }
 
 Set-StrictMode -Version Latest
@@ -428,9 +434,18 @@ function Invoke-AbortPendingSystemShutdown {
         return $false
     }
 
+    if ($script:SdatEarlyAbortAttempted) {
+        if ($script:SdatEarlyAbortSucceeded) {
+            Write-SdatLog -Ctx $script:logCtx -Level "INFO" -Message "Aborted pending system shutdown before initialization"
+        }
+        return $script:SdatEarlyAbortSucceeded
+    }
+
     $abortResult = & "$env:SystemRoot\System32\shutdown.exe" /a 2>&1
     $exitCode = $LASTEXITCODE
-    if ($exitCode -eq 0) {
+    $script:SdatEarlyAbortAttempted = $true
+    $script:SdatEarlyAbortSucceeded = ($exitCode -eq 0)
+    if ($script:SdatEarlyAbortSucceeded) {
         Write-SdatLog -Ctx $script:logCtx -Level "INFO" -Message "Aborted pending system shutdown"
         return $true
     }
@@ -466,7 +481,7 @@ function Invoke-CleanupStaleVolatile {
     }
 }
 
-if (-not $RunVolatile -and -not $RunPermanent) {
+if (-not $RunVolatile -and -not $RunPermanent -and -not $A -and -not $AA -and -not $Clean) {
     try { Invoke-CleanupStaleVolatile } catch { }
 }
 
@@ -574,6 +589,37 @@ function Get-SdatStatusViewLines {
         "[grey58]Skip     [/][$skipColor]$($m.Skip)[/]",
         "[grey58]Rules    [/][grey70]one-time wins within[/] [white]$($m.OverlapMinutes)m[/] [grey70]| grace[/] [white]$($m.GraceMinutes)m[/] [grey70]| use[/] [deepskyblue1]sdat -k <time>[/] [grey70]to keep daily[/]"
     )
+}
+
+function Write-SdatCancelResult {
+    param(
+        [Parameter(Mandatory)][ValidateSet("one-time", "all")][string]$Scope,
+        [Parameter(Mandatory)][bool]$HadScheduledTask,
+        [Parameter(Mandatory)][bool]$SystemAbortDone,
+        [Parameter(Mandatory)]$State,
+        [Parameter(Mandatory)]$Config
+    )
+    $model = Get-SdatStatusModel -State $State -Config $Config
+    $summary = if ($HadScheduledTask) {
+        if ($Scope -eq "all") { "All SDAT schedules removed" } else { "One-time schedule removed" }
+    } elseif ($SystemAbortDone) {
+        "Windows shutdown canceled"
+    } else {
+        "Nothing to cancel"
+    }
+    $windowsText = if ($SystemAbortDone) { "stopped immediately" } else { "no countdown active" }
+    $windowsColor = if ($SystemAbortDone) { "green" } else { "grey58" }
+    $oneColor = if ($model.OneTime -eq "none") { "grey58" } else { "yellow" }
+    $dailyColor = if ($model.Daily -eq "none") { "grey58" } else { "deepskyblue1" }
+    $lines = @(
+        "[grey58]Windows  [/][$windowsColor]$windowsText[/]",
+        "[grey58]One-time [/][$oneColor]$(Escape-SdatSpectre -Text $model.OneTime)[/]",
+        "[grey58]Daily    [/][$dailyColor]$(Escape-SdatSpectre -Text $model.Daily)[/]"
+    )
+    if ($model.Skip -ne "none") {
+        $lines += "[grey58]Skip     [/][yellow]$(Escape-SdatSpectre -Text $model.Skip)[/]"
+    }
+    Write-SdatCommandResult -Title "[green]Canceled[/]" -Summary $summary -Lines $lines
 }
 
 function Get-SdatTuiHeaderLines {
@@ -949,16 +995,16 @@ if ($AA) {
     $v = Get-TaskInfoSafe -TaskName $names.Volatile
     $permanentInfo = Get-TaskInfoSafe -TaskName $names.Permanent
     if (-not ($v.Exists -or $permanentInfo.Exists)) {
-        $prefix = if ($systemAbortDone) { "Pending Windows shutdown aborted. " } else { "" }
-        Write-Info "${prefix}No scheduled tasks to cancel."
+        $config = Load-SdatConfig -Root $root -Profile $script:sdatProfile
+        $state = Load-SdatState -Root $root -Profile $script:sdatProfile
+        Write-SdatCancelResult -Scope all -HadScheduledTask:$false -SystemAbortDone:$systemAbortDone -State $state -Config $config
         exit 0
     }
 
     $null = Invoke-CancelAllAndResetState
     $config = Load-SdatConfig -Root $root -Profile $script:sdatProfile
     $state = Load-SdatState -Root $root -Profile $script:sdatProfile
-    $prefix = if ($systemAbortDone) { "Pending Windows shutdown aborted. " } else { "" }
-    Write-Info ("{0}Canceled all SDAT scheduled power tasks. Status: {1}" -f $prefix, (Get-SdatStatusText -State $state -Config $config))
+    Write-SdatCancelResult -Scope all -HadScheduledTask:$true -SystemAbortDone:$systemAbortDone -State $state -Config $config
     exit 0
 }
 
@@ -967,17 +1013,15 @@ if ($A) {
     $names = Get-SdatTaskNames -Profile $script:sdatProfile
     $v = Get-TaskInfoSafe -TaskName $names.Volatile
     $state = Load-SdatState -Root $root -Profile $script:sdatProfile
-    $actionLabel = Get-SdatActionLabel -ActionType (Resolve-SdatActionType -Value $state.Volatile.ActionType)
     if (-not $v.Exists) {
-        $prefix = if ($systemAbortDone) { "Pending Windows shutdown aborted. " } else { "" }
-        Write-Info ("{0}No pending one-time {1} to cancel." -f $prefix, $actionLabel)
+        $config = Load-SdatConfig -Root $root -Profile $script:sdatProfile
+        Write-SdatCancelResult -Scope one-time -HadScheduledTask:$false -SystemAbortDone:$systemAbortDone -State $state -Config $config
         exit 0
     }
     Invoke-CancelVolatile
     $config = Load-SdatConfig -Root $root -Profile $script:sdatProfile
     $state = Load-SdatState -Root $root -Profile $script:sdatProfile
-    $prefix = if ($systemAbortDone) { "Pending Windows shutdown aborted. " } else { "" }
-    Write-Info ("{0}Canceled one-time action. Status: {1}" -f $prefix, (Get-SdatStatusText -State $state -Config $config))
+    Write-SdatCancelResult -Scope one-time -HadScheduledTask:$true -SystemAbortDone:$systemAbortDone -State $state -Config $config
     exit 0
 }
 

@@ -130,15 +130,57 @@ function Write-SdatHelpView {
     foreach ($line in $Lines) { Write-Host $line }
 }
 
+function Split-SdatResultText {
+    param(
+        [AllowNull()][string]$Text,
+        [int]$Width = 64
+    )
+    if ([string]::IsNullOrWhiteSpace($Text)) { return @() }
+
+    $result = [System.Collections.Generic.List[string]]::new()
+    foreach ($paragraph in ($Text -split '\r?\n')) {
+        $remaining = $paragraph.Trim()
+        if ($remaining.Length -eq 0) {
+            $result.Add("")
+            continue
+        }
+        while ($remaining.Length -gt $Width) {
+            $cut = $remaining.LastIndexOf(' ', $Width)
+            if ($cut -lt 1) { $cut = $Width }
+            $result.Add($remaining.Substring(0, $cut).TrimEnd())
+            $remaining = $remaining.Substring($cut).TrimStart()
+        }
+        if ($remaining.Length -gt 0) { $result.Add($remaining) }
+    }
+    return @($result)
+}
+
 function Write-SdatCommandResult {
-    param([Parameter(Mandatory)][string]$Message)
+    param(
+        [AllowNull()][string]$Message,
+        [string]$Title = "[deepskyblue1]SDAT[/]",
+        [AllowNull()][string]$Summary,
+        [AllowNull()][string[]]$Lines
+    )
 
-    $safeMessage = Escape-SdatSpectre -Text $Message
-    if (Write-SdatSpectrePanel -Title "[deepskyblue1]SDAT[/]" -Lines @("[grey78]$safeMessage[/]") -Color "Grey35") { return }
+    $viewLines = @()
+    if (-not [string]::IsNullOrWhiteSpace($Summary)) {
+        $viewLines += "[bold white]$(Escape-SdatSpectre -Text $Summary)[/]"
+    }
+    if ($Lines -and $Lines.Count -gt 0) {
+        if ($viewLines.Count -gt 0) { $viewLines += "" }
+        $viewLines += $Lines
+    } elseif (-not [string]::IsNullOrWhiteSpace($Message)) {
+        $wrapped = @(Split-SdatResultText -Text $Message)
+        $viewLines += @($wrapped | ForEach-Object { "[grey78]$(Escape-SdatSpectre -Text $_)[/]" })
+    }
+    if ($viewLines.Count -eq 0) { $viewLines = @("[grey58]Done[/]") }
 
-    Write-Host "SDAT" -ForegroundColor Cyan
+    if (Write-SdatSpectrePanel -Title $Title -Lines $viewLines -Color "Grey35") { return }
+
+    Write-Host (Remove-SdatSpectreMarkup -Text $Title) -ForegroundColor Cyan
     Write-Hr
-    Write-Host $Message -ForegroundColor Gray
+    foreach ($line in $viewLines) { Write-Host (Remove-SdatSpectreMarkup -Text $line) -ForegroundColor Gray }
     Write-Hr
 }
 
