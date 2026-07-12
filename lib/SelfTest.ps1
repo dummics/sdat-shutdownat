@@ -248,6 +248,26 @@ function Invoke-SdatSelfTest {
         Assert-True -Condition ((Resolve-SdatDurationSeconds -Value 'mezza ora') -eq 1800) -Message "Expected mezza ora to resolve to 1800 seconds"
     }
 
+    Add-Test -Name "Command results wrap long text into readable lines" -Body {
+        $message = "Canceled all scheduled power tasks and refreshed the current shutdown status"
+        $wrapped = @(Split-SdatResultText -Text $message -Width 28)
+        $tooLong = @($wrapped | Where-Object { $_.Length -gt 28 })
+        Assert-True -Condition ($wrapped.Count -gt 1) -Message "Expected a long command result to wrap"
+        Assert-True -Condition ($tooLong.Count -eq 0) -Message "Expected every wrapped result line to stay within the requested width"
+        Assert-True -Condition (($wrapped -join ' ') -eq $message) -Message "Expected wrapping to preserve the original message"
+    }
+
+    Add-Test -Name "Emergency cancel runs before PowerShell starts" -Body {
+        foreach ($launcherName in @('sdat.bat', 'ssat.bat')) {
+            $launcher = Get-Content -LiteralPath (Join-Path $Root $launcherName) -Raw
+            $abortIndex = $launcher.IndexOf('shutdown.exe" /a', [System.StringComparison]::OrdinalIgnoreCase)
+            $powershellIndex = $launcher.IndexOf('"%PS_EXE%"', [System.StringComparison]::OrdinalIgnoreCase)
+            Assert-True -Condition ($abortIndex -ge 0) -Message "Expected $launcherName to contain the emergency Windows abort"
+            Assert-True -Condition ($powershellIndex -gt $abortIndex) -Message "Expected $launcherName to abort before starting PowerShell"
+            Assert-True -Condition ($launcher -match 'SDAT_FAST_ABORT_SUCCEEDED') -Message "Expected $launcherName to preserve the early abort result"
+        }
+    }
+
     Add-Test -Name "Win+R detection requires transient cmd launched by Explorer" -Body {
         $runWrapper = [pscustomobject]@{ Name = 'cmd.exe'; CommandLine = 'cmd.exe /c "sdat"' }
         $interactiveWrapper = [pscustomobject]@{ Name = 'cmd.exe'; CommandLine = 'cmd.exe' }
@@ -473,7 +493,8 @@ function Invoke-SdatSelfTest {
             try { Unregister-ScheduledTask -TaskPath '\' -TaskName $taskName -Confirm:$false -ErrorAction Stop | Out-Null } catch { }
         }
         $remaining = @(Get-ScheduledTask -TaskPath '\' -ErrorAction SilentlyContinue | Where-Object { $_.TaskName -in $expectedNames })
-        Assert-True -Condition ($remaining.Count -eq 0) -Message ("Expected exact self-test tasks removed; remaining: {0}" -f (($remaining.TaskName) -join ', '))
+        $remainingNames = @(if ($remaining.Count -gt 0) { $remaining | ForEach-Object { $_.TaskName } })
+        Assert-True -Condition ($remaining.Count -eq 0) -Message ("Expected exact self-test tasks removed; remaining: {0}" -f ($remainingNames -join ', '))
     }
 
     $results = @()

@@ -32,7 +32,7 @@ Open a Command Prompt or PowerShell and run:
 
 ### Win+R
 
-`sdat` and `ssat` are designed to work directly from the Windows Run dialog. Status and command results remain visible for about six seconds, then the transient window closes silently. There is no countdown, pause message, or "press any key" prompt.
+`sdat` and `ssat` are designed to work directly from the Windows Run dialog. Status and command results use compact, centered panels and remain visible for about six seconds, then the transient window closes silently. There is no countdown, pause message, or "press any key" prompt.
 
 Commands launched from an existing terminal return immediately. Interactive TUI commands (`sdat t`, `sdat tui`, or `sdat -tui`) remain open until you exit them.
 
@@ -145,6 +145,8 @@ sdat -SelfTest -DryRun
 ```powershell
 sdat -aa
 ```
+
+The Windows shutdown countdown is aborted by the launcher before PowerShell modules or Task Scheduler state are loaded. The result panel then reports Windows, one-time, and daily status on separate lines.
 
 - Emergency-cancel any Windows shutdown already in progress, then cancel only the one-time (volatile) shutdown:
 
