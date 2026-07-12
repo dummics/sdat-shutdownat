@@ -4,6 +4,18 @@ $script:SdatSpectreProviderChecked = $false
 $script:SdatSpectreProviderLoaded = $false
 $script:SdatSpectreFrameLines = 0
 
+function Initialize-SdatUtf8Console {
+    try {
+        $utf8 = [System.Text.UTF8Encoding]::new($false)
+        [Console]::InputEncoding = $utf8
+        [Console]::OutputEncoding = $utf8
+        $global:OutputEncoding = $utf8
+        return $true
+    } catch {
+        return $false
+    }
+}
+
 function Import-SdatSpectreProvider {
     if ($script:SdatSpectreProviderChecked) { return $script:SdatSpectreProviderLoaded }
     $script:SdatSpectreProviderChecked = $true
@@ -13,6 +25,7 @@ function Import-SdatSpectreProvider {
     if (-not (Test-Path -LiteralPath $modulePath)) { return $false }
 
     try {
+        $null = Initialize-SdatUtf8Console
         Import-Module $modulePath -Force -ErrorAction Stop | Out-Null
         $script:SdatSpectreProviderLoaded = $true
     } catch {
