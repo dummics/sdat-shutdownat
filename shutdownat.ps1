@@ -28,7 +28,6 @@ param(
     [switch]$Test,
     [switch]$A,      # cancel volatile only
     [switch]$AA,     # cancel all
-    [switch]$Clean,  # alias for -AA (kept for wrapper compatibility)
     [switch]$P,      # permanent (daily)
     [switch]$Suspend, # schedule/run suspend instead of shutdown
     [switch]$Restart, # schedule/run restart instead of shutdown
@@ -114,7 +113,7 @@ if (-not [string]::IsNullOrWhiteSpace($Time)) {
 # pass the result through the environment so the abort is never repeated.
 $script:SdatEarlyAbortAttempted = ($env:SDAT_FAST_ABORT_ATTEMPTED -eq '1')
 $script:SdatEarlyAbortSucceeded = ($env:SDAT_FAST_ABORT_SUCCEEDED -eq '1')
-if (($A -or $AA -or $Clean) -and -not $DryRun -and -not $SelfTest -and [string]::IsNullOrWhiteSpace($Profile)) {
+if (($A -or $AA) -and -not $DryRun -and -not $SelfTest -and [string]::IsNullOrWhiteSpace($Profile)) {
     if (-not $script:SdatEarlyAbortAttempted) {
         & "$env:SystemRoot\System32\shutdown.exe" /a 2>$null | Out-Null
         $script:SdatEarlyAbortAttempted = $true
@@ -235,14 +234,12 @@ if (Test-FromWinR) {
     try { [Console]::Title = 'SDAT' } catch { }
 }
 
-if ($Clean) { $AA = $true }
-
 if (-not [string]::IsNullOrWhiteSpace($script:SdatCommandParseError)) {
     Write-Info $script:SdatCommandParseError
     exit 2
 }
 
-if ($Time -and $Time.Trim().ToLowerInvariant() -in @("t", "tui") -and -not ($P -or $Test -or $A -or $AA -or $Clean -or $SkipPermanent -or $RunVolatile -or $RunPermanent -or $NotifyStatus -or $SelfTest -or $Status)) {
+if ($Time -and $Time.Trim().ToLowerInvariant() -in @("t", "tui") -and -not ($P -or $Test -or $A -or $AA -or $SkipPermanent -or $RunVolatile -or $RunPermanent -or $NotifyStatus -or $SelfTest -or $Status)) {
     $Tui = $true
     $Time = $null
 }
@@ -301,7 +298,7 @@ function Resolve-SdatActionType {
     if ([string]::IsNullOrWhiteSpace($Value)) { return $Default }
     $v = $Value.Trim().ToLowerInvariant()
     if ($v -in @("shutdown", "suspend", "restart")) { return $v }
-    return $Default
+    throw "Unsupported SDAT action type: $Value"
 }
 
 function Get-SdatRequestedActionType {
@@ -575,7 +572,7 @@ function Invoke-CleanupStaleVolatile {
     }
 }
 
-if (-not $RunVolatile -and -not $RunPermanent -and -not $A -and -not $AA -and -not $Clean) {
+if (-not $RunVolatile -and -not $RunPermanent -and -not $A -and -not $AA) {
     try { Invoke-CleanupStaleVolatile } catch { }
 }
 
@@ -622,7 +619,7 @@ function Get-SdatStatusText {
         }
     }
 
-    $overlap = if (Test-HasProp -Obj $Config -Name "DailyOverlapWindowMinutes") { [int]$Config.DailyOverlapWindowMinutes } else { 120 }
+    $overlap = [int]$Config.DailyOverlapWindowMinutes
     return "One-time: $vol | Daily: $perm | Suppression: $suspend | Grace: $($Config.GraceMinutes)m | Overlap: $($overlap)m"
 }
 
@@ -634,7 +631,7 @@ function Get-SdatStatusModel {
     $names = Get-SdatTaskNames -Profile $script:sdatProfile
     $v = Get-TaskInfoSafe -TaskName $names.Volatile
     $pinfo = Get-TaskInfoSafe -TaskName $names.Permanent
-    $overlap = if (Test-HasProp -Obj $Config -Name "DailyOverlapWindowMinutes") { [int]$Config.DailyOverlapWindowMinutes } else { 120 }
+    $overlap = [int]$Config.DailyOverlapWindowMinutes
     $grace = [int]$Config.GraceMinutes
 
     $oneTime = "none"

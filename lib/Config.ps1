@@ -1,12 +1,40 @@
 Set-StrictMode -Version Latest
 
-function Test-HasProp {
+function Assert-SdatPropertySet {
     param(
-        [AllowNull()]$Obj,
-        [Parameter(Mandatory)][string]$Name
+        [AllowNull()]$Value,
+        [Parameter(Mandatory)][string[]]$Expected,
+        [Parameter(Mandatory)][string]$Context
     )
-    if ($null -eq $Obj) { return $false }
-    return ($Obj.PSObject.Properties.Name -contains $Name)
+    if ($null -eq $Value) { throw "SDAT $Context is null." }
+
+    $actual = @($Value.PSObject.Properties.Name)
+    $missing = @($Expected | Where-Object { $_ -notin $actual })
+    $unexpected = @($actual | Where-Object { $_ -notin $Expected })
+    if ($missing.Count -gt 0 -or $unexpected.Count -gt 0) {
+        $missingText = if ($missing.Count -gt 0) { $missing -join ", " } else { "none" }
+        $unexpectedText = if ($unexpected.Count -gt 0) { $unexpected -join ", " } else { "none" }
+        throw "Unsupported SDAT $Context schema. Missing: $missingText. Unexpected: $unexpectedText."
+    }
+}
+
+function Assert-SdatConfigSchema {
+    param([Parameter(Mandatory)]$Config)
+
+    $expected = @(
+        "GraceMinutes",
+        "DailyOverlapWindowMinutes",
+        "MissedVolatileShutdownMaxDelayMinutes",
+        "MissedPermanentShutdownMaxDelayMinutes"
+    )
+    Assert-SdatPropertySet -Value $Config -Expected $expected -Context "config"
+
+    foreach ($name in $expected) {
+        $parsed = 0
+        if ($null -eq $Config.$name -or -not [int]::TryParse([string]$Config.$name, [ref]$parsed) -or $parsed -lt 0) {
+            throw "SDAT config field '$name' must be a non-negative integer."
+        }
+    }
 }
 
 function Get-SdatProfileSafe {
@@ -96,21 +124,8 @@ function Load-SdatConfig {
     $paths = Get-SdatConfigPaths -Root $Root -Profile $Profile
 
     $config = Read-JsonFileOrNull -Path $paths.ConfigPath
-    if ($null -eq $config) { $config = [pscustomobject]@{} }
-
-    if ((-not (Test-HasProp -Obj $config -Name "GraceMinutes")) -or $null -eq $config.GraceMinutes) {
-        $config | Add-Member -NotePropertyName GraceMinutes -NotePropertyValue 60 -Force
-    }
-    if ((-not (Test-HasProp -Obj $config -Name "DailyOverlapWindowMinutes")) -or $null -eq $config.DailyOverlapWindowMinutes) {
-        $config | Add-Member -NotePropertyName DailyOverlapWindowMinutes -NotePropertyValue 120 -Force
-    }
-    if ((-not (Test-HasProp -Obj $config -Name "MissedVolatileShutdownMaxDelayMinutes")) -or $null -eq $config.MissedVolatileShutdownMaxDelayMinutes) {
-        $config | Add-Member -NotePropertyName MissedVolatileShutdownMaxDelayMinutes -NotePropertyValue 0 -Force
-    }
-    if ((-not (Test-HasProp -Obj $config -Name "MissedPermanentShutdownMaxDelayMinutes")) -or $null -eq $config.MissedPermanentShutdownMaxDelayMinutes) {
-        $config | Add-Member -NotePropertyName MissedPermanentShutdownMaxDelayMinutes -NotePropertyValue 0 -Force
-    }
-
+    if ($null -eq $config) { throw "SDAT config is empty: $($paths.ConfigPath)" }
+    Assert-SdatConfigSchema -Config $config
     return $config
 }
 
@@ -120,6 +135,7 @@ function Save-SdatConfig {
         [AllowNull()][string]$Profile,
         [Parameter(Mandatory)]$Config
     )
+    Assert-SdatConfigSchema -Config $Config
     Ensure-SdatDataDir -Root $Root -Profile $Profile
     $paths = Get-SdatConfigPaths -Root $Root -Profile $Profile
     $tmp = "$($paths.ConfigPath).tmp"

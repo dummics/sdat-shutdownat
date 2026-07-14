@@ -21,36 +21,19 @@ function New-DefaultSdatState {
     }
 }
 
-function Normalize-SdatState {
+function Assert-SdatStateSchema {
     param([Parameter(Mandatory)]$State)
 
-    function Test-HasProp {
-        param(
-            [Parameter(Mandatory)]$Obj,
-            [Parameter(Mandatory)][string]$Name
-        )
-        return $null -ne ($Obj | Get-Member -Name $Name -MemberType NoteProperty -ErrorAction SilentlyContinue)
+    Assert-SdatPropertySet -Value $State -Expected @("Version", "Volatile", "Permanent", "SuspendPermanentUntil", "SuspendSetAt", "SuspendReason") -Context "state"
+    Assert-SdatPropertySet -Value $State.Volatile -Expected @("ScheduledFor", "CreatedAt", "ActionType", "LastExecutedAt", "LastMissedAt") -Context "state.Volatile"
+    Assert-SdatPropertySet -Value $State.Permanent -Expected @("ActionType", "LastExecutedAt", "LastSkippedAt") -Context "state.Permanent"
+
+    if ([int]$State.Version -ne 1) { throw "Unsupported SDAT state version: $($State.Version)." }
+    foreach ($actionType in @($State.Volatile.ActionType, $State.Permanent.ActionType)) {
+        if (-not [string]::IsNullOrWhiteSpace($actionType) -and $actionType -notin @("shutdown", "suspend", "restart")) {
+            throw "Unsupported SDAT state action type: $actionType."
+        }
     }
-
-    if (-not (Test-HasProp -Obj $State -Name "Version")) { $State | Add-Member -NotePropertyName Version -NotePropertyValue 1 }
-
-    if (-not (Test-HasProp -Obj $State -Name "Volatile") -or $null -eq $State.Volatile) { $State | Add-Member -NotePropertyName Volatile -NotePropertyValue ([pscustomobject]@{}) -Force }
-    if (-not (Test-HasProp -Obj $State.Volatile -Name "ScheduledFor")) { $State.Volatile | Add-Member -NotePropertyName ScheduledFor -NotePropertyValue $null }
-    if (-not (Test-HasProp -Obj $State.Volatile -Name "CreatedAt")) { $State.Volatile | Add-Member -NotePropertyName CreatedAt -NotePropertyValue $null }
-    if (-not (Test-HasProp -Obj $State.Volatile -Name "ActionType")) { $State.Volatile | Add-Member -NotePropertyName ActionType -NotePropertyValue $null }
-    if (-not (Test-HasProp -Obj $State.Volatile -Name "LastExecutedAt")) { $State.Volatile | Add-Member -NotePropertyName LastExecutedAt -NotePropertyValue $null }
-    if (-not (Test-HasProp -Obj $State.Volatile -Name "LastMissedAt")) { $State.Volatile | Add-Member -NotePropertyName LastMissedAt -NotePropertyValue $null }
-
-    if (-not (Test-HasProp -Obj $State -Name "Permanent") -or $null -eq $State.Permanent) { $State | Add-Member -NotePropertyName Permanent -NotePropertyValue ([pscustomobject]@{}) -Force }
-    if (-not (Test-HasProp -Obj $State.Permanent -Name "ActionType")) { $State.Permanent | Add-Member -NotePropertyName ActionType -NotePropertyValue $null }
-    if (-not (Test-HasProp -Obj $State.Permanent -Name "LastExecutedAt")) { $State.Permanent | Add-Member -NotePropertyName LastExecutedAt -NotePropertyValue $null }
-    if (-not (Test-HasProp -Obj $State.Permanent -Name "LastSkippedAt")) { $State.Permanent | Add-Member -NotePropertyName LastSkippedAt -NotePropertyValue $null }
-
-    if (-not (Test-HasProp -Obj $State -Name "SuspendPermanentUntil")) { $State | Add-Member -NotePropertyName SuspendPermanentUntil -NotePropertyValue $null }
-    if (-not (Test-HasProp -Obj $State -Name "SuspendSetAt")) { $State | Add-Member -NotePropertyName SuspendSetAt -NotePropertyValue $null }
-    if (-not (Test-HasProp -Obj $State -Name "SuspendReason")) { $State | Add-Member -NotePropertyName SuspendReason -NotePropertyValue $null }
-
-    return $State
 }
 
 function Ensure-SdatStateExists {
@@ -74,8 +57,9 @@ function Load-SdatState {
     Ensure-SdatStateExists -Root $Root -Profile $Profile
     $paths = Get-SdatConfigPaths -Root $Root -Profile $Profile
     $state = Read-JsonFileOrNull -Path $paths.StatePath
-    if ($null -eq $state) { return (New-DefaultSdatState) }
-    return (Normalize-SdatState -State $state)
+    if ($null -eq $state) { throw "SDAT state is empty: $($paths.StatePath)" }
+    Assert-SdatStateSchema -State $state
+    return $state
 }
 
 function Save-SdatState {
@@ -84,6 +68,7 @@ function Save-SdatState {
         [AllowNull()][string]$Profile,
         [Parameter(Mandatory)]$State
     )
+    Assert-SdatStateSchema -State $State
     Ensure-SdatDataDir -Root $Root -Profile $Profile
     $paths = Get-SdatConfigPaths -Root $Root -Profile $Profile
     $tmp = "$($paths.StatePath).tmp"

@@ -9,7 +9,6 @@ if /I "%~1"=="cancel" set "SDAT_CANCEL_FAST=1"
 for %%A in (%*) do (
     if /I "%%~A"=="-a" set "SDAT_CANCEL_FAST=1"
     if /I "%%~A"=="-aa" set "SDAT_CANCEL_FAST=1"
-    if /I "%%~A"=="-clean" set "SDAT_CANCEL_FAST=1"
 )
 if "%SDAT_CANCEL_FAST%"=="1" (
     "%SystemRoot%\System32\shutdown.exe" /a >nul 2>nul

@@ -146,6 +146,27 @@ function Invoke-SdatSelfTest {
         Assert-True -Condition ($null -ne $config.DailyOverlapWindowMinutes) -Message "DailyOverlapWindowMinutes missing from config"
     }
 
+    Add-Test -Name "Only the current config and state schemas are accepted" -Body {
+        $partialConfig = [pscustomobject]@{
+            GraceMinutes = 60
+            MissedVolatileShutdownMaxDelayMinutes = 0
+            MissedPermanentShutdownMaxDelayMinutes = 0
+        }
+        $configRejected = $false
+        try { Assert-SdatConfigSchema -Config $partialConfig } catch { $configRejected = $_.Exception.Message -match "Unsupported SDAT config schema" }
+        Assert-True -Condition $configRejected -Message "Expected a partial config to be rejected"
+
+        $stateWithUnexpectedEntry = New-DefaultSdatState
+        $stateWithUnexpectedEntry | Add-Member -NotePropertyName UnexpectedEntry -NotePropertyValue "unused"
+        $stateRejected = $false
+        try { Assert-SdatStateSchema -State $stateWithUnexpectedEntry } catch { $stateRejected = $_.Exception.Message -match "Unsupported SDAT state schema" }
+        Assert-True -Condition $stateRejected -Message "Expected state with an unexpected entry to be rejected"
+
+        $actionRejected = $false
+        try { $null = Resolve-SdatActionType -Value "unknown-action" } catch { $actionRejected = $_.Exception.Message -match "Unsupported SDAT action type" }
+        Assert-True -Condition $actionRejected -Message "Expected an unknown action type to be rejected"
+    }
+
     Add-Test -Name "Create daily task via script (dry-run action)" -Body {
         $r = Invoke-SdatScript -Args @("-Profile", $profileSafe, "-DryRun", "-Time", "0200", "-P")
         Assert-True -Condition ($r.ExitCode -eq 0) -Message ("Script exited with {0}: {1}" -f $r.ExitCode, $r.Output)
@@ -266,6 +287,7 @@ function Invoke-SdatSelfTest {
             Assert-True -Condition ($powershellIndex -gt $abortIndex) -Message "Expected $launcherName to abort before starting PowerShell"
             Assert-True -Condition ($launcher -match 'SDAT_FAST_ABORT_SUCCEEDED') -Message "Expected $launcherName to preserve the early abort result"
             Assert-True -Condition ($launcher -match '"%~1"=="cancel"') -Message "Expected $launcherName to fast-abort for the readable cancel command"
+            Assert-True -Condition ($launcher -notmatch '(?i)-clean') -Message "Expected $launcherName to contain no unsupported -Clean alias"
         }
     }
 
@@ -478,40 +500,8 @@ function Invoke-SdatSelfTest {
         Unregister-TaskIfExists -TaskName $names2.Volatile
     }
 
-    Add-Test -Name "Regression: legacy suspend fields do not block permanent" -Body {
-        $p2 = "${profileSafe}_legacy"
-        $names2 = Get-SdatTaskNames -Profile $p2
-        Unregister-TaskIfExists -TaskName $names2.Volatile
-        Unregister-TaskIfExists -TaskName $names2.Permanent
-        Save-SdatState -Root $Root -Profile $p2 -State (New-DefaultSdatState)
-        Set-RelaxedPermanentDelay -ProfileName $p2
-
-        $r1 = Invoke-SdatScript -Args @("-Profile", $p2, "-DryRun", "-Time", "0200", "-P")
-        Assert-True -Condition ($r1.ExitCode -eq 0) -Message ("Script exited with {0}: {1}" -f $r1.ExitCode, $r1.Output)
-
-        $state = Load-SdatState -Root $Root -Profile $p2
-        $state.SuspendPermanentUntil = (Get-Date).AddHours(-12).ToString("o", [System.Globalization.CultureInfo]::InvariantCulture)
-        $state.SuspendReason = "legacy-test"
-        $state.Volatile.ScheduledFor = $null
-        $state.Volatile.CreatedAt = $null
-        $state.Volatile.LastExecutedAt = $null
-        Save-SdatState -Root $Root -Profile $p2 -State $state
-
-        $null = & schtasks.exe /run /tn $names2.Permanent 2>&1
-        $deadline = (Get-Date).AddSeconds(8)
-        do {
-            Start-Sleep -Milliseconds 250
-            $state = Load-SdatState -Root $Root -Profile $p2
-        } while ([string]::IsNullOrWhiteSpace($state.Permanent.LastExecutedAt) -and (Get-Date) -lt $deadline)
-
-        Assert-True -Condition (-not [string]::IsNullOrWhiteSpace($state.Permanent.LastExecutedAt)) -Message "Expected Permanent.LastExecutedAt to be set (legacy suspend ignored)"
-
-        Unregister-TaskIfExists -TaskName $names2.Permanent
-        Unregister-TaskIfExists -TaskName $names2.Volatile
-    }
-
     Add-Test -Name "Cleanup" -Body {
-        $testProfiles = @($profileSafe, "${profileSafe}_sup", "${profileSafe}_overlap", "${profileSafe}_keep", "${profileSafe}_skip", "${profileSafe}_cancel", "${profileSafe}_legacy")
+        $testProfiles = @($profileSafe, "${profileSafe}_sup", "${profileSafe}_overlap", "${profileSafe}_keep", "${profileSafe}_skip", "${profileSafe}_cancel")
         $expectedNames = @($testProfiles | ForEach-Object {
             $profileNames = Get-SdatTaskNames -Profile $_
             $profileNames.Volatile
