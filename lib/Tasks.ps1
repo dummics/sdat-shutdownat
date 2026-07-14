@@ -61,6 +61,29 @@ function Build-ScheduledActionCommand {
     return "wscript.exe //B //NoLogo ""$hiddenLauncher"" ""$p"" " + ($args -join " ")
 }
 
+function New-SdatScheduledTaskAction {
+    param(
+        [Parameter(Mandatory)][string]$ScriptPath,
+        [Parameter(Mandatory)][string]$ModeSwitch,
+        [AllowNull()][string]$Profile,
+        [switch]$SuspendAction,
+        [switch]$RestartAction,
+        [switch]$DryRunAction
+    )
+
+    $command = Build-ScheduledActionCommand -ScriptPath $ScriptPath -ModeSwitch $ModeSwitch -Profile $Profile -SuspendAction:$SuspendAction -RestartAction:$RestartAction -DryRunAction:$DryRunAction
+    $prefix = "wscript.exe "
+    if (-not $command.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)) {
+        throw "Unexpected scheduled action command: $command"
+    }
+    return New-ScheduledTaskAction -Execute "wscript.exe" -Argument $command.Substring($prefix.Length)
+}
+
+function New-SdatScheduledTaskPrincipal {
+    $currentSid = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+    return New-ScheduledTaskPrincipal -UserId $currentSid -LogonType Interactive -RunLevel Limited
+}
+
 function Set-SdatTaskDefaultSettings {
     param([Parameter(Mandatory)][string]$TaskName)
     try {
@@ -85,12 +108,10 @@ function Register-VolatileShutdownTask {
     $tn = $names.Volatile
 
     Unregister-TaskIfExists -TaskName $tn
-    $st = $TargetLocal.ToString('HH:mm')
-    $sd = $TargetLocal.ToString('dd/MM/yyyy')
-    $tr = Build-ScheduledActionCommand -ScriptPath $ScriptPath -ModeSwitch "-RunVolatile" -Profile $Profile -SuspendAction:$SuspendAction -RestartAction:$RestartAction -DryRunAction:$DryRunAction
-
-    $out = & schtasks.exe /create /tn $tn /tr $tr /sc once /st $st /sd $sd /ru $env:USERNAME /f 2>&1
-    if ($LASTEXITCODE -ne 0) { throw ($out | Out-String) }
+    $action = New-SdatScheduledTaskAction -ScriptPath $ScriptPath -ModeSwitch "-RunVolatile" -Profile $Profile -SuspendAction:$SuspendAction -RestartAction:$RestartAction -DryRunAction:$DryRunAction
+    $trigger = New-ScheduledTaskTrigger -Once -At $TargetLocal
+    $principal = New-SdatScheduledTaskPrincipal
+    Register-ScheduledTask -TaskName $tn -Action $action -Trigger $trigger -Principal $principal -Force | Out-Null
     Set-SdatTaskDefaultSettings -TaskName $tn
 }
 
@@ -108,10 +129,10 @@ function Register-PermanentShutdownTaskDaily {
     $tn = $names.Permanent
 
     Unregister-TaskIfExists -TaskName $tn
-    $st = ("{0:D2}:{1:D2}" -f $Hours, $Minutes)
-    $tr = Build-ScheduledActionCommand -ScriptPath $ScriptPath -ModeSwitch "-RunPermanent" -Profile $Profile -SuspendAction:$SuspendAction -RestartAction:$RestartAction -DryRunAction:$DryRunAction
-
-    $out = & schtasks.exe /create /tn $tn /tr $tr /sc daily /st $st /ru $env:USERNAME /f 2>&1
-    if ($LASTEXITCODE -ne 0) { throw ($out | Out-String) }
+    $action = New-SdatScheduledTaskAction -ScriptPath $ScriptPath -ModeSwitch "-RunPermanent" -Profile $Profile -SuspendAction:$SuspendAction -RestartAction:$RestartAction -DryRunAction:$DryRunAction
+    $at = [datetime]::Today.AddHours($Hours).AddMinutes($Minutes)
+    $trigger = New-ScheduledTaskTrigger -Daily -At $at
+    $principal = New-SdatScheduledTaskPrincipal
+    Register-ScheduledTask -TaskName $tn -Action $action -Trigger $trigger -Principal $principal -Force | Out-Null
     Set-SdatTaskDefaultSettings -TaskName $tn
 }

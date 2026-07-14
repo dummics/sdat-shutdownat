@@ -10,3 +10,4 @@ All notable user-facing changes to SDAT are documented here.
 - Added a per-user installer, updater, and uninstaller with no administrator requirement.
 - Added reproducible Windows release packages with a bundled, pinned PwshSpectreConsole dependency and SHA256 verification.
 - Added GitHub Actions for self-tests and tagged releases.
+- Made Task Scheduler registration independent of the Windows date format and display language.
