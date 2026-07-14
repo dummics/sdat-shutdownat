@@ -265,7 +265,35 @@ function Invoke-SdatSelfTest {
             Assert-True -Condition ($abortIndex -ge 0) -Message "Expected $launcherName to contain the emergency Windows abort"
             Assert-True -Condition ($powershellIndex -gt $abortIndex) -Message "Expected $launcherName to abort before starting PowerShell"
             Assert-True -Condition ($launcher -match 'SDAT_FAST_ABORT_SUCCEEDED') -Message "Expected $launcherName to preserve the early abort result"
+            Assert-True -Condition ($launcher -match '"%~1"=="cancel"') -Message "Expected $launcherName to fast-abort for the readable cancel command"
         }
+    }
+
+    Add-Test -Name "Readable command aliases preserve the public contract" -Body {
+        $statusProfile = "${profileSafe}_alias_status"
+        $cancelProfile = "${profileSafe}_alias_cancel"
+        $cancelAllProfile = "${profileSafe}_alias_cancel_all"
+        foreach ($isolatedProfile in @($statusProfile, $cancelProfile, $cancelAllProfile)) {
+            $isolatedNames = Get-SdatTaskNames -Profile $isolatedProfile
+            Unregister-TaskIfExists -TaskName $isolatedNames.Volatile
+            Unregister-TaskIfExists -TaskName $isolatedNames.Permanent
+            Save-SdatState -Root $Root -Profile $isolatedProfile -State (New-DefaultSdatState)
+        }
+
+        $versionResult = Invoke-SdatScript -Args @("version", "-Profile", $profileSafe, "-DryRun")
+        Assert-True -Condition ($versionResult.ExitCode -eq 0 -and $versionResult.Output -match 'SDAT\s+\d+\.\d+\.\d+') -Message ("Version command failed: {0}" -f $versionResult.Output)
+
+        $statusResult = Invoke-SdatScript -Args @("status", "-Profile", $statusProfile, "-DryRun")
+        Assert-True -Condition ($statusResult.ExitCode -eq 0 -and $statusResult.Output -match 'One-time') -Message ("Status command failed: {0}" -f $statusResult.Output)
+
+        $dailyResult = Invoke-SdatScript -Args @("daily", "02:30", "-Test", "-Profile", $profileSafe, "-DryRun")
+        Assert-True -Condition ($dailyResult.ExitCode -eq 0 -and $dailyResult.Output -match 'DAILY shutdown at 02:30') -Message ("Daily command failed: {0}" -f $dailyResult.Output)
+
+        $cancelResult = Invoke-SdatScript -Args @("cancel", "-Profile", $cancelProfile, "-DryRun")
+        Assert-True -Condition ($cancelResult.ExitCode -eq 0 -and $cancelResult.Output -match 'Nothing to cancel') -Message ("Cancel command failed: {0}" -f $cancelResult.Output)
+
+        $cancelAllResult = Invoke-SdatScript -Args @("cancel", "all", "-Profile", $cancelAllProfile, "-DryRun")
+        Assert-True -Condition ($cancelAllResult.ExitCode -eq 0 -and $cancelAllResult.Output -match 'Nothing to cancel') -Message ("Cancel all command failed: {0}" -f $cancelAllResult.Output)
     }
 
     Add-Test -Name "Win+R detection requires transient cmd launched by Explorer" -Body {

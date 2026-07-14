@@ -5,6 +5,7 @@ setlocal
 set "SDAT_DIR=%~dp0"
 
 set "SDAT_CANCEL_FAST=0"
+if /I "%~1"=="cancel" set "SDAT_CANCEL_FAST=1"
 for %%A in (%*) do (
     if /I "%%~A"=="-a" set "SDAT_CANCEL_FAST=1"
     if /I "%%~A"=="-aa" set "SDAT_CANCEL_FAST=1"

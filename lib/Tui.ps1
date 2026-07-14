@@ -3,6 +3,7 @@ Set-StrictMode -Version Latest
 $script:SdatSpectreProviderChecked = $false
 $script:SdatSpectreProviderLoaded = $false
 $script:SdatSpectreFrameLines = 0
+$script:SdatTuiLibRoot = $PSScriptRoot
 
 function Initialize-SdatUtf8Console {
     try {
@@ -21,15 +22,32 @@ function Import-SdatSpectreProvider {
     $script:SdatSpectreProviderChecked = $true
     $script:SdatSpectreProviderLoaded = $false
 
-    $modulePath = "C:\Users\domix\.codex\vendor_imports\powershell\PwshSpectreConsole\2.6.3\PwshSpectreConsole.psd1"
-    if (-not (Test-Path -LiteralPath $modulePath)) { return $false }
+    $runtimeRoot = Split-Path -Parent $script:SdatTuiLibRoot
+    $moduleCandidates = [System.Collections.Generic.List[string]]::new()
+    if (-not [string]::IsNullOrWhiteSpace($env:SDAT_SPECTRE_MODULE)) {
+        $moduleCandidates.Add($env:SDAT_SPECTRE_MODULE)
+    }
+    $moduleCandidates.Add((Join-Path $runtimeRoot "modules\PwshSpectreConsole\2.6.3\PwshSpectreConsole.psd1"))
+    if (-not [string]::IsNullOrWhiteSpace($env:LOCALAPPDATA)) {
+        $moduleCandidates.Add((Join-Path $env:LOCALAPPDATA "Programs\SDAT\modules\PwshSpectreConsole\2.6.3\PwshSpectreConsole.psd1"))
+    }
+    $installedModule = Get-Module -ListAvailable -Name PwshSpectreConsole -ErrorAction SilentlyContinue |
+        Sort-Object Version -Descending |
+        Select-Object -First 1
+    if ($installedModule -and -not [string]::IsNullOrWhiteSpace($installedModule.Path)) {
+        $moduleCandidates.Add($installedModule.Path)
+    }
 
-    try {
-        $null = Initialize-SdatUtf8Console
-        Import-Module $modulePath -Force -ErrorAction Stop | Out-Null
-        $script:SdatSpectreProviderLoaded = $true
-    } catch {
-        $script:SdatSpectreProviderLoaded = $false
+    foreach ($modulePath in @($moduleCandidates | Select-Object -Unique)) {
+        if (-not (Test-Path -LiteralPath $modulePath)) { continue }
+        try {
+            $null = Initialize-SdatUtf8Console
+            Import-Module $modulePath -Force -ErrorAction Stop | Out-Null
+            $script:SdatSpectreProviderLoaded = $true
+            break
+        } catch {
+            $script:SdatSpectreProviderLoaded = $false
+        }
     }
 
     return $script:SdatSpectreProviderLoaded

@@ -14,8 +14,9 @@
       sdat t
       sdat tui
       ssat -tui
-      sdat -a             # abort Windows shutdown, then cancel one-time task
-      sdat -aa            # abort Windows shutdown, then cancel SDAT tasks
+      sdat cancel         # abort Windows shutdown, then cancel one-time task
+      sdat cancel all     # abort Windows shutdown, then cancel SDAT tasks
+      sdat daily 0230     # schedule daily shutdown
       sdat -s             # toggle skip for next permanent run
       sdat -h             # help
 #>
@@ -43,6 +44,9 @@ param(
     [switch]$NotifyStatus,
     [switch]$DryRun,
     [switch]$SelfTest,
+    [switch]$KeepData,
+    [switch]$SkipTaskCleanup,
+    [switch]$NoPath,
 
     # Internal/testing: use a separate task+data namespace.
     [string]$Profile,
@@ -50,6 +54,60 @@ param(
     [Parameter(ValueFromRemainingArguments = $true)]
     [string[]]$ExtraArgs
 )
+
+$script:SdatCommandParseError = $null
+$script:SdatMaintenanceCommand = $null
+if (-not [string]::IsNullOrWhiteSpace($Time)) {
+    $commandToken = $Time.Trim().ToLowerInvariant()
+    switch ($commandToken) {
+        "cancel" {
+            if (-not $ExtraArgs -or $ExtraArgs.Count -eq 0) {
+                $A = $true
+                $Time = $null
+                $ExtraArgs = @()
+            } elseif ($ExtraArgs.Count -eq 1 -and $ExtraArgs[0].Trim().ToLowerInvariant() -eq "all") {
+                $AA = $true
+                $Time = $null
+                $ExtraArgs = @()
+            } else {
+                $script:SdatCommandParseError = "Use 'sdat cancel' or 'sdat cancel all'."
+            }
+        }
+        "daily" {
+            if ($ExtraArgs -and $ExtraArgs.Count -ge 1) {
+                $Time = $ExtraArgs[0]
+                $ExtraArgs = @($ExtraArgs | Select-Object -Skip 1)
+                $P = $true
+            } else {
+                $script:SdatCommandParseError = "Daily needs a clock time, for example: sdat daily 02:30"
+            }
+        }
+        "status" {
+            $Status = $true
+            $Time = $null
+        }
+        "skip" {
+            $SkipPermanent = $true
+            $Time = $null
+        }
+        "help" {
+            $Help = $true
+            $Time = $null
+        }
+        "version" {
+            $script:SdatMaintenanceCommand = "version"
+            $Time = $null
+        }
+        "update" {
+            $script:SdatMaintenanceCommand = "update"
+            $Time = $null
+        }
+        "uninstall" {
+            $script:SdatMaintenanceCommand = "uninstall"
+            $Time = $null
+        }
+    }
+}
 
 # Emergency cancel path: abort a pending Windows shutdown before loading SDAT modules,
 # logs, config, state, or Task Scheduler helpers. Wrappers do this even earlier and
@@ -78,21 +136,25 @@ $root = Split-Path -Parent $PSCommandPath
 
 function Show-SdatHelp {
     $lines = @(
-        "Usage: sdat|ssat [TIME [-p]] | sdat|ssat -Test TIME [-p] | sdat|ssat -tui | sdat t | sdat tui | sdat|ssat -a | sdat|ssat -aa | sdat|ssat -s | sdat|ssat -h",
+        "Usage: sdat TIME | sdat daily TIME | sdat cancel [all] | sdat status | sdat tui",
         "",
         "Commands:",
         "  (no args)            show status, next shutdown time, and quick examples",
-        "  -Status              explicit status check (same as no args)",
+        "  status               explicit status check (same as no args)",
+        "  daily TIME           schedule a daily action at a clock time",
         "  TIME [-p]            schedule one-time (-p omitted) or daily (-p) shutdown/suspend/restart",
         "  -Test TIME [-p]      dry run the one-time or daily power action",
         "  -Suspend             use suspend action (ssat wrapper always sets this)",
         "  -Restart             use restart action",
         "  -k / -KeepDaily      keep the daily task when one-time is near it",
         "  -tui, -t, t, tui     open the interactive configuration UI",
-        "  -a                   abort any pending Windows shutdown and cancel the pending one-time action",
-        "  -aa / -Clean         abort any pending Windows shutdown and cancel SDAT scheduled tasks",
-        "  -s / -SkipPermanent  toggle skip for the next permanent run",
-        "  -h / -Help           show this help output",
+        "  cancel / -a          abort Windows shutdown and cancel the pending one-time action",
+        "  cancel all / -aa     abort Windows shutdown and cancel all SDAT scheduled tasks",
+        "  skip / -s            toggle skip for the next daily action",
+        "  version              show the installed SDAT version",
+        "  update               install the latest public release",
+        "  uninstall            remove SDAT and its scheduled tasks",
+        "  help / -h            show this help output",
         "",
         "TIME examples:",
         "  2330, 23:30          absolute clock time",
@@ -175,6 +237,11 @@ if (Test-FromWinR) {
 
 if ($Clean) { $AA = $true }
 
+if (-not [string]::IsNullOrWhiteSpace($script:SdatCommandParseError)) {
+    Write-Info $script:SdatCommandParseError
+    exit 2
+}
+
 if ($Time -and $Time.Trim().ToLowerInvariant() -in @("t", "tui") -and -not ($P -or $Test -or $A -or $AA -or $Clean -or $SkipPermanent -or $RunVolatile -or $RunPermanent -or $NotifyStatus -or $SelfTest -or $Status)) {
     $Tui = $true
     $Time = $null
@@ -185,6 +252,33 @@ if ($ExtraArgs -and $ExtraArgs.Count -gt 0) {
     Show-SdatHelp
     Send-SdatNotification -Message "Unsupported parameter. Use: sdat -h"
     exit 2
+}
+
+if ($script:SdatMaintenanceCommand -eq "version") {
+    $versionPath = Join-Path $root "VERSION"
+    $version = if (Test-Path -LiteralPath $versionPath) { (Get-Content -LiteralPath $versionPath -Raw).Trim() } else { "development" }
+    Write-Info "SDAT $version"
+    exit 0
+}
+
+if ($script:SdatMaintenanceCommand -in @("update", "uninstall")) {
+    $maintenanceScript = if ($script:SdatMaintenanceCommand -eq "update") { "install.ps1" } else { "uninstall.ps1" }
+    $maintenancePath = Join-Path $root $maintenanceScript
+    if (-not (Test-Path -LiteralPath $maintenancePath)) {
+        Write-Info "This checkout does not include $maintenanceScript. Install a packaged SDAT release first."
+        exit 1
+    }
+    try {
+        if ($script:SdatMaintenanceCommand -eq "update") {
+            & $maintenancePath -Update -InstallDir $root -NoPath:$NoPath
+        } else {
+            & $maintenancePath -InstallDir $root -KeepData:$KeepData -SkipTaskCleanup:$SkipTaskCleanup -NoPath:$NoPath
+        }
+        exit 0
+    } catch {
+        Write-Info ("{0} failed: {1}" -f $script:SdatMaintenanceCommand, $_.Exception.Message)
+        exit 1
+    }
 }
 
 if ($Status -and $Time) {
@@ -644,9 +738,9 @@ function Get-SdatQuickHints {
         "[deepskyblue1]sdat 2330[/]     [grey58]one-time at 23:30[/]",
         "[deepskyblue1]sdat 3.5h[/]     [grey58]one-time in 3h 30m[/]",
         "[deepskyblue1]sdat 45m[/]      [grey58]one-time in 45 minutes[/]",
-        "[deepskyblue1]sdat 0200 -p[/]  [grey58]daily at 02:00[/]",
-        "[deepskyblue1]sdat -s[/]       [grey58]skip next daily once[/]",
-        "[deepskyblue1]sdat -k 45m[/]   [grey58]keep daily even if close[/]"
+        "[deepskyblue1]sdat daily 0200[/] [grey58]daily at 02:00[/]",
+        "[deepskyblue1]sdat cancel[/]   [grey58]cancel the one-time action[/]",
+        "[deepskyblue1]sdat tui[/]      [grey58]open interactive controls[/]"
     )
 }
 
