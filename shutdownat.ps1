@@ -16,6 +16,7 @@
       ssat -tui
       sdat cancel         # abort Windows shutdown, then cancel one-time task
       sdat cancel all     # abort Windows shutdown, then cancel SDAT tasks
+      sdat logs           # show the log location and recent problems
       sdat daily 0230     # schedule daily shutdown
       sdat -s             # toggle skip for next permanent run
       sdat -h             # help
@@ -97,6 +98,10 @@ if (-not [string]::IsNullOrWhiteSpace($Time)) {
             $script:SdatMaintenanceCommand = "version"
             $Time = $null
         }
+        "logs" {
+            $script:SdatMaintenanceCommand = "logs"
+            $Time = $null
+        }
         "update" {
             $script:SdatMaintenanceCommand = "update"
             $Time = $null
@@ -151,6 +156,7 @@ function Show-SdatHelp {
         "  cancel all / -aa     abort Windows shutdown and cancel all SDAT scheduled tasks",
         "  skip / -s            toggle skip for the next daily action",
         "  version              show the installed SDAT version",
+        "  logs                 show the log location and recent warnings/errors",
         "  update               install the latest public release",
         "  uninstall            remove SDAT and its scheduled tasks",
         "  help / -h            show this help output",
@@ -255,6 +261,31 @@ if ($script:SdatMaintenanceCommand -eq "version") {
     $versionPath = Join-Path $root "VERSION"
     $version = if (Test-Path -LiteralPath $versionPath) { (Get-Content -LiteralPath $versionPath -Raw).Trim() } else { "development" }
     Write-Info "SDAT $version"
+    exit 0
+}
+
+if ($script:SdatMaintenanceCommand -eq "logs") {
+    Invoke-SdatLogMaintenance -Root $root
+    $logsRoot = Get-SdatLogsRoot -Root $root
+    $latest = Get-ChildItem -LiteralPath $logsRoot -Filter "sdat-*.log" -File -ErrorAction SilentlyContinue |
+        Sort-Object LastWriteTime -Descending | Select-Object -First 1
+    $issues = @(Get-SdatRecentLogIssues -Root $root -Count 5)
+    $lines = @(
+        "[grey58]Folder  [/][white]$(Escape-SdatSpectre -Text $logsRoot)[/]",
+        "[grey58]Latest  [/][white]$(Escape-SdatSpectre -Text $(if ($latest) { $latest.Name } else { 'none yet' }))[/]",
+        "",
+        "[grey70]Recent warnings and errors[/]"
+    )
+    if ($issues.Count -eq 0) {
+        $lines += "[green]No recent problems found[/]"
+    } else {
+        foreach ($issue in $issues) {
+            $at = try { ([datetimeoffset]$issue.At).ToLocalTime().ToString("MM-dd HH:mm:ss") } catch { [string]$issue.At }
+            $color = if ($issue.Level -eq "ERROR") { "red" } else { "yellow" }
+            $lines += "[grey58]$at[/] [$color]$($issue.Level)[/] [white]$(Escape-SdatSpectre -Text $issue.Message)[/]"
+        }
+    }
+    Write-SdatCommandResult -Title "[deepskyblue1]SDAT logs[/]" -Summary "Diagnostics are ready" -Lines $lines
     exit 0
 }
 
@@ -548,6 +579,25 @@ function Invoke-AbortPendingSystemShutdown {
     return $false
 }
 
+$script:SdatSchedulerLaunchToleranceSeconds = 30
+
+function Get-SdatScheduleDeadline {
+    param(
+        [Parameter(Mandatory)][datetime]$ScheduledFor,
+        [Parameter(Mandatory)][ValidateRange(0, 2147483647)][int]$MaxDelayMinutes
+    )
+    return $ScheduledFor.AddMinutes($MaxDelayMinutes).AddSeconds($script:SdatSchedulerLaunchToleranceSeconds)
+}
+
+function Test-SdatScheduleExpired {
+    param(
+        [Parameter(Mandatory)][datetime]$ScheduledFor,
+        [Parameter(Mandatory)][ValidateRange(0, 2147483647)][int]$MaxDelayMinutes,
+        [datetime]$At = (Get-Date)
+    )
+    return ($At -gt (Get-SdatScheduleDeadline -ScheduledFor $ScheduledFor -MaxDelayMinutes $MaxDelayMinutes))
+}
+
 function Invoke-CleanupStaleVolatile {
     $config = Load-SdatConfig -Root $root -Profile $script:sdatProfile
     $state = Load-SdatState -Root $root -Profile $script:sdatProfile
@@ -558,7 +608,9 @@ function Invoke-CleanupStaleVolatile {
     if (-not $scheduledFor) { return }
 
     $maxDelay = [int]$config.MissedVolatileShutdownMaxDelayMinutes
-    if ((Get-Date) -le $scheduledFor.AddMinutes($maxDelay)) { return }
+    $now = Get-Date
+    $deadline = Get-SdatScheduleDeadline -ScheduledFor $scheduledFor -MaxDelayMinutes $maxDelay
+    if (-not (Test-SdatScheduleExpired -ScheduledFor $scheduledFor -MaxDelayMinutes $maxDelay -At $now)) { return }
 
     if ($v.Exists) { Unregister-TaskIfExists -TaskName $names.Volatile }
     $state.Volatile.LastMissedAt = (Get-Date).ToString("o", [System.Globalization.CultureInfo]::InvariantCulture)
@@ -568,7 +620,10 @@ function Invoke-CleanupStaleVolatile {
     Save-SdatState -Root $root -Profile $script:sdatProfile -State $state
     Write-SdatLog -Ctx $script:logCtx -Level "WARN" -Message "Volatile cleanup (missed); task removed" -Data @{
         ScheduledFor = $scheduledFor
+        Deadline = $deadline
         MaxDelayMinutes = $maxDelay
+        SchedulerLaunchToleranceSeconds = $script:SdatSchedulerLaunchToleranceSeconds
+        LateSeconds = [Math]::Round(($now - $scheduledFor).TotalSeconds, 3)
     }
 }
 
@@ -822,12 +877,20 @@ function Invoke-RunVolatile {
     $scheduledFor = Parse-LocalDateTimeOrNull -Value $state.Volatile.ScheduledFor
     if ($scheduledFor) {
         $maxDelay = [int]$config.MissedVolatileShutdownMaxDelayMinutes
-        if ((Get-Date) -gt $scheduledFor.AddMinutes($maxDelay)) {
-            $state.Volatile.LastMissedAt = (Get-Date).ToString("o", [System.Globalization.CultureInfo]::InvariantCulture)
+        $now = Get-Date
+        $deadline = Get-SdatScheduleDeadline -ScheduledFor $scheduledFor -MaxDelayMinutes $maxDelay
+        if (Test-SdatScheduleExpired -ScheduledFor $scheduledFor -MaxDelayMinutes $maxDelay -At $now) {
+            $state.Volatile.LastMissedAt = $now.ToString("o", [System.Globalization.CultureInfo]::InvariantCulture)
             $state.Volatile.ScheduledFor = $null
             $state.Volatile.ActionType = $null
             Save-SdatState -Root $root -Profile $script:sdatProfile -State $state
-            Write-SdatLog -Ctx $script:logCtx -Level "WARN" -Message "Volatile missed (too late); no action executed" -Data @{ ScheduledFor = $scheduledFor; MaxDelayMinutes = $maxDelay }
+            Write-SdatLog -Ctx $script:logCtx -Level "WARN" -Message "Volatile missed (too late); no action executed" -Data @{
+                ScheduledFor = $scheduledFor
+                Deadline = $deadline
+                MaxDelayMinutes = $maxDelay
+                SchedulerLaunchToleranceSeconds = $script:SdatSchedulerLaunchToleranceSeconds
+                LateSeconds = [Math]::Round(($now - $scheduledFor).TotalSeconds, 3)
+            }
             return 0
         }
     }
@@ -879,13 +942,16 @@ function Invoke-RunPermanent {
         $scheduledToday = $now.Date.Add($scheduledAt.TimeOfDay)
         $scheduledMostRecent = if ($now -lt $scheduledToday) { $scheduledToday.AddDays(-1) } else { $scheduledToday }
         $lateMinutes = ($now - $scheduledMostRecent).TotalMinutes
-        if ($lateMinutes -gt $maxDelay) {
+        $deadline = Get-SdatScheduleDeadline -ScheduledFor $scheduledMostRecent -MaxDelayMinutes $maxDelay
+        if (Test-SdatScheduleExpired -ScheduledFor $scheduledMostRecent -MaxDelayMinutes $maxDelay -At $now) {
             $state.Permanent.LastSkippedAt = $now.ToString("o", [System.Globalization.CultureInfo]::InvariantCulture)
             Save-SdatState -Root $root -Profile $script:sdatProfile -State $state
             Write-SdatLog -Ctx $script:logCtx -Level "WARN" -Message "Permanent missed (too late); no action executed" -Data @{
                 ScheduledFor = $scheduledMostRecent
+                Deadline = $deadline
                 LateMinutes = $lateMinutes
                 MaxDelayMinutes = $maxDelay
+                SchedulerLaunchToleranceSeconds = $script:SdatSchedulerLaunchToleranceSeconds
             }
             return 0
         }

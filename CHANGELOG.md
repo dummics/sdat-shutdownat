@@ -2,6 +2,12 @@
 
 All notable user-facing changes to SDAT are documented here.
 
+## 1.0.2 - 2026-07-14
+
+- Fixed one-time and daily actions being skipped when Task Scheduler started them a few seconds after their target time.
+- Added `sdat logs` for a concise diagnostic view with a predictable log location.
+- Added automatic 30-day log retention and a 5 MB cap per log file.
+
 ## 1.0.1 - 2026-07-14
 
 - Removed the undocumented `-Clean` compatibility alias and its launcher handling.

@@ -39,6 +39,7 @@ Prefer a manual install? Download `sdat-v*-windows.zip` from the [latest release
 | `sdat cancel all` | Abort Windows shutdown and remove one-time and daily actions |
 | `sdat skip` | Skip the next daily action once |
 | `sdat tui` | Open the interactive terminal UI |
+| `sdat logs` | Show the log folder and recent warnings/errors |
 
 The short aliases remain available: `-a`, `-aa`, `-p`, `-s`, `-k`, and `-tui`. Existing scripts do not need to change.
 
@@ -83,7 +84,7 @@ Updates preserve `data/config.json`, `data/state.json`, and profile data. To kee
 
 ## How it works
 
-SDAT uses two current-user Windows Scheduled Tasks: one one-time slot and one daily slot. The latest command replaces the matching slot, so schedules never accumulate silently. Runtime logs are stored under `%LOCALAPPDATA%\SDAT\logs`.
+SDAT uses two current-user Windows Scheduled Tasks: one one-time slot and one daily slot. The latest command replaces the matching slot, so schedules never accumulate silently. Runtime logs are stored under `%LOCALAPPDATA%\SDAT\logs`; `sdat logs` shows the location and recent problems without dumping internal JSON. Log files are kept for 30 days and capped at 5 MB each.
 
 The release package bundles the pinned terminal rendering dependency. If rich rendering is unavailable, SDAT falls back to plain console output.
 

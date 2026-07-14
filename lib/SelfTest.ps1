@@ -167,6 +167,39 @@ function Invoke-SdatSelfTest {
         Assert-True -Condition $actionRejected -Message "Expected an unknown action type to be rejected"
     }
 
+    Add-Test -Name "Scheduler launch latency is tolerated without allowing delayed catch-up" -Body {
+        $scheduled = (Get-Date).AddMinutes(-1)
+        Assert-True -Condition (-not (Test-SdatScheduleExpired -ScheduledFor $scheduled -MaxDelayMinutes 0 -At $scheduled.AddSeconds(1))) -Message "Expected a one-second Task Scheduler delay to be accepted"
+        Assert-True -Condition (-not (Test-SdatScheduleExpired -ScheduledFor $scheduled -MaxDelayMinutes 0 -At $scheduled.AddSeconds(30))) -Message "Expected the 30-second launch boundary to be accepted"
+        Assert-True -Condition (Test-SdatScheduleExpired -ScheduledFor $scheduled -MaxDelayMinutes 0 -At $scheduled.AddSeconds(31)) -Message "Expected a delay beyond the launch tolerance to be rejected"
+        Assert-True -Condition (-not (Test-SdatScheduleExpired -ScheduledFor $scheduled -MaxDelayMinutes 5 -At $scheduled.AddMinutes(5).AddSeconds(30))) -Message "Expected configured catch-up delay plus launch tolerance to be accepted"
+        Assert-True -Condition (Test-SdatScheduleExpired -ScheduledFor $scheduled -MaxDelayMinutes 5 -At $scheduled.AddMinutes(5).AddSeconds(31)) -Message "Expected configured catch-up deadline to be enforced"
+    }
+
+    Add-Test -Name "Log maintenance keeps diagnostics bounded and predictable" -Body {
+        $expectedRoot = Join-Path (Join-Path $env:LOCALAPPDATA "SDAT") "logs"
+        Assert-True -Condition ((Get-SdatLogsRoot -Root $Root) -eq $expectedRoot) -Message "Expected logs under LocalAppData\\SDAT\\logs"
+
+        $tempRoot = Join-Path ([IO.Path]::GetTempPath()) ("sdat-log-test-" + [guid]::NewGuid().ToString("n"))
+        try {
+            New-Item -ItemType Directory -Path $tempRoot -Force | Out-Null
+            $oldLog = Join-Path $tempRoot "sdat-old.log"
+            "old" | Set-Content -LiteralPath $oldLog -Encoding UTF8
+            (Get-Item -LiteralPath $oldLog).LastWriteTime = (Get-Date).AddDays(-31)
+
+            $largeLog = Join-Path $tempRoot "sdat-large.log"
+            1..100 | ForEach-Object { "line $_ " + ("x" * 40) } | Set-Content -LiteralPath $largeLog -Encoding UTF8
+            Limit-SdatLogFile -Path $largeLog -MaxBytes 256 -TailLines 3
+            Assert-True -Condition ((Get-Item -LiteralPath $largeLog).Length -le 256) -Message "Expected oversized log to be trimmed"
+
+            Invoke-SdatLogMaintenance -Root $Root -LogsRoot $tempRoot -RetentionDays 30 -MaxBytes 256 -Force
+            Assert-True -Condition (-not (Test-Path -LiteralPath $oldLog)) -Message "Expected logs older than retention to be deleted"
+            Assert-True -Condition (Test-Path -LiteralPath (Join-Path $tempRoot ".maintenance")) -Message "Expected the maintenance throttle marker"
+        } finally {
+            Remove-Item -LiteralPath $tempRoot -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+
     Add-Test -Name "Create daily task via script (dry-run action)" -Body {
         $r = Invoke-SdatScript -Args @("-Profile", $profileSafe, "-DryRun", "-Time", "0200", "-P")
         Assert-True -Condition ($r.ExitCode -eq 0) -Message ("Script exited with {0}: {1}" -f $r.ExitCode, $r.Output)
@@ -217,6 +250,13 @@ function Invoke-SdatSelfTest {
         Assert-True -Condition ($r.ExitCode -eq 0) -Message ("Script exited with {0}: {1}" -f $r.ExitCode, $r.Output)
         $info = Get-TaskInfoSafe -TaskName $names.Volatile
         Assert-True -Condition $info.Exists -Message "Expected $($names.Volatile) to exist"
+    }
+
+    Add-Test -Name "Uppercase relative time input is accepted" -Body {
+        $r = Invoke-SdatScript -Args @("-Profile", $profileSafe, "-DryRun", "-Time", "1M", "-KeepDaily")
+        Assert-True -Condition ($r.ExitCode -eq 0) -Message ("Uppercase duration failed with {0}: {1}" -f $r.ExitCode, $r.Output)
+        $info = Get-TaskInfoSafe -TaskName $names.Volatile
+        Assert-True -Condition $info.Exists -Message "Expected uppercase duration to create the one-time task"
     }
 
     Add-Test -Name "Create one-time task from fractional hours input" -Body {
@@ -304,6 +344,9 @@ function Invoke-SdatSelfTest {
 
         $versionResult = Invoke-SdatScript -Args @("version", "-Profile", $profileSafe, "-DryRun")
         Assert-True -Condition ($versionResult.ExitCode -eq 0 -and $versionResult.Output -match 'SDAT\s+\d+\.\d+\.\d+') -Message ("Version command failed: {0}" -f $versionResult.Output)
+
+        $logsResult = Invoke-SdatScript -Args @("logs", "-Profile", $profileSafe, "-DryRun")
+        Assert-True -Condition ($logsResult.ExitCode -eq 0 -and $logsResult.Output -match 'SDAT\\logs') -Message ("Logs command failed: {0}" -f $logsResult.Output)
 
         $statusResult = Invoke-SdatScript -Args @("status", "-Profile", $statusProfile, "-DryRun")
         Assert-True -Condition ($statusResult.ExitCode -eq 0 -and $statusResult.Output -match 'One-time') -Message ("Status command failed: {0}" -f $statusResult.Output)
