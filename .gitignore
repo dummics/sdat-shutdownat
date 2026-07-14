@@ -10,3 +10,7 @@
 # Logs
 /logs/
 /logs/**
+
+# Local work and release output
+/.work/
+/dist/
