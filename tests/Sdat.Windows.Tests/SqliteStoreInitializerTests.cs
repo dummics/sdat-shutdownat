@@ -1,4 +1,5 @@
 using Microsoft.Data.Sqlite;
+using Sdat.Core.Operations;
 using Sdat.Core.Scheduling;
 using Sdat.Windows.Concurrency;
 using Sdat.Windows.Persistence;
@@ -79,6 +80,57 @@ public sealed class SqliteStoreInitializerTests : IDisposable
         Assert.Equal(99, await SqliteSchema.GetUserVersionAsync(verification, CancellationToken.None));
     }
 
+    [Fact]
+    public async Task Supported_older_schema_is_backed_up_before_migration()
+    {
+        var options = CreateOptions();
+        var repository = new SqliteScheduleRepository(options, new FixedTimeProvider(Now));
+        await repository.InitializeAsync();
+        await repository.CreateAsync(
+            ScheduleDraft.OneTime(PowerActionType.Shutdown, Now.AddHours(1), "UTC"));
+        await using (var connection = await SqliteSchema.OpenAsync(options, CancellationToken.None))
+        {
+            await using var command = connection.CreateCommand();
+            command.CommandText = "PRAGMA user_version = 2;";
+            await command.ExecuteNonQueryAsync();
+        }
+
+        var result = await CreateInitializer(options, repository).InitializeAsync();
+
+        Assert.False(result.WasRecovered);
+        var backupPath = Assert.Single(Directory.EnumerateFiles(options.BackupDirectory, "sdat-*.db"));
+        await using var backup = new SqliteConnection(new SqliteConnectionStringBuilder
+        {
+            DataSource = backupPath,
+            Mode = SqliteOpenMode.ReadOnly,
+            Pooling = false,
+        }.ToString());
+        await backup.OpenAsync();
+        Assert.Equal(2, await SqliteSchema.GetUserVersionAsync(backup, CancellationToken.None));
+        await using var primary = await SqliteSchema.OpenAsync(options, CancellationToken.None);
+        Assert.Equal(SqliteSchema.CurrentVersion, await SqliteSchema.GetUserVersionAsync(primary, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Failed_pre_migration_backup_leaves_the_older_schema_untouched()
+    {
+        var options = CreateOptions();
+        var repository = new SqliteScheduleRepository(options, new FixedTimeProvider(Now));
+        await repository.InitializeAsync();
+        await using (var connection = await SqliteSchema.OpenAsync(options, CancellationToken.None))
+        {
+            await using var command = connection.CreateCommand();
+            command.CommandText = "PRAGMA user_version = 2;";
+            await command.ExecuteNonQueryAsync();
+        }
+
+        await Assert.ThrowsAsync<IOException>(() =>
+            CreateInitializer(options, repository, new FailingBackup()).InitializeAsync());
+
+        await using var verification = await SqliteSchema.OpenAsync(options, CancellationToken.None);
+        Assert.Equal(2, await SqliteSchema.GetUserVersionAsync(verification, CancellationToken.None));
+    }
+
     private async Task CreateBackedUpScheduleAsync(SqliteStoreOptions options)
     {
         var repository = new SqliteScheduleRepository(options, new FixedTimeProvider(Now));
@@ -90,10 +142,12 @@ public sealed class SqliteStoreInitializerTests : IDisposable
 
     private static SqliteStoreInitializer CreateInitializer(
         SqliteStoreOptions options,
-        SqliteScheduleRepository repository) => new(
+        SqliteScheduleRepository repository,
+        IStateBackup? backup = null) => new(
         options,
         repository,
         new SqliteRecoveryService(options, new FixedTimeProvider(Now)),
+        backup ?? new SqliteBackupService(options, new FixedTimeProvider(Now)),
         new FileOperationLock(options.OperationLockPath));
 
     private static void DeletePrimaryFiles(SqliteStoreOptions options)
@@ -126,5 +180,11 @@ public sealed class SqliteStoreInitializerTests : IDisposable
     private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
     {
         public override DateTimeOffset GetUtcNow() => now;
+    }
+
+    private sealed class FailingBackup : IStateBackup
+    {
+        public Task<string> CreateVerifiedBackupAsync(CancellationToken cancellationToken = default) =>
+            throw new IOException("simulated backup failure");
     }
 }

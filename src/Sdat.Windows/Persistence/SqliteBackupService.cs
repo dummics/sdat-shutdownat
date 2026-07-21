@@ -17,7 +17,7 @@ public sealed class SqliteBackupService(
 
         var backupPath = Path.Combine(
             options.BackupDirectory,
-            $"sdat-{_timeProvider.GetUtcNow():yyyyMMddTHHmmssfffZ}.db");
+            $"sdat-{_timeProvider.GetUtcNow():yyyyMMddTHHmmssfffZ}-{Guid.NewGuid():N}.db");
 
         await using (var source = await SqliteSchema.OpenAsync(options, cancellationToken).ConfigureAwait(false))
         await using (var destination = new SqliteConnection(new SqliteConnectionStringBuilder

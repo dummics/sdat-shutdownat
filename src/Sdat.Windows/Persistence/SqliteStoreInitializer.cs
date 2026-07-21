@@ -13,6 +13,7 @@ public sealed class SqliteStoreInitializer(
     SqliteStoreOptions options,
     SqliteScheduleRepository repository,
     SqliteRecoveryService recovery,
+    IStateBackup backup,
     IOperationLock operationLock)
 {
     public async Task<StoreInitializationResult> InitializeAsync(
@@ -44,6 +45,12 @@ public sealed class SqliteStoreInitializer(
                     cancellationToken,
                     allowHealthyOverwrite: schemaVersion == 0)
                 .ConfigureAwait(false);
+        }
+
+        if (schemaVersion is > 0 and < SqliteSchema.CurrentVersion)
+        {
+            // Preserve the exact pre-migration database. If verification fails, migration must not start.
+            await backup.CreateVerifiedBackupAsync(cancellationToken).ConfigureAwait(false);
         }
 
         try

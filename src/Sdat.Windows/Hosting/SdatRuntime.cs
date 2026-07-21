@@ -37,10 +37,12 @@ public sealed record SdatRuntime(
             : SqliteStoreOptions.CreateAtRoot(dataRoot);
         var schedules = new SqliteScheduleRepository(options);
         var operationLock = new FileOperationLock(options.OperationLockPath);
+        var backup = new SqliteBackupService(options);
         var initialization = await new SqliteStoreInitializer(
                 options,
                 schedules,
                 new SqliteRecoveryService(options),
+                backup,
                 operationLock)
             .InitializeAsync(cancellationToken)
             .ConfigureAwait(false);
@@ -51,7 +53,6 @@ public sealed record SdatRuntime(
             taskHostPath,
             string.IsNullOrWhiteSpace(taskPrefix) ? "SDAT_" : taskPrefix);
         var reconciler = new SchedulerReconciler(schedules, projection, new ScheduleTaskPlanner());
-        var backup = new SqliteBackupService(options);
         var coordinator = new ScheduleCoordinator(schedules, backup, reconciler, operationLock);
         var dailySkips = new DailySkipCoordinator(
             schedules,
