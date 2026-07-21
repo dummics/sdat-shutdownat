@@ -6,6 +6,7 @@ public enum CliCommandType
 {
     Status,
     Schedule,
+    Preview,
     Cancel,
     Skip,
     Logs,
@@ -40,6 +41,8 @@ public static class CliInvocationParser
         var kind = ScheduleKind.OneTime;
         var keepDaily = false;
         var json = false;
+        var dryRun = false;
+        string? explicitTime = null;
         Guid? scheduleId = null;
         long? revision = null;
         SchedulerTaskRole? taskRole = null;
@@ -66,6 +69,21 @@ public static class CliInvocationParser
                 case "--shutdown":
                     action = PowerActionType.Shutdown;
                     break;
+                case "--action":
+                    if (!Enum.TryParse<PowerActionType>(ReadValue(args, ref index, token), true, out var parsedAction) ||
+                        !Enum.IsDefined(parsedAction))
+                    {
+                        throw new CliUsageException("Action must be shutdown, suspend, or restart.");
+                    }
+
+                    action = parsedAction;
+                    break;
+                case "--time":
+                    explicitTime = ReadValue(args, ref index, token);
+                    break;
+                case "-dryrun" or "--dry-run":
+                    dryRun = true;
+                    break;
                 case "--json":
                     json = true;
                     break;
@@ -81,6 +99,9 @@ public static class CliInvocationParser
                 case "-aa":
                     positional.Add("cancel");
                     positional.Add("all");
+                    break;
+                case "-s":
+                    positional.Add("skip");
                     break;
                 case "--task-run":
                     positional.Add("--task-run");
@@ -117,7 +138,9 @@ public static class CliInvocationParser
 
         if (positional.Count == 0)
         {
-            return Create(CliCommandType.Status);
+            return explicitTime is null
+                ? Create(CliCommandType.Status)
+                : Create(dryRun ? CliCommandType.Preview : CliCommandType.Schedule, explicitTime);
         }
 
         var command = positional[0].ToLowerInvariant();
@@ -131,6 +154,16 @@ public static class CliInvocationParser
             "health" => RequireCount(CliCommandType.Health, 1),
             "skip" => RequireCount(CliCommandType.Skip, 1),
             "logs" => RequireCount(CliCommandType.Logs, 1),
+            "preview" when positional.Count == 1 && explicitTime is not null =>
+                Create(CliCommandType.Preview, explicitTime),
+            "preview" when positional.Count == 2 && explicitTime is null =>
+                Create(CliCommandType.Preview, positional[1]),
+            "preview" => throw new CliUsageException("Preview needs a time, for example: sdat preview --time 36m"),
+            "schedule" when positional.Count == 1 && explicitTime is not null =>
+                Create(dryRun ? CliCommandType.Preview : CliCommandType.Schedule, explicitTime),
+            "schedule" when positional.Count == 2 && explicitTime is null =>
+                Create(dryRun ? CliCommandType.Preview : CliCommandType.Schedule, positional[1]),
+            "schedule" => throw new CliUsageException("Schedule needs a time, for example: sdat schedule --time 36m"),
             "daily" when positional.Count == 2 => Create(
                 CliCommandType.Schedule,
                 positional[1],
@@ -144,7 +177,8 @@ public static class CliInvocationParser
                               taskRole is not null =>
                 Create(CliCommandType.TaskRun),
             "--task-run" => throw new CliUsageException("Incomplete internal task invocation."),
-            _ when positional.Count == 1 => Create(CliCommandType.Schedule, positional[0], kind),
+            _ when positional.Count == 1 =>
+                Create(dryRun ? CliCommandType.Preview : CliCommandType.Schedule, positional[0], kind),
             _ => throw new CliUsageException("Too many arguments. Use 'sdat help' for examples."),
         };
 

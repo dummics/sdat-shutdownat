@@ -21,6 +21,40 @@ public sealed class CliInvocationParserTests
         Assert.True(invocation.Json);
     }
 
+    [Fact]
+    public void Parses_explicit_preview_contract()
+    {
+        var invocation = CliInvocationParser.Parse(
+            ["preview", "--action", "restart", "--time", "36m", "--json"]);
+
+        Assert.Equal(CliCommandType.Preview, invocation.Command);
+        Assert.Equal(PowerActionType.Restart, invocation.Action);
+        Assert.Equal("36m", invocation.TimeExpression);
+        Assert.True(invocation.Json);
+    }
+
+    [Fact]
+    public void Dry_run_converts_legacy_schedule_into_preview()
+    {
+        var invocation = CliInvocationParser.Parse(["23:30", "-DryRun"]);
+
+        Assert.Equal(CliCommandType.Preview, invocation.Command);
+        Assert.Equal("23:30", invocation.TimeExpression);
+    }
+
+    [Fact]
+    public void Legacy_s_alias_skips_daily_once()
+    {
+        Assert.Equal(CliCommandType.Skip, CliInvocationParser.Parse(["-s"]).Command);
+    }
+
+    [Fact]
+    public void Explicit_action_rejects_numeric_enum_values()
+    {
+        Assert.Throws<CliUsageException>(() =>
+            CliInvocationParser.Parse(["preview", "--action", "99", "--time", "36m"]));
+    }
+
     [Theory]
     [InlineData("3h")]
     [InlineData("23:30")]

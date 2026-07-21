@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Reflection;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Sdat.Core.Commands;
 using Sdat.Core.Diagnostics;
 using Sdat.Core.Execution;
@@ -17,6 +18,11 @@ internal static class SdatCli
     {
         WriteIndented = true,
     };
+
+    static SdatCli()
+    {
+        JsonOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
+    }
 
     public static async Task<int> RunAsync(string[] args)
     {
@@ -71,6 +77,11 @@ internal static class SdatCli
 
         try
         {
+            if (invocation.Command == CliCommandType.Preview)
+            {
+                return Preview(invocation);
+            }
+
             var services = await CreateServicesAsync();
             var startup = services.StartupReconciliation;
             var reminderOffsets = (await services.Settings.LoadAsync()).ReminderOffsetsMinutes;
@@ -203,6 +214,30 @@ internal static class SdatCli
         }
 
         return result.IsFullyApplied ? 0 : 3;
+    }
+
+    private static int Preview(CliInvocation invocation)
+    {
+        var prepared = new ScheduleInputService().Prepare(
+            invocation.TimeExpression!,
+            invocation.ScheduleKind,
+            invocation.Action,
+            invocation.KeepDaily,
+            DateTimeOffset.UtcNow,
+            TimeZoneInfo.Local);
+        if (invocation.Json)
+        {
+            WriteMachineSuccess("preview", prepared);
+        }
+        else
+        {
+            var when = prepared.Draft.Kind == ScheduleKind.OneTime
+                ? prepared.Draft.TargetAt!.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm")
+                : $"daily at {prepared.Draft.DailyAt:HH:mm}";
+            Console.WriteLine($"Would schedule {prepared.Draft.Action} {when}. No state was changed.");
+        }
+
+        return 0;
     }
 
     private static async Task<int> CancelAsync(
@@ -603,6 +638,8 @@ internal static class SdatCli
         SDAT — local Windows power scheduling
 
           sdat 36m                 schedule a one-time shutdown
+          sdat preview --time 36m preview without changing state
+          sdat schedule --time 36m --action shutdown
           sdat 23:41              schedule at a local clock time
           sdat daily 02:30        schedule a daily shutdown
           ssat 45m                schedule a one-time suspend
@@ -615,8 +652,8 @@ internal static class SdatCli
           sdat health             check database and scheduler state
           sdat tui                open the interactive terminal UI
 
-        Options: -p/--daily, -k/--keep-daily, -Suspend, -Restart, --json
-        Legacy aliases: -a (cancel one-time), -aa (cancel all)
+        Options: -p/--daily, -k/--keep-daily, -Suspend, -Restart, --dry-run, --json
+        Legacy aliases: -a (cancel one-time), -aa (cancel all), -s (skip daily once)
         """);
 
 }
