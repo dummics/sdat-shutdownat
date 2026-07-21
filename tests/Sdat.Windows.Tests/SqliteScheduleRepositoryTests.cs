@@ -85,6 +85,46 @@ public sealed class SqliteScheduleRepositoryTests : IDisposable
         Assert.True(new FileInfo(backupPath).Length > 0);
     }
 
+    [Fact]
+    public async Task Corrupt_database_can_be_restored_from_verified_backup()
+    {
+        var options = CreateOptions();
+        var repository = new SqliteScheduleRepository(options);
+        await repository.InitializeAsync();
+        var created = await repository.CreateAsync(
+            ScheduleDraft.OneTime(PowerActionType.Shutdown, DateTimeOffset.UtcNow.AddHours(1), "UTC"));
+        var backupPath = await new SqliteBackupService(options).CreateVerifiedBackupAsync();
+
+        Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+        await File.WriteAllTextAsync(options.DatabasePath, "not a sqlite database");
+
+        var recovery = new SqliteRecoveryService(options);
+        var unhealthy = await recovery.CheckCurrentAsync(full: true);
+        var result = await recovery.RestoreLatestVerifiedBackupAsync();
+        var restored = await new SqliteScheduleRepository(options).GetAsync(created.Id);
+
+        Assert.NotEqual(StoreHealthStatus.Healthy, unhealthy.Status);
+        Assert.Equal(backupPath, result.RestoredBackupPath);
+        Assert.Equal(StoreHealthStatus.Healthy, result.Health.Status);
+        Assert.NotNull(result.EvidenceDirectory);
+        Assert.NotNull(restored);
+        Assert.Equal(created.Id, restored.Id);
+    }
+
+    [Fact]
+    public async Task Healthy_database_is_not_overwritten_by_default()
+    {
+        var options = CreateOptions();
+        var repository = new SqliteScheduleRepository(options);
+        await repository.InitializeAsync();
+        await new SqliteBackupService(options).CreateVerifiedBackupAsync();
+
+        var recovery = new SqliteRecoveryService(options);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            recovery.RestoreLatestVerifiedBackupAsync());
+    }
+
     public void Dispose()
     {
         Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();

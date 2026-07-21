@@ -135,12 +135,13 @@ internal static class SqliteSchema
 
     public static async Task<StoreHealth> CheckHealthAsync(
         SqliteConnection connection,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool full = false)
     {
         try
         {
             await using var command = connection.CreateCommand();
-            command.CommandText = "PRAGMA quick_check;";
+            command.CommandText = full ? "PRAGMA integrity_check;" : "PRAGMA quick_check;";
             var result = Convert.ToString(
                 await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false));
 
@@ -152,5 +153,15 @@ internal static class SqliteSchema
         {
             return new StoreHealth(StoreHealthStatus.Unavailable, exception.Message);
         }
+    }
+
+    public static async Task<int> GetUserVersionAsync(
+        SqliteConnection connection,
+        CancellationToken cancellationToken)
+    {
+        await using var command = connection.CreateCommand();
+        command.CommandText = "PRAGMA user_version;";
+        return Convert.ToInt32(
+            await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false));
     }
 }
