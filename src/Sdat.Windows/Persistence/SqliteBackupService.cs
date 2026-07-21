@@ -1,11 +1,12 @@
 using Microsoft.Data.Sqlite;
+using Sdat.Core.Operations;
 using Sdat.Core.Storage;
 
 namespace Sdat.Windows.Persistence;
 
 public sealed class SqliteBackupService(
     SqliteStoreOptions options,
-    TimeProvider? timeProvider = null)
+    TimeProvider? timeProvider = null) : IStateBackup
 {
     private readonly TimeProvider _timeProvider = timeProvider ?? TimeProvider.System;
 

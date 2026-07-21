@@ -6,6 +6,8 @@ public sealed record SqliteStoreOptions
 
     public required string BackupDirectory { get; init; }
 
+    public string OperationLockPath => Path.Combine(Path.GetDirectoryName(DatabasePath)!, "operation.lock");
+
     public int BackupRetentionCount { get; init; } = 5;
 
     public static SqliteStoreOptions CreateDefault()
