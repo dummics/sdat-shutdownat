@@ -160,30 +160,17 @@ internal static class SdatCli
 
     private static async Task<int> ScheduleAsync(ScheduleCoordinator coordinator, CliInvocation invocation)
     {
-        var expression = invocation.TimeExpression!;
         var now = DateTimeOffset.UtcNow;
         var timeZone = TimeZoneInfo.Local;
-        var resolved = new TimeExpressionParser().Resolve(expression, now, timeZone);
+        var prepared = new ScheduleInputService().Prepare(
+            invocation.TimeExpression!,
+            invocation.ScheduleKind,
+            invocation.Action,
+            invocation.KeepDaily,
+            now,
+            timeZone);
 
-        ScheduleDraft draft;
-        if (invocation.ScheduleKind == ScheduleKind.Daily)
-        {
-            if (resolved.Kind != TimeExpressionKind.Absolute)
-            {
-                throw new CliUsageException("Daily schedules require a clock time such as 02:30.");
-            }
-
-            draft = ScheduleDraft.Daily(
-                invocation.Action,
-                TimeOnly.FromDateTime(resolved.Target.LocalDateTime),
-                timeZone.Id);
-        }
-        else
-        {
-            draft = ScheduleDraft.OneTime(invocation.Action, resolved.Target, timeZone.Id, invocation.KeepDaily);
-        }
-
-        var result = await coordinator.SetAsync(draft, DefaultReminderOffsets);
+        var result = await coordinator.SetAsync(prepared.Draft, DefaultReminderOffsets);
         if (invocation.Json)
         {
             WriteJson(result);
