@@ -1,16 +1,19 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
-    <AssemblyName>sdat-cli</AssemblyName>
-    <RootNamespace>Sdat.Cli</RootNamespace>
-    <TargetFramework>net10.0-windows10.0.17763.0</TargetFramework>
+    <OutputType>WinExe</OutputType>
+    <AssemblyName>SDAT</AssemblyName>
+    <RootNamespace>Sdat.App</RootNamespace>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <Platforms>x64</Platforms>
+    <UseWinUI>true</UseWinUI>
     <WindowsPackageType>None</WindowsPackageType>
     <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../Sdat.Core/Sdat.Core.csproj" />
     <ProjectReference Include="../Sdat.Windows/Sdat.Windows.csproj" />
-    <PackageReference Include="Spectre.Console" />
+    <PackageReference Include="Microsoft.WindowsAppSDK" />
   </ItemGroup>
 </Project>

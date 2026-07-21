@@ -5,19 +5,13 @@ using Sdat.Core.Commands;
 using Sdat.Core.Execution;
 using Sdat.Core.Operations;
 using Sdat.Core.Scheduling;
-using Sdat.Core.TimeExpressions;
-using Sdat.Windows.Concurrency;
-using Sdat.Windows.Execution;
-using Sdat.Windows.Notifications;
-using Sdat.Windows.Persistence;
-using Sdat.Windows.Scheduling;
+using Sdat.Windows.Hosting;
 using Spectre.Console;
 
 return await SdatCli.RunAsync(args);
 
 internal static class SdatCli
 {
-    private static readonly int[] DefaultReminderOffsets = [2];
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
         WriteIndented = true,
@@ -59,12 +53,13 @@ internal static class SdatCli
 
         try
         {
-            var services = CreateServices();
-            var startup = await services.Coordinator.InitializeAndReconcileAsync(DefaultReminderOffsets);
+            var services = await CreateServicesAsync();
+            var startup = services.StartupReconciliation;
+            var reminderOffsets = (await services.Settings.LoadAsync()).ReminderOffsetsMinutes;
 
             if (invocation.Command == CliCommandType.TaskRun)
             {
-                var result = await services.TaskInvocationCoordinator.RunAsync(new TaskInvocation(
+                var result = await services.TaskInvocations.RunAsync(new TaskInvocation(
                     invocation.ScheduleId!.Value,
                     invocation.Revision!.Value,
                     invocation.TaskRole!.Value,
@@ -83,11 +78,11 @@ internal static class SdatCli
 
             return invocation.Command switch
             {
-                CliCommandType.Status => await ShowStatusAsync(services.Repository, startup, invocation.Json),
-                CliCommandType.Schedule => await ScheduleAsync(services.Coordinator, invocation),
-                CliCommandType.Cancel => await CancelAsync(services.Coordinator, services.Repository, invocation),
+                CliCommandType.Status => await ShowStatusAsync(services.Schedules, startup, invocation.Json),
+                CliCommandType.Schedule => await ScheduleAsync(services.Coordinator, invocation, reminderOffsets),
+                CliCommandType.Cancel => await CancelAsync(services.Coordinator, services.Schedules, invocation, reminderOffsets),
                 CliCommandType.Reconcile => WriteReconciliation(startup, invocation.Json),
-                CliCommandType.Health => await ShowHealthAsync(services.Repository, startup, invocation.Json),
+                CliCommandType.Health => await ShowHealthAsync(services.Schedules, startup, invocation.Json),
                 CliCommandType.Tui => await RunTuiAsync(services),
                 _ => 2,
             };
@@ -99,10 +94,8 @@ internal static class SdatCli
         }
     }
 
-    private static Services CreateServices()
+    private static Task<SdatRuntime> CreateServicesAsync()
     {
-        var options = SqliteStoreOptions.CreateDefault();
-        var repository = new SqliteScheduleRepository(options);
         var applicationPath = Environment.ProcessPath
             ?? throw new InvalidOperationException("Cannot resolve the SDAT executable path.");
         if (Path.GetFileName(applicationPath).Equals("dotnet.exe", StringComparison.OrdinalIgnoreCase))
@@ -111,23 +104,9 @@ internal static class SdatCli
                 "Scheduling requires a published SDAT executable; 'dotnet run' is intentionally not registered in Task Scheduler.");
         }
 
-        var projection = new WindowsTaskSchedulerProjection(applicationPath);
-        var reconciler = new SchedulerReconciler(repository, projection, new ScheduleTaskPlanner());
-        var backup = new SqliteBackupService(options);
-        var operationLock = new FileOperationLock(options.OperationLockPath);
-        var coordinator = new ScheduleCoordinator(
-            repository,
-            backup,
-            reconciler,
-            operationLock);
-        var taskInvocationCoordinator = new TaskInvocationCoordinator(
-            repository,
-            new SqliteTaskExecutionLedger(options),
-            new WindowsPowerActionExecutor(),
-            new WindowsReminderNotifier(),
-            new DurableExecutionFinalizer(backup, reconciler, DefaultReminderOffsets),
-            operationLock);
-        return new Services(repository, coordinator, taskInvocationCoordinator);
+        var companionPath = Path.Combine(Path.GetDirectoryName(applicationPath)!, "SDAT.exe");
+        var taskHostPath = File.Exists(companionPath) ? companionPath : applicationPath;
+        return SdatRuntime.CreateAsync(taskHostPath);
     }
 
     private static async Task<int> ShowStatusAsync(
@@ -158,7 +137,10 @@ internal static class SdatCli
         return reconciliation.IsHealthy ? 0 : 3;
     }
 
-    private static async Task<int> ScheduleAsync(ScheduleCoordinator coordinator, CliInvocation invocation)
+    private static async Task<int> ScheduleAsync(
+        ScheduleCoordinator coordinator,
+        CliInvocation invocation,
+        IReadOnlyList<int> reminderOffsets)
     {
         var now = DateTimeOffset.UtcNow;
         var timeZone = TimeZoneInfo.Local;
@@ -170,7 +152,7 @@ internal static class SdatCli
             now,
             timeZone);
 
-        var result = await coordinator.SetAsync(prepared.Draft, DefaultReminderOffsets);
+        var result = await coordinator.SetAsync(prepared.Draft, reminderOffsets);
         if (invocation.Json)
         {
             WriteJson(result);
@@ -187,7 +169,8 @@ internal static class SdatCli
     private static async Task<int> CancelAsync(
         ScheduleCoordinator coordinator,
         IScheduleRepository repository,
-        CliInvocation invocation)
+        CliInvocation invocation,
+        IReadOnlyList<int> reminderOffsets)
     {
         var schedules = await repository.ListAsync();
         var targets = schedules
@@ -198,7 +181,7 @@ internal static class SdatCli
 
         foreach (var target in targets)
         {
-            results.Add(await coordinator.CancelAsync(target.Kind, DefaultReminderOffsets));
+            results.Add(await coordinator.CancelAsync(target.Kind, reminderOffsets));
         }
 
         if (invocation.Json)
@@ -241,13 +224,13 @@ internal static class SdatCli
         return store.CanExecutePowerActions && reconciliation.IsHealthy ? 0 : 3;
     }
 
-    private static async Task<int> RunTuiAsync(Services services)
+    private static async Task<int> RunTuiAsync(SdatRuntime services)
     {
         if (!AnsiConsole.Profile.Capabilities.Interactive)
         {
             return await ShowStatusAsync(
-                services.Repository,
-                await services.Coordinator.ReconcileAsync(DefaultReminderOffsets),
+                services.Schedules,
+                await services.Coordinator.ReconcileAsync((await services.Settings.LoadAsync()).ReminderOffsetsMinutes),
                 json: false);
         }
 
@@ -255,7 +238,7 @@ internal static class SdatCli
         {
             AnsiConsole.Clear();
             AnsiConsole.Write(new FigletText("SDAT").Color(Color.CornflowerBlue));
-            await WriteTuiStatusAsync(services.Repository);
+            await WriteTuiStatusAsync(services.Schedules);
             var action = AnsiConsole.Prompt(
                 new SelectionPrompt<string>()
                     .Title("[grey]Choose an action[/]")
@@ -276,7 +259,7 @@ internal static class SdatCli
 
             if (action == "Refresh")
             {
-                await services.Coordinator.ReconcileAsync(DefaultReminderOffsets);
+                await services.Coordinator.ReconcileAsync((await services.Settings.LoadAsync()).ReminderOffsetsMinutes);
                 continue;
             }
 
@@ -304,7 +287,8 @@ internal static class SdatCli
                         null,
                         null,
                         null);
-                    var exitCode = await ScheduleAsync(services.Coordinator, invocation);
+                    var offsets = (await services.Settings.LoadAsync()).ReminderOffsetsMinutes;
+                    var exitCode = await ScheduleAsync(services.Coordinator, invocation, offsets);
                     ShowTuiResult(exitCode == 0 ? "Schedule saved." : "Schedule saved with warnings.", exitCode == 0);
                 }
                 else
@@ -327,7 +311,8 @@ internal static class SdatCli
                             null,
                             null,
                             null);
-                        var exitCode = await CancelAsync(services.Coordinator, services.Repository, invocation);
+                        var offsets = (await services.Settings.LoadAsync()).ReminderOffsetsMinutes;
+                        var exitCode = await CancelAsync(services.Coordinator, services.Schedules, invocation, offsets);
                         ShowTuiResult(exitCode == 0 ? "Cancellation complete." : "Cancelled with warnings.", exitCode == 0);
                     }
                 }
@@ -479,8 +464,4 @@ internal static class SdatCli
         Legacy aliases: -a (cancel one-time), -aa (cancel all)
         """);
 
-    private sealed record Services(
-        IScheduleRepository Repository,
-        ScheduleCoordinator Coordinator,
-        TaskInvocationCoordinator TaskInvocationCoordinator);
 }

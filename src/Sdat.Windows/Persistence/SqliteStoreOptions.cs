@@ -16,6 +16,13 @@ public sealed record SqliteStoreOptions
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "SDAT");
 
+        return CreateAtRoot(root);
+    }
+
+    public static SqliteStoreOptions CreateAtRoot(string root)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(root);
+        root = Path.GetFullPath(root);
         return new SqliteStoreOptions
         {
             DatabasePath = Path.Combine(root, "sdat.db"),
