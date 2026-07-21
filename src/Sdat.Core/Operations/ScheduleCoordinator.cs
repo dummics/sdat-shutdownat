@@ -57,6 +57,36 @@ public sealed class ScheduleCoordinator(
         return await FinishMutationAsync(schedule, reminderOffsetsMinutes, cancellationToken).ConfigureAwait(false);
     }
 
+    public async Task<ScheduleMutationResult> CancelExactAsync(
+        Guid scheduleId,
+        long expectedRevision,
+        IReadOnlyList<int> reminderOffsetsMinutes,
+        CancellationToken cancellationToken = default)
+    {
+        await using var lease = await operationLock.AcquireAsync(cancellationToken).ConfigureAwait(false);
+        await EnsureHealthyAsync(cancellationToken).ConfigureAwait(false);
+        var schedule = await repository
+            .CancelAsync(scheduleId, expectedRevision, cancellationToken)
+            .ConfigureAwait(false);
+        return await FinishMutationAsync(schedule, reminderOffsetsMinutes, cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<ScheduleMutationResult> UpdateExactAsync(
+        Guid scheduleId,
+        long expectedRevision,
+        ScheduleDraft draft,
+        IReadOnlyList<int> reminderOffsetsMinutes,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(draft);
+        await using var lease = await operationLock.AcquireAsync(cancellationToken).ConfigureAwait(false);
+        await EnsureHealthyAsync(cancellationToken).ConfigureAwait(false);
+        var schedule = await repository
+            .UpdateAsync(scheduleId, expectedRevision, draft, cancellationToken)
+            .ConfigureAwait(false);
+        return await FinishMutationAsync(schedule, reminderOffsetsMinutes, cancellationToken).ConfigureAwait(false);
+    }
+
     public async Task<ReconciliationReport> ReconcileAsync(
         IReadOnlyList<int> reminderOffsetsMinutes,
         CancellationToken cancellationToken = default)

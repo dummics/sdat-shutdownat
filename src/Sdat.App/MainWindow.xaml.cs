@@ -5,6 +5,7 @@ using Microsoft.UI.Xaml.Controls;
 using Sdat.Core.Scheduling;
 using Sdat.Core.Settings;
 using Sdat.Windows.Hosting;
+using Sdat.Windows.Startup;
 using Windows.Graphics;
 
 namespace Sdat.App;
@@ -12,9 +13,11 @@ namespace Sdat.App;
 public sealed partial class MainWindow : Window
 {
     private SdatRuntime? _runtime;
+    private bool _companionMode;
 
-    public MainWindow()
+    public MainWindow(SdatRuntime? runtime = null)
     {
+        _runtime = runtime;
         InitializeComponent();
         Title = "SDAT";
         SystemBackdrop = new Microsoft.UI.Xaml.Media.MicaBackdrop();
@@ -22,6 +25,7 @@ public sealed partial class MainWindow : Window
         ExtendsContentIntoTitleBar = true;
         RootGrid.Loaded += OnLoaded;
         ShellNav.SelectedItem = ShellNav.MenuItems[0];
+        AppWindow.Closing += OnWindowClosing;
     }
 
     private async void OnLoaded(object sender, RoutedEventArgs e)
@@ -29,7 +33,7 @@ public sealed partial class MainWindow : Window
         RootGrid.Loaded -= OnLoaded;
         try
         {
-            _runtime = await SdatRuntime.CreateAsync(Environment.ProcessPath!);
+            _runtime ??= await SdatRuntime.CreateAsync(Environment.ProcessPath!);
             ApplySettings(_runtime.CurrentSettings);
             DatabasePathText.Text = $"Database: {_runtime.StoreOptions.DatabasePath}";
             await RefreshStatusAsync();
@@ -145,6 +149,7 @@ public sealed partial class MainWindow : Window
                 CriticalOverlayEnabled = CriticalOverlayToggle.IsOn,
                 StartCompanionAtLogin = StartupToggle.IsOn,
             });
+            new StartupRegistrationService(Environment.ProcessPath!).SetEnabled(settings.StartCompanionAtLogin);
             await _runtime.Coordinator.ReconcileAsync(settings.ReminderOffsetsMinutes);
             ApplySettings(settings);
             ShowStatus("Notification settings saved.", InfoBarSeverity.Success);
@@ -189,6 +194,25 @@ public sealed partial class MainWindow : Window
         DailyStatusText.Text = daily is null
             ? "No daily action scheduled."
             : $"{daily.Action} every day at {daily.DailyAt:HH:mm}";
+    }
+
+    internal async Task RefreshAfterExternalChangeAsync()
+    {
+        await RefreshStatusAsync();
+        ShowStatus("Schedule cancelled from the notification.", InfoBarSeverity.Success);
+    }
+
+    internal void EnableCompanionMode() => _companionMode = true;
+
+    internal void DisableCompanionMode() => _companionMode = false;
+
+    private void OnWindowClosing(AppWindow sender, AppWindowClosingEventArgs args)
+    {
+        if (_companionMode)
+        {
+            args.Cancel = true;
+            sender.Hide();
+        }
     }
 
     private void ApplySettings(AppSettings settings)

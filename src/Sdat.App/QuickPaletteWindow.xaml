@@ -1,0 +1,37 @@
+<Window
+    x:Class="Sdat.App.QuickPaletteWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Border
+        x:Name="PaletteRoot"
+        Padding="18"
+        CornerRadius="12"
+        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+        BorderThickness="1"
+        KeyDown="OnKeyDown">
+        <Grid ColumnSpacing="10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="150" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <ComboBox x:Name="ActionPicker" SelectedIndex="0" VerticalAlignment="Center">
+                <ComboBoxItem Content="Shut down" Tag="Shutdown" />
+                <ComboBoxItem Content="Suspend" Tag="Suspend" />
+                <ComboBoxItem Content="Restart" Tag="Restart" />
+            </ComboBox>
+            <TextBox
+                Grid.Column="1"
+                x:Name="TimeInput"
+                PlaceholderText="36m or 23:41"
+                VerticalAlignment="Center" />
+            <Button
+                Grid.Column="2"
+                Content="Schedule"
+                Style="{ThemeResource AccentButtonStyle}"
+                Click="OnSchedule"
+                VerticalAlignment="Center" />
+        </Grid>
+    </Border>
+</Window>

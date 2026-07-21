@@ -72,6 +72,42 @@ public sealed class ScheduleCoordinatorTests
         Assert.Empty(fixture.Projection.Tasks);
     }
 
+    [Fact]
+    public async Task Exact_cancel_rejects_a_superseded_notification_revision()
+    {
+        var fixture = new Fixture();
+        var first = await fixture.Coordinator.SetAsync(
+            ScheduleDraft.OneTime(PowerActionType.Shutdown, Now.AddMinutes(10), "UTC"),
+            [2]);
+        await fixture.Coordinator.SetAsync(
+            ScheduleDraft.OneTime(PowerActionType.Restart, Now.AddMinutes(20), "UTC"),
+            [2]);
+
+        await Assert.ThrowsAsync<ScheduleConflictException>(() =>
+            fixture.Coordinator.CancelExactAsync(first.Schedule.Id, first.Schedule.Revision, [2]));
+
+        Assert.Single(await fixture.Repository.ListAsync());
+    }
+
+    [Fact]
+    public async Task Exact_update_rejects_a_superseded_overlay_revision()
+    {
+        var fixture = new Fixture();
+        var first = await fixture.Coordinator.SetAsync(
+            ScheduleDraft.OneTime(PowerActionType.Shutdown, Now.AddMinutes(10), "UTC"),
+            [2]);
+        await fixture.Coordinator.SetAsync(
+            ScheduleDraft.OneTime(PowerActionType.Shutdown, Now.AddMinutes(20), "UTC"),
+            [2]);
+
+        await Assert.ThrowsAsync<ScheduleConflictException>(() =>
+            fixture.Coordinator.UpdateExactAsync(
+                first.Schedule.Id,
+                first.Schedule.Revision,
+                ScheduleDraft.OneTime(PowerActionType.Shutdown, Now.AddMinutes(30), "UTC"),
+                [2]));
+    }
+
     private sealed class Fixture
     {
         public Fixture()
@@ -115,6 +151,12 @@ public sealed class ScheduleCoordinatorTests
             ScheduleDraft draft,
             CancellationToken cancellationToken = default)
         {
+            if (_schedule is null || _schedule.Id != id || _schedule.Revision != expectedRevision ||
+                _schedule.Status != ScheduleStatus.Active)
+            {
+                throw new ScheduleConflictException("Schedule changed before it could be updated.");
+            }
+
             _schedule = ToSnapshot(id, expectedRevision + 1, draft);
             return Task.FromResult(_schedule);
         }
@@ -124,6 +166,12 @@ public sealed class ScheduleCoordinatorTests
             long expectedRevision,
             CancellationToken cancellationToken = default)
         {
+            if (_schedule is null || _schedule.Id != id || _schedule.Revision != expectedRevision ||
+                _schedule.Status != ScheduleStatus.Active)
+            {
+                throw new ScheduleConflictException("Schedule changed before it could be cancelled.");
+            }
+
             _schedule = _schedule! with
             {
                 Revision = expectedRevision + 1,
