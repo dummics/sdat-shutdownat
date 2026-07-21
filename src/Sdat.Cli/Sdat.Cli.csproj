@@ -11,5 +11,6 @@
   <ItemGroup>
     <ProjectReference Include="../Sdat.Core/Sdat.Core.csproj" />
     <ProjectReference Include="../Sdat.Windows/Sdat.Windows.csproj" />
+    <PackageReference Include="Spectre.Console" />
   </ItemGroup>
 </Project>

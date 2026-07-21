@@ -11,6 +11,7 @@ using Sdat.Windows.Execution;
 using Sdat.Windows.Notifications;
 using Sdat.Windows.Persistence;
 using Sdat.Windows.Scheduling;
+using Spectre.Console;
 
 return await SdatCli.RunAsync(args);
 
@@ -87,6 +88,7 @@ internal static class SdatCli
                 CliCommandType.Cancel => await CancelAsync(services.Coordinator, services.Repository, invocation),
                 CliCommandType.Reconcile => WriteReconciliation(startup, invocation.Json),
                 CliCommandType.Health => await ShowHealthAsync(services.Repository, startup, invocation.Json),
+                CliCommandType.Tui => await RunTuiAsync(services),
                 _ => 2,
             };
         }
@@ -252,6 +254,144 @@ internal static class SdatCli
         return store.CanExecutePowerActions && reconciliation.IsHealthy ? 0 : 3;
     }
 
+    private static async Task<int> RunTuiAsync(Services services)
+    {
+        if (!AnsiConsole.Profile.Capabilities.Interactive)
+        {
+            return await ShowStatusAsync(
+                services.Repository,
+                await services.Coordinator.ReconcileAsync(DefaultReminderOffsets),
+                json: false);
+        }
+
+        while (true)
+        {
+            AnsiConsole.Clear();
+            AnsiConsole.Write(new FigletText("SDAT").Color(Color.CornflowerBlue));
+            await WriteTuiStatusAsync(services.Repository);
+            var action = AnsiConsole.Prompt(
+                new SelectionPrompt<string>()
+                    .Title("[grey]Choose an action[/]")
+                    .PageSize(7)
+                    .AddChoices(
+                        "Schedule once",
+                        "Schedule daily",
+                        "Cancel one-time",
+                        "Cancel all",
+                        "Refresh",
+                        "Exit"));
+
+            if (action == "Exit")
+            {
+                AnsiConsole.Clear();
+                return 0;
+            }
+
+            if (action == "Refresh")
+            {
+                await services.Coordinator.ReconcileAsync(DefaultReminderOffsets);
+                continue;
+            }
+
+            try
+            {
+                if (action.StartsWith("Schedule", StringComparison.Ordinal))
+                {
+                    var powerAction = AnsiConsole.Prompt(
+                        new SelectionPrompt<string>()
+                            .Title("Power action")
+                            .AddChoices("Shutdown", "Suspend", "Restart"));
+                    var expression = AnsiConsole.Ask<string>(
+                        action == "Schedule daily"
+                            ? "Clock time [grey](for example 02:30)[/]:"
+                            : "When [grey](for example 36m or 23:41)[/]:");
+                    var invocation = new CliInvocation(
+                        CliCommandType.Schedule,
+                        expression,
+                        action == "Schedule daily" ? ScheduleKind.Daily : ScheduleKind.OneTime,
+                        Enum.Parse<PowerActionType>(powerAction),
+                        false,
+                        false,
+                        false,
+                        null,
+                        null,
+                        null,
+                        null);
+                    var exitCode = await ScheduleAsync(services.Coordinator, invocation);
+                    ShowTuiResult(exitCode == 0 ? "Schedule saved." : "Schedule saved with warnings.", exitCode == 0);
+                }
+                else
+                {
+                    var cancelAll = action == "Cancel all";
+                    if (AnsiConsole.Confirm(
+                            cancelAll ? "Cancel every active schedule?" : "Cancel the one-time schedule?",
+                            defaultValue: false))
+                    {
+                        TryAbortWindowsCountdown();
+                        var invocation = new CliInvocation(
+                            CliCommandType.Cancel,
+                            null,
+                            ScheduleKind.OneTime,
+                            PowerActionType.Shutdown,
+                            cancelAll,
+                            false,
+                            false,
+                            null,
+                            null,
+                            null,
+                            null);
+                        var exitCode = await CancelAsync(services.Coordinator, services.Repository, invocation);
+                        ShowTuiResult(exitCode == 0 ? "Cancellation complete." : "Cancelled with warnings.", exitCode == 0);
+                    }
+                }
+            }
+            catch (Exception exception) when (exception is not OperationCanceledException)
+            {
+                AnsiConsole.MarkupLine($"[red]Could not complete the action:[/] {Markup.Escape(exception.Message)}");
+                AnsiConsole.WriteLine("Press any key to continue.");
+                Console.ReadKey(intercept: true);
+            }
+        }
+    }
+
+    private static async Task WriteTuiStatusAsync(IScheduleRepository repository)
+    {
+        var schedules = await repository.ListAsync();
+        if (schedules.Count == 0)
+        {
+            AnsiConsole.MarkupLine("[grey]No active schedules.[/]");
+            AnsiConsole.WriteLine();
+            return;
+        }
+
+        var table = new Table()
+            .Border(TableBorder.Simple)
+            .AddColumn("Slot")
+            .AddColumn("Action")
+            .AddColumn("When");
+        foreach (var schedule in schedules)
+        {
+            table.AddRow(
+                schedule.Kind == ScheduleKind.OneTime ? "Once" : "Daily",
+                schedule.Action.ToString(),
+                schedule.Kind == ScheduleKind.OneTime
+                    ? schedule.TargetAt!.Value.ToLocalTime().ToString("ddd HH:mm")
+                    : schedule.DailyAt!.Value.ToString("HH:mm"));
+        }
+
+        AnsiConsole.Write(table);
+        AnsiConsole.WriteLine();
+    }
+
+    private static void ShowTuiResult(string message, bool success)
+    {
+        AnsiConsole.MarkupLine(success
+            ? $"[green]{Markup.Escape(message)}[/]"
+            : $"[yellow]{Markup.Escape(message)}[/]");
+        AnsiConsole.WriteLine("Press any key to continue.");
+        Console.ReadKey(intercept: true);
+    }
+
     private static int WriteReconciliation(ReconciliationReport report, bool json)
     {
         if (json)
@@ -346,6 +486,7 @@ internal static class SdatCli
           sdat cancel [all]       cancel one-time or all schedules
           sdat reconcile          repair Task Scheduler from SQLite
           sdat health             check database and scheduler state
+          sdat tui                open the interactive terminal UI
 
         Options: -p/--daily, -k/--keep-daily, -Suspend, -Restart, --json
         Legacy aliases: -a (cancel one-time), -aa (cancel all)

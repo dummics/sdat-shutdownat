@@ -11,6 +11,7 @@ public enum CliCommandType
     Health,
     Help,
     Version,
+    Tui,
     TaskRun,
 }
 
@@ -69,6 +70,9 @@ public static class CliInvocationParser
                 case "-h" or "--help":
                     positional.Add("help");
                     break;
+                case "-t" or "-tui" or "--tui":
+                    positional.Add("tui");
+                    break;
                 case "-a":
                     positional.Add("cancel");
                     break;
@@ -120,6 +124,7 @@ public static class CliInvocationParser
             "status" => RequireCount(CliCommandType.Status, 1),
             "help" or "-h" or "--help" => RequireCount(CliCommandType.Help, 1),
             "version" or "--version" => RequireCount(CliCommandType.Version, 1),
+            "t" or "tui" => RequireCount(CliCommandType.Tui, 1),
             "reconcile" => RequireCount(CliCommandType.Reconcile, 1),
             "health" => RequireCount(CliCommandType.Health, 1),
             "daily" when positional.Count == 2 => Create(

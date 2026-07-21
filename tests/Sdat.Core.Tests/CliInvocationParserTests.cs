@@ -52,4 +52,13 @@ public sealed class CliInvocationParserTests
     {
         Assert.Throws<CliUsageException>(() => CliInvocationParser.Parse(["--task-run", "--role", "execute"]));
     }
+
+    [Theory]
+    [InlineData("tui")]
+    [InlineData("t")]
+    [InlineData("-tui")]
+    public void Tui_aliases_are_preserved(string alias)
+    {
+        Assert.Equal(CliCommandType.Tui, CliInvocationParser.Parse([alias]).Command);
+    }
 }
