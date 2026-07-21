@@ -95,6 +95,11 @@ public partial class App : Application
             {
                 mainWindow.EnableCompanionMode();
                 _companion = new CompanionController(runtime, mainWindow, ExitCompanion);
+                mainWindow.CompanionSettingsApplying += _companion.ApplySettings;
+                if (_companion.HotkeyRegistrationError is not null)
+                {
+                    mainWindow.ShowHotkeyInitializationWarning(_companion.HotkeyRegistrationError);
+                }
             }
 
             if (!background)

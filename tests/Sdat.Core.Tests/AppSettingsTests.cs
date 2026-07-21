@@ -36,4 +36,27 @@ public sealed class AppSettingsTests
         Assert.Throws<ArgumentOutOfRangeException>(() =>
             new AppSettings { DailyOverlapWindowMinutes = minutes }.Validate());
     }
+
+    [Theory]
+    [InlineData("alt+control+s", "Ctrl+Alt+S", "S")]
+    [InlineData("Shift+F12", "Shift+F12", "F12")]
+    [InlineData("Win+1", "Win+1", "1")]
+    public void Hotkey_is_parsed_and_normalized(string input, string expected, string expectedKey)
+    {
+        var hotkey = HotkeyGesture.Parse(input);
+
+        Assert.Equal(expected, hotkey.ToString());
+        Assert.Equal(expectedKey, hotkey.Key);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("S")]
+    [InlineData("Ctrl+Alt")]
+    [InlineData("Ctrl+Alt+Space")]
+    [InlineData("Ctrl+Ctrl+S")]
+    public void Invalid_hotkey_is_rejected(string input)
+    {
+        Assert.Throws<FormatException>(() => HotkeyGesture.Parse(input));
+    }
 }

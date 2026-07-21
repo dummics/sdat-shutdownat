@@ -19,6 +19,9 @@
                 <NavigationViewItem Content="Notifications" Tag="notifications">
                     <NavigationViewItem.Icon><SymbolIcon Symbol="Message" /></NavigationViewItem.Icon>
                 </NavigationViewItem>
+                <NavigationViewItem Content="Hotkey &amp; Tray" Tag="hotkey">
+                    <NavigationViewItem.Icon><SymbolIcon Symbol="Keyboard" /></NavigationViewItem.Icon>
+                </NavigationViewItem>
                 <NavigationViewItem Content="Advanced" Tag="advanced">
                     <NavigationViewItem.Icon><SymbolIcon Symbol="Setting" /></NavigationViewItem.Icon>
                 </NavigationViewItem>
@@ -104,7 +107,23 @@
                             <TextBlock Text="When a one-time action is this many minutes from the next daily action, SDAT skips that daily occurrence. Set 0 to disable." TextWrapping="Wrap" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                         </StackPanel>
                         <ToggleSwitch x:Name="CriticalOverlayToggle" Header="Show the critical bottom-center overlay" />
+                        <Button Content="Save settings" Style="{ThemeResource AccentButtonStyle}" Click="OnSaveSettings" HorizontalAlignment="Left" />
+                    </StackPanel>
+                </ScrollViewer>
+
+                <ScrollViewer x:Name="HotkeyTrayView" Visibility="Collapsed">
+                    <StackPanel Padding="36,28" Spacing="22" MaxWidth="720" HorizontalAlignment="Left">
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="Hotkey &amp; Tray" Style="{ThemeResource TitleTextBlockStyle}" />
+                            <TextBlock Text="Open the quick scheduler without leaving what you are doing." Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        </StackPanel>
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="Quick scheduler hotkey" />
+                            <TextBox x:Name="PaletteHotkeyInput" PlaceholderText="Ctrl+Alt+S" />
+                            <TextBlock Text="Use at least one modifier plus a letter, number, or F1-F24." Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        </StackPanel>
                         <ToggleSwitch x:Name="StartupToggle" Header="Start the companion when I sign in" />
+                        <TextBlock Text="The tray icon keeps the hotkey available and provides quick access to SDAT." TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                         <Button Content="Save settings" Style="{ThemeResource AccentButtonStyle}" Click="OnSaveSettings" HorizontalAlignment="Left" />
                     </StackPanel>
                 </ScrollViewer>

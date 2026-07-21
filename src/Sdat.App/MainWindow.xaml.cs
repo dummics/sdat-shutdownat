@@ -16,6 +16,8 @@ public sealed partial class MainWindow : Window
     private SdatRuntime? _runtime;
     private bool _companionMode;
 
+    internal event Action<AppSettings>? CompanionSettingsApplying;
+
     public MainWindow(SdatRuntime? runtime = null)
     {
         _runtime = runtime;
@@ -61,6 +63,7 @@ public sealed partial class MainWindow : Window
         OverviewView.Visibility = tag == "overview" ? Visibility.Visible : Visibility.Collapsed;
         ScheduleView.Visibility = tag == "schedule" ? Visibility.Visible : Visibility.Collapsed;
         NotificationsView.Visibility = tag == "notifications" ? Visibility.Visible : Visibility.Collapsed;
+        HotkeyTrayView.Visibility = tag == "hotkey" ? Visibility.Visible : Visibility.Collapsed;
         AdvancedView.Visibility = tag == "advanced" ? Visibility.Visible : Visibility.Collapsed;
         AboutView.Visibility = tag == "about" ? Visibility.Visible : Visibility.Collapsed;
     }
@@ -145,21 +148,45 @@ public sealed partial class MainWindow : Window
 
         try
         {
+            var previous = await _runtime.Settings.LoadAsync();
             var offsets = ReminderOffsetsInput.Text
                 .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
                 .Select(value => int.Parse(value, System.Globalization.CultureInfo.InvariantCulture))
                 .ToArray();
-            var settings = await _runtime.Settings.SaveAsync(new AppSettings
+            var candidate = new AppSettings
             {
                 ReminderOffsetsMinutes = offsets,
                 CriticalOverlayEnabled = CriticalOverlayToggle.IsOn,
                 StartCompanionAtLogin = StartupToggle.IsOn,
                 DailyOverlapWindowMinutes = checked((int)DailyOverlapInput.Value),
-            });
-            new StartupRegistrationService(Environment.ProcessPath!).SetEnabled(settings.StartCompanionAtLogin);
-            await _runtime.Coordinator.ReconcileAsync(settings.ReminderOffsetsMinutes);
-            ApplySettings(settings);
-            ShowStatus("Notification settings saved.", InfoBarSeverity.Success);
+                PaletteHotkey = PaletteHotkeyInput.Text,
+            }.Validate();
+            try
+            {
+                CompanionSettingsApplying?.Invoke(candidate);
+                new StartupRegistrationService(Environment.ProcessPath!).SetEnabled(candidate.StartCompanionAtLogin);
+                var settings = await _runtime.Settings.SaveAsync(candidate);
+                await _runtime.Coordinator.ReconcileAsync(settings.ReminderOffsetsMinutes);
+                ApplySettings(settings);
+            }
+            catch (Exception applyException)
+            {
+                try
+                {
+                    CompanionSettingsApplying?.Invoke(previous);
+                    new StartupRegistrationService(Environment.ProcessPath!).SetEnabled(previous.StartCompanionAtLogin);
+                }
+                catch (Exception rollbackException)
+                {
+                    throw new AggregateException(
+                        "Settings could not be applied and the previous companion configuration could not be fully restored.",
+                        applyException,
+                        rollbackException);
+                }
+
+                throw;
+            }
+            ShowStatus("Settings saved.", InfoBarSeverity.Success);
         }
         catch (Exception exception)
         {
@@ -214,6 +241,9 @@ public sealed partial class MainWindow : Window
             $"Windows notifications are unavailable. Critical overlays remain enabled. {detail}",
             InfoBarSeverity.Warning);
 
+    internal void ShowHotkeyInitializationWarning(string detail) =>
+        ShowStatus($"The tray companion is running, but the palette hotkey is unavailable. {detail}", InfoBarSeverity.Warning);
+
     internal void EnableCompanionMode() => _companionMode = true;
 
     internal void DisableCompanionMode() => _companionMode = false;
@@ -233,6 +263,7 @@ public sealed partial class MainWindow : Window
         CriticalOverlayToggle.IsOn = settings.CriticalOverlayEnabled;
         StartupToggle.IsOn = settings.StartCompanionAtLogin;
         DailyOverlapInput.Value = settings.DailyOverlapWindowMinutes;
+        PaletteHotkeyInput.Text = settings.PaletteHotkey;
     }
 
     private void ShowStatus(string message, InfoBarSeverity severity)

@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using Microsoft.UI.Dispatching;
+using Sdat.Core.Settings;
 using Sdat.Windows.Hosting;
 
 namespace Sdat.App;
@@ -21,8 +22,14 @@ internal sealed class CompanionController : IDisposable
         _nativeWindow = new NativeCompanionWindow(
             () => Enqueue(ShowPalette),
             () => Enqueue(ShowMainWindow),
-            () => Enqueue(exit));
+            () => Enqueue(exit),
+            HotkeyGesture.Parse(runtime.CurrentSettings.PaletteHotkey));
     }
+
+    public string? HotkeyRegistrationError => _nativeWindow.HotkeyRegistrationError;
+
+    public void ApplySettings(AppSettings settings) =>
+        _nativeWindow.UpdateHotkey(HotkeyGesture.Parse(settings.PaletteHotkey));
 
     public void ShowMainWindow()
     {
@@ -61,7 +68,9 @@ internal sealed class CompanionController : IDisposable
         private const int HotkeyId = 0x5344;
         private const uint ModAlt = 0x0001;
         private const uint ModControl = 0x0002;
-        private const uint VkS = 0x53;
+        private const uint ModShift = 0x0004;
+        private const uint ModWindows = 0x0008;
+        private const uint ModNoRepeat = 0x4000;
         private const uint WmHotkey = 0x0312;
         private const uint WmCommand = 0x0111;
         private const uint WmRightButtonUp = 0x0205;
@@ -87,8 +96,13 @@ internal sealed class CompanionController : IDisposable
         private readonly string _className = $"SDAT.Companion.{Guid.NewGuid():N}";
         private IntPtr _window;
         private NotificationIconData _iconData;
+        private HotkeyGesture? _registeredHotkey;
 
-        public NativeCompanionWindow(Action showPalette, Action showMain, Action exit)
+        public NativeCompanionWindow(
+            Action showPalette,
+            Action showMain,
+            Action exit,
+            HotkeyGesture hotkey)
         {
             _showPalette = showPalette;
             _showMain = showMain;
@@ -113,12 +127,6 @@ internal sealed class CompanionController : IDisposable
                 throw new InvalidOperationException("The SDAT companion message window could not be created.");
             }
 
-            if (!RegisterHotKey(_window, HotkeyId, ModControl | ModAlt, VkS))
-            {
-                Dispose();
-                throw new InvalidOperationException("Ctrl+Alt+S is already registered by another application.");
-            }
-
             _iconData = new NotificationIconData
             {
                 Size = Marshal.SizeOf<NotificationIconData>(),
@@ -136,7 +144,76 @@ internal sealed class CompanionController : IDisposable
                 Dispose();
                 throw new InvalidOperationException("The SDAT tray icon could not be created.");
             }
+
+            if (!TryRegisterHotkey(hotkey))
+            {
+                HotkeyRegistrationError = $"{hotkey} is already registered by another application.";
+            }
         }
+
+        public string? HotkeyRegistrationError { get; private set; }
+
+        public void UpdateHotkey(HotkeyGesture hotkey)
+        {
+            if (_registeredHotkey == hotkey)
+            {
+                return;
+            }
+
+            var previous = _registeredHotkey;
+            if (previous is not null)
+            {
+                UnregisterHotKey(_window, HotkeyId);
+                _registeredHotkey = null;
+            }
+
+            if (TryRegisterHotkey(hotkey))
+            {
+                HotkeyRegistrationError = null;
+                return;
+            }
+
+            if (previous is not null && !TryRegisterHotkey(previous.Value))
+            {
+                HotkeyRegistrationError = "The previous palette hotkey could not be restored.";
+                throw new InvalidOperationException(
+                    $"{hotkey} is unavailable, and the previous hotkey could not be restored.");
+            }
+
+            HotkeyRegistrationError = $"{hotkey} is already registered by another application.";
+            throw new InvalidOperationException(HotkeyRegistrationError);
+        }
+
+        private bool TryRegisterHotkey(HotkeyGesture hotkey)
+        {
+            if (!RegisterHotKey(
+                    _window,
+                    HotkeyId,
+                    ToNativeModifiers(hotkey.Modifiers) | ModNoRepeat,
+                    ToVirtualKey(hotkey.Key)))
+            {
+                return false;
+            }
+
+            _registeredHotkey = hotkey;
+            return true;
+        }
+
+        private static uint ToNativeModifiers(HotkeyModifiers modifiers)
+        {
+            uint value = 0;
+            if (modifiers.HasFlag(HotkeyModifiers.Control)) value |= ModControl;
+            if (modifiers.HasFlag(HotkeyModifiers.Alt)) value |= ModAlt;
+            if (modifiers.HasFlag(HotkeyModifiers.Shift)) value |= ModShift;
+            if (modifiers.HasFlag(HotkeyModifiers.Windows)) value |= ModWindows;
+            return value;
+        }
+
+        private static uint ToVirtualKey(string key) => key[0] == 'F'
+            ? checked((uint)(0x70 + int.Parse(
+                key.AsSpan(1),
+                System.Globalization.CultureInfo.InvariantCulture) - 1))
+            : key[0];
 
         public void Dispose()
         {
@@ -146,7 +223,11 @@ internal sealed class CompanionController : IDisposable
             }
 
             ShellNotifyIcon(NimDelete, ref _iconData);
-            UnregisterHotKey(_window, HotkeyId);
+            if (_registeredHotkey is not null)
+            {
+                UnregisterHotKey(_window, HotkeyId);
+                _registeredHotkey = null;
+            }
             DestroyWindow(_window);
             _window = IntPtr.Zero;
             UnregisterClass(_className, GetModuleHandle(null));
