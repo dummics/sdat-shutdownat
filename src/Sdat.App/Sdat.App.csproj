@@ -16,4 +16,10 @@
     <ProjectReference Include="../Sdat.Windows/Sdat.Windows.csproj" />
     <PackageReference Include="Microsoft.WindowsAppSDK" />
   </ItemGroup>
+  <Target Name="CopyAppResourcesToPublishDirectory" AfterTargets="Publish">
+    <Copy
+      SourceFiles="$(TargetDir)$(AssemblyName).pri"
+      DestinationFolder="$(PublishDir)"
+      Condition="Exists('$(TargetDir)$(AssemblyName).pri')" />
+  </Target>
 </Project>

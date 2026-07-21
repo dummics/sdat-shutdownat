@@ -25,9 +25,6 @@ jobs:
             if ($errors.Count) { $failed = $true; $errors | ForEach-Object { Write-Error "$($_.Extent.File): $($_.Message)" } }
           }
           if ($failed) { exit 1 }
-      - name: Run SDAT self-tests
-        shell: pwsh
-        run: pwsh -NoProfile -ExecutionPolicy Bypass -File ./shutdownat.ps1 -SelfTest -DryRun
       - name: Restore native solution
         run: dotnet restore SDAT.slnx
       - name: Test native core
@@ -39,6 +36,12 @@ jobs:
       - name: Build release package
         shell: pwsh
         run: pwsh -NoProfile -File ./tools/Build-Package.ps1 -OutputDir ./artifacts
+      - name: Verify packaged install and update
+        shell: pwsh
+        run: |
+          $package = Get-ChildItem ./artifacts/sdat-v*-windows.zip | Select-Object -First 1
+          Expand-Archive -LiteralPath $package.FullName -DestinationPath ./package-test
+          pwsh -NoProfile -File ./tools/Test-Package.ps1 -PackageRoot ./package-test
       - uses: actions/upload-artifact@v7
         with:
           name: sdat-windows-package
