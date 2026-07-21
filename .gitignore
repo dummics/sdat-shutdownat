@@ -14,3 +14,13 @@
 # Local work and release output
 /.work/
 /dist/
+
+# .NET build and local test output
+**/bin/
+**/obj/
+TestResults/
+*.user
+*.suo
+*.db
+*.db-shm
+*.db-wal
