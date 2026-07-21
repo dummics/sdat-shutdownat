@@ -6,26 +6,43 @@ namespace Sdat.Windows.Notifications;
 
 public sealed class WindowsReminderNotifier : ITaskReminderNotifier
 {
-    public Task ShowAsync(
+    public Task<ReminderDeliveryResult> ShowAsync(
         ScheduleSnapshot schedule,
         int offsetMinutes,
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var manager = AppNotificationManager.Default;
-        manager.NotificationInvoked += OnNotificationInvoked;
         try
         {
-            manager.Register();
-            manager.Show(BuildNotification(schedule, offsetMinutes));
-        }
-        finally
-        {
-            manager.Unregister();
-            manager.NotificationInvoked -= OnNotificationInvoked;
-        }
+            var manager = AppNotificationManager.Default;
+            manager.NotificationInvoked += OnNotificationInvoked;
+            try
+            {
+                manager.Register();
+                manager.Show(BuildNotification(schedule, offsetMinutes));
+            }
+            finally
+            {
+                try
+                {
+                    manager.Unregister();
+                }
+                catch
+                {
+                    // The original registration/show result remains authoritative.
+                }
 
-        return Task.CompletedTask;
+                manager.NotificationInvoked -= OnNotificationInvoked;
+            }
+
+            return Task.FromResult(ReminderDeliveryResult.Success);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            return Task.FromResult(ReminderDeliveryResult.Failed(
+                exception.GetType().Name,
+                exception.Message));
+        }
     }
 
     internal static AppNotification BuildNotification(ScheduleSnapshot schedule, int offsetMinutes) =>

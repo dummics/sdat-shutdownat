@@ -116,9 +116,23 @@ public sealed class TaskInvocationCoordinator(
         {
             if (invocation.Role == SchedulerTaskRole.Reminder)
             {
-                await reminderNotifier
+                var delivery = await reminderNotifier
                     .ShowAsync(schedule, invocation.ReminderOffsetMinutes!.Value, cancellationToken)
                     .ConfigureAwait(false);
+                if (!delivery.Delivered)
+                {
+                    await ledger.FailAsync(
+                            occurrenceId,
+                            delivery.ErrorCode ?? "NotificationUnavailable",
+                            delivery.ErrorDetail ?? "The Windows notification could not be displayed.",
+                            cancellationToken)
+                        .ConfigureAwait(false);
+                    return new TaskInvocationResult(
+                        TaskInvocationOutcome.ReminderDegraded,
+                        delivery.ErrorDetail ?? "The Windows notification could not be displayed.",
+                        occurrenceId);
+                }
+
                 await ledger.CompleteAsync(occurrenceId, cancellationToken).ConfigureAwait(false);
                 return new TaskInvocationResult(TaskInvocationOutcome.ReminderShown, "Reminder displayed.", occurrenceId);
             }

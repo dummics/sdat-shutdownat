@@ -13,6 +13,7 @@ public partial class App : Application
     private Window? _window;
     private AppNotificationManager? _notificationManager;
     private CompanionController? _companion;
+    private string? _notificationInitializationError;
 
     public App()
     {
@@ -25,9 +26,10 @@ public partial class App : Application
                 _notificationManager.NotificationInvoked += OnNotificationInvoked;
                 _notificationManager.Register();
             }
-            catch
+            catch (Exception exception)
             {
                 _notificationManager = null;
+                _notificationInitializationError = exception.Message;
             }
         }
     }
@@ -84,6 +86,10 @@ public partial class App : Application
             var runtime = await SdatRuntime.CreateAsync(Environment.ProcessPath!);
             var mainWindow = new MainWindow(runtime);
             _window = mainWindow;
+            if (_notificationInitializationError is not null)
+            {
+                mainWindow.ShowNotificationInitializationWarning(_notificationInitializationError);
+            }
             var background = commandLine.Contains("--background", StringComparer.OrdinalIgnoreCase);
             if (background || runtime.CurrentSettings.StartCompanionAtLogin)
             {
@@ -194,7 +200,8 @@ public partial class App : Application
                 invocation.TaskRole!.Value,
                 invocation.ReminderOffsetMinutes));
             var settings = await runtime.Settings.LoadAsync();
-            return result.Outcome == TaskInvocationOutcome.ReminderShown &&
+            return (result.Outcome is TaskInvocationOutcome.ReminderShown or
+                    TaskInvocationOutcome.ReminderDegraded) &&
                    settings.CriticalOverlayEnabled &&
                    schedule is not null &&
                    schedule.Action is PowerActionType.Shutdown or PowerActionType.Restart

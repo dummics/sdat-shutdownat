@@ -53,10 +53,21 @@ public interface IPowerActionExecutor
 
 public interface ITaskReminderNotifier
 {
-    Task ShowAsync(
+    Task<ReminderDeliveryResult> ShowAsync(
         ScheduleSnapshot schedule,
         int offsetMinutes,
         CancellationToken cancellationToken = default);
+}
+
+public sealed record ReminderDeliveryResult(
+    bool Delivered,
+    string? ErrorCode,
+    string? ErrorDetail)
+{
+    public static ReminderDeliveryResult Success { get; } = new(true, null, null);
+
+    public static ReminderDeliveryResult Failed(string errorCode, string errorDetail) =>
+        new(false, errorCode, errorDetail);
 }
 
 public interface IOneTimeExecutionFinalizer
@@ -68,6 +79,7 @@ public enum TaskInvocationOutcome
 {
     Executed,
     ReminderShown,
+    ReminderDegraded,
     SkippedByRequest,
     SkippedLate,
     IgnoredStale,

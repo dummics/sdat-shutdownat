@@ -68,6 +68,21 @@ public sealed class TaskInvocationCoordinatorTests
     }
 
     [Fact]
+    public async Task Notification_failure_is_recorded_but_allows_overlay_fallback()
+    {
+        var schedule = CreateSchedule(Now.AddMinutes(2));
+        var fixture = new Fixture(schedule);
+        fixture.Notifier.Result = ReminderDeliveryResult.Failed("RegistrationFailed", "Toast unavailable.");
+
+        var result = await fixture.Coordinator.RunAsync(
+            new TaskInvocation(schedule.Id, schedule.Revision, SchedulerTaskRole.Reminder, 2));
+
+        Assert.Equal(TaskInvocationOutcome.ReminderDegraded, result.Outcome);
+        Assert.Equal("RegistrationFailed", fixture.Ledger.Failure?.ErrorCode);
+        Assert.Equal(0, fixture.Executor.CallCount);
+    }
+
+    [Fact]
     public async Task Requested_daily_skip_suppresses_the_power_action()
     {
         var schedule = new ScheduleSnapshot(
@@ -164,6 +179,8 @@ public sealed class TaskInvocationCoordinatorTests
 
         public List<OccurrenceClaim> Claims { get; } = [];
 
+        public (Guid OccurrenceId, string ErrorCode, string ErrorDetail)? Failure { get; private set; }
+
         public OccurrenceClaimResult NextClaimResult { get; set; } = OccurrenceClaimResult.Claimed;
 
         public Task<OccurrenceClaimResult> TryClaimAsync(
@@ -185,7 +202,11 @@ public sealed class TaskInvocationCoordinatorTests
             Guid occurrenceId,
             string errorCode,
             string errorDetail,
-            CancellationToken cancellationToken = default) => Task.CompletedTask;
+            CancellationToken cancellationToken = default)
+        {
+            Failure = (occurrenceId, errorCode, errorDetail);
+            return Task.CompletedTask;
+        }
     }
 
     private sealed class FakeExecutor : IPowerActionExecutor
@@ -203,13 +224,15 @@ public sealed class TaskInvocationCoordinatorTests
     {
         public int CallCount { get; private set; }
 
-        public Task ShowAsync(
+        public ReminderDeliveryResult Result { get; set; } = ReminderDeliveryResult.Success;
+
+        public Task<ReminderDeliveryResult> ShowAsync(
             ScheduleSnapshot schedule,
             int offsetMinutes,
             CancellationToken cancellationToken = default)
         {
             CallCount++;
-            return Task.CompletedTask;
+            return Task.FromResult(Result);
         }
     }
 

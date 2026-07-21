@@ -209,6 +209,11 @@ public sealed partial class MainWindow : Window
         ShowStatus("Schedule cancelled from the notification.", InfoBarSeverity.Success);
     }
 
+    internal void ShowNotificationInitializationWarning(string detail) =>
+        ShowStatus(
+            $"Windows notifications are unavailable. Critical overlays remain enabled. {detail}",
+            InfoBarSeverity.Warning);
+
     internal void EnableCompanionMode() => _companionMode = true;
 
     internal void DisableCompanionMode() => _companionMode = false;
