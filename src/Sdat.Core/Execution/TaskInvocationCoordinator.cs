@@ -57,7 +57,8 @@ public sealed class TaskInvocationCoordinator(
             occurrenceId,
             invocation,
             dueAt,
-            isLate ? OccurrenceOutcome.Skipped : OccurrenceOutcome.Pending);
+            isLate ? OccurrenceOutcome.Skipped : OccurrenceOutcome.Pending,
+            ResolveExecuteDueAt(schedule, invocation, dueAt));
         var claimResult = await ledger.TryClaimAsync(claim, cancellationToken).ConfigureAwait(false);
         if (claimResult == OccurrenceClaimResult.Stale)
         {
@@ -67,6 +68,14 @@ public sealed class TaskInvocationCoordinator(
         if (claimResult == OccurrenceClaimResult.AlreadyHandled)
         {
             return new TaskInvocationResult(TaskInvocationOutcome.IgnoredDuplicate, "Occurrence was already handled.", occurrenceId);
+        }
+
+        if (claimResult == OccurrenceClaimResult.SkippedByRequest)
+        {
+            return new TaskInvocationResult(
+                TaskInvocationOutcome.SkippedByRequest,
+                "The daily occurrence was skipped by request.",
+                occurrenceId);
         }
 
         var consumesOneTime = schedule.Kind == ScheduleKind.OneTime &&
@@ -172,6 +181,31 @@ public sealed class TaskInvocationCoordinator(
             ? timeZone.GetAmbiguousTimeOffsets(local).Max()
             : timeZone.GetUtcOffset(local);
         return new DateTimeOffset(local, offset).ToUniversalTime();
+    }
+
+    private static DateTimeOffset ResolveExecuteDueAt(
+        ScheduleSnapshot schedule,
+        TaskInvocation invocation,
+        DateTimeOffset invocationDueAt)
+    {
+        if (schedule.Kind == ScheduleKind.OneTime)
+        {
+            return schedule.TargetAt!.Value;
+        }
+
+        if (invocation.Role == SchedulerTaskRole.Execute)
+        {
+            return invocationDueAt;
+        }
+
+        var timeZone = TimeZoneInfo.FindSystemTimeZoneById(schedule.TimeZoneId);
+        var reminderLocalDate = TimeZoneInfo.ConvertTime(invocationDueAt, timeZone).Date;
+        var reminderClock = schedule.DailyAt!.Value.ToTimeSpan() -
+                            TimeSpan.FromMinutes(invocation.ReminderOffsetMinutes!.Value);
+        var executeDate = reminderClock < TimeSpan.Zero
+            ? reminderLocalDate.AddDays(1)
+            : reminderLocalDate;
+        return ResolveLocal(executeDate, schedule.DailyAt.Value.ToTimeSpan(), timeZone);
     }
 
     private static Guid CreateOccurrenceId(TaskInvocation invocation, DateTimeOffset dueAt)

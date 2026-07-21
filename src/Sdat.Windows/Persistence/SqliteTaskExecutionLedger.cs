@@ -28,6 +28,31 @@ public sealed class SqliteTaskExecutionLedger(
             return OccurrenceClaimResult.Stale;
         }
 
+        var skipRequested = false;
+        DateTimeOffset? executeDueAt = null;
+        if (string.Equals(Convert.ToString(kindValue), ScheduleKind.Daily.ToString(), StringComparison.Ordinal))
+        {
+            executeDueAt = claim.ExecuteDueAt ?? (claim.Invocation.Role == SchedulerTaskRole.Reminder
+                ? claim.DueAt.AddMinutes(claim.Invocation.ReminderOffsetMinutes!.Value)
+                : claim.DueAt);
+            await using var findSkip = connection.CreateCommand();
+            findSkip.Transaction = transaction;
+            findSkip.CommandText = """
+                SELECT 1
+                FROM daily_skip_requests
+                WHERE schedule_id = $scheduleId
+                  AND schedule_revision = $revision
+                  AND execute_due_utc = $executeDueUtc
+                  AND consumed_utc IS NULL;
+                """;
+            findSkip.Parameters.AddWithValue("$scheduleId", claim.Invocation.ScheduleId.ToString("D"));
+            findSkip.Parameters.AddWithValue("$revision", claim.Invocation.Revision);
+            findSkip.Parameters.AddWithValue("$executeDueUtc", executeDueAt.Value.ToUniversalTime().ToString("O"));
+            skipRequested = await findSkip.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false) is not null;
+        }
+
+        var effectiveOutcome = skipRequested ? OccurrenceOutcome.Skipped : claim.InitialOutcome;
+
         await using var insert = connection.CreateCommand();
         insert.Transaction = transaction;
         insert.CommandText = """
@@ -43,10 +68,10 @@ public sealed class SqliteTaskExecutionLedger(
         insert.Parameters.AddWithValue("$revision", claim.Invocation.Revision);
         insert.Parameters.AddWithValue("$kind", claim.Invocation.Role.ToString());
         insert.Parameters.AddWithValue("$dueUtc", claim.DueAt.ToUniversalTime().ToString("O"));
-        insert.Parameters.AddWithValue("$status", claim.InitialOutcome.ToString());
+        insert.Parameters.AddWithValue("$status", effectiveOutcome.ToString());
         insert.Parameters.AddWithValue(
             "$completedUtc",
-            claim.InitialOutcome == OccurrenceOutcome.Skipped
+            effectiveOutcome == OccurrenceOutcome.Skipped
                 ? _timeProvider.GetUtcNow().ToString("O")
                 : (object)DBNull.Value);
         if (await insert.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false) != 1)
@@ -73,6 +98,25 @@ public sealed class SqliteTaskExecutionLedger(
             }
         }
 
+        else if (claim.Invocation.Role == SchedulerTaskRole.Execute && skipRequested)
+        {
+            await using var consumeSkip = connection.CreateCommand();
+            consumeSkip.Transaction = transaction;
+            consumeSkip.CommandText = """
+                UPDATE daily_skip_requests
+                SET consumed_utc = $consumedUtc
+                WHERE schedule_id = $scheduleId
+                  AND schedule_revision = $revision
+                  AND execute_due_utc = $executeDueUtc
+                  AND consumed_utc IS NULL;
+                """;
+            consumeSkip.Parameters.AddWithValue("$consumedUtc", _timeProvider.GetUtcNow().ToString("O"));
+            consumeSkip.Parameters.AddWithValue("$scheduleId", claim.Invocation.ScheduleId.ToString("D"));
+            consumeSkip.Parameters.AddWithValue("$revision", claim.Invocation.Revision);
+            consumeSkip.Parameters.AddWithValue("$executeDueUtc", executeDueAt!.Value.ToUniversalTime().ToString("O"));
+            await consumeSkip.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        }
+
         await using var operation = connection.CreateCommand();
         operation.Transaction = transaction;
         operation.CommandText = """
@@ -83,11 +127,13 @@ public sealed class SqliteTaskExecutionLedger(
         operation.Parameters.AddWithValue("$occurredUtc", _timeProvider.GetUtcNow().ToString("O"));
         operation.Parameters.AddWithValue("$scheduleId", claim.Invocation.ScheduleId.ToString("D"));
         operation.Parameters.AddWithValue("$revision", claim.Invocation.Revision);
-        operation.Parameters.AddWithValue("$outcome", claim.InitialOutcome.ToString());
+        operation.Parameters.AddWithValue("$outcome", effectiveOutcome.ToString());
         await operation.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
 
         transaction.Commit();
-        return OccurrenceClaimResult.Claimed;
+        return skipRequested
+            ? OccurrenceClaimResult.SkippedByRequest
+            : OccurrenceClaimResult.Claimed;
     }
 
     public Task CompleteAsync(Guid occurrenceId, CancellationToken cancellationToken = default) =>

@@ -60,6 +60,40 @@ public sealed class SqliteTaskExecutionLedgerTests : IDisposable
         Assert.Equal(ScheduleStatus.Active, (await repository.GetAsync(schedule.Id))!.Status);
     }
 
+    [Fact]
+    public async Task Durable_daily_skip_suppresses_reminder_and_execution_once()
+    {
+        var options = CreateOptions();
+        var repository = new SqliteScheduleRepository(options);
+        await repository.InitializeAsync();
+        var schedule = await repository.CreateAsync(
+            ScheduleDraft.Daily(PowerActionType.Shutdown, new TimeOnly(22, 0), "UTC"));
+        var dueAt = new DateTimeOffset(2026, 7, 22, 22, 0, 0, TimeSpan.Zero);
+        await new SqliteDailySkipStore(options).RequestAsync(schedule.Id, schedule.Revision, dueAt);
+        var ledger = new SqliteTaskExecutionLedger(options);
+
+        var reminderResult = await ledger.TryClaimAsync(new OccurrenceClaim(
+            Guid.NewGuid(),
+            new TaskInvocation(schedule.Id, schedule.Revision, SchedulerTaskRole.Reminder, 2),
+            dueAt.AddMinutes(-2),
+            OccurrenceOutcome.Pending,
+            dueAt));
+        var executionResult = await ledger.TryClaimAsync(new OccurrenceClaim(
+            Guid.NewGuid(),
+            new TaskInvocation(schedule.Id, schedule.Revision, SchedulerTaskRole.Execute, null),
+            dueAt,
+            OccurrenceOutcome.Pending));
+        var tomorrowResult = await ledger.TryClaimAsync(new OccurrenceClaim(
+            Guid.NewGuid(),
+            new TaskInvocation(schedule.Id, schedule.Revision, SchedulerTaskRole.Execute, null),
+            dueAt.AddDays(1),
+            OccurrenceOutcome.Pending));
+
+        Assert.Equal(OccurrenceClaimResult.SkippedByRequest, reminderResult);
+        Assert.Equal(OccurrenceClaimResult.SkippedByRequest, executionResult);
+        Assert.Equal(OccurrenceClaimResult.Claimed, tomorrowResult);
+    }
+
     public void Dispose()
     {
         Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();

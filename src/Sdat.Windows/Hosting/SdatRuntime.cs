@@ -15,6 +15,7 @@ public sealed record SdatRuntime(
     SqliteScheduleRepository Schedules,
     SqliteAppSettingsRepository Settings,
     ScheduleCoordinator Coordinator,
+    DailySkipCoordinator DailySkips,
     TaskInvocationCoordinator TaskInvocations,
     AppSettings CurrentSettings,
     ReconciliationReport StartupReconciliation)
@@ -39,6 +40,11 @@ public sealed record SdatRuntime(
         var backup = new SqliteBackupService(options);
         var operationLock = new FileOperationLock(options.OperationLockPath);
         var coordinator = new ScheduleCoordinator(schedules, backup, reconciler, operationLock);
+        var dailySkips = new DailySkipCoordinator(
+            schedules,
+            new SqliteDailySkipStore(options),
+            backup,
+            operationLock);
         var startup = await coordinator
             .InitializeAndReconcileAsync(settings.ReminderOffsetsMinutes, cancellationToken)
             .ConfigureAwait(false);
@@ -55,6 +61,7 @@ public sealed record SdatRuntime(
             schedules,
             settingsRepository,
             coordinator,
+            dailySkips,
             taskInvocations,
             settings,
             startup);

@@ -81,6 +81,7 @@ internal static class SdatCli
                 CliCommandType.Status => await ShowStatusAsync(services.Schedules, startup, invocation.Json),
                 CliCommandType.Schedule => await ScheduleAsync(services.Coordinator, invocation, reminderOffsets),
                 CliCommandType.Cancel => await CancelAsync(services.Coordinator, services.Schedules, invocation, reminderOffsets),
+                CliCommandType.Skip => await SkipNextDailyAsync(services.DailySkips, invocation.Json),
                 CliCommandType.Reconcile => WriteReconciliation(startup, invocation.Json),
                 CliCommandType.Health => await ShowHealthAsync(services.Schedules, startup, invocation.Json),
                 CliCommandType.Tui => await RunTuiAsync(services),
@@ -222,6 +223,26 @@ internal static class SdatCli
         }
 
         return store.CanExecutePowerActions && reconciliation.IsHealthy ? 0 : 3;
+    }
+
+    private static async Task<int> SkipNextDailyAsync(DailySkipCoordinator coordinator, bool json)
+    {
+        var result = await coordinator.RequestNextAsync();
+        if (json)
+        {
+            WriteJson(result);
+        }
+        else
+        {
+            Console.WriteLine(
+                $"Skipped the daily action due {result.Request.ExecuteDueAt.ToLocalTime():yyyy-MM-dd HH:mm}.");
+            if (result.BackupFailure is not null)
+            {
+                Console.Error.WriteLine($"Warning: skip saved, but backup failed: {result.BackupFailure}");
+            }
+        }
+
+        return result.IsFullyPersisted ? 0 : 3;
     }
 
     private static async Task<int> RunTuiAsync(SdatRuntime services)
@@ -456,6 +477,7 @@ internal static class SdatCli
           sdat 01:30 -Restart     schedule a restart
           sdat status             show active schedules
           sdat cancel [all]       cancel one-time or all schedules
+          sdat skip               skip the next daily action once
           sdat reconcile          repair Task Scheduler from SQLite
           sdat health             check database and scheduler state
           sdat tui                open the interactive terminal UI

@@ -67,6 +67,58 @@ public sealed class TaskInvocationCoordinatorTests
         Assert.Equal(0, fixture.Executor.CallCount);
     }
 
+    [Fact]
+    public async Task Requested_daily_skip_suppresses_the_power_action()
+    {
+        var schedule = new ScheduleSnapshot(
+            Guid.NewGuid(),
+            2,
+            ScheduleKind.Daily,
+            PowerActionType.Shutdown,
+            null,
+            new TimeOnly(20, 0),
+            "UTC",
+            false,
+            ScheduleStatus.Active,
+            Now.AddDays(-1),
+            Now.AddDays(-1));
+        var fixture = new Fixture(schedule);
+        fixture.Ledger.NextClaimResult = OccurrenceClaimResult.SkippedByRequest;
+
+        var result = await fixture.Coordinator.RunAsync(
+            new TaskInvocation(schedule.Id, schedule.Revision, SchedulerTaskRole.Execute, null));
+
+        Assert.Equal(TaskInvocationOutcome.SkippedByRequest, result.Outcome);
+        Assert.Equal(0, fixture.Executor.CallCount);
+        Assert.Equal(0, fixture.Notifier.CallCount);
+    }
+
+    [Fact]
+    public async Task Daily_reminder_claim_keeps_exact_execution_due_across_dst_change()
+    {
+        var reminderDue = new DateTimeOffset(2026, 3, 29, 0, 30, 0, TimeSpan.Zero);
+        var schedule = new ScheduleSnapshot(
+            Guid.NewGuid(),
+            1,
+            ScheduleKind.Daily,
+            PowerActionType.Shutdown,
+            null,
+            new TimeOnly(3, 30),
+            "W. Europe Standard Time",
+            false,
+            ScheduleStatus.Active,
+            reminderDue.AddDays(-1),
+            reminderDue.AddDays(-1));
+        var fixture = new Fixture(schedule, reminderDue);
+
+        await fixture.Coordinator.RunAsync(
+            new TaskInvocation(schedule.Id, schedule.Revision, SchedulerTaskRole.Reminder, 120));
+
+        Assert.Equal(
+            new DateTimeOffset(2026, 3, 29, 1, 30, 0, TimeSpan.Zero),
+            Assert.Single(fixture.Ledger.Claims).ExecuteDueAt);
+    }
+
     private static ScheduleSnapshot CreateSchedule(DateTimeOffset target) => new(
         Guid.NewGuid(),
         3,
@@ -82,7 +134,7 @@ public sealed class TaskInvocationCoordinatorTests
 
     private sealed class Fixture
     {
-        public Fixture(ScheduleSnapshot schedule)
+        public Fixture(ScheduleSnapshot schedule, DateTimeOffset? now = null)
         {
             Repository = new FakeRepository(schedule);
             Coordinator = new TaskInvocationCoordinator(
@@ -92,7 +144,7 @@ public sealed class TaskInvocationCoordinatorTests
                 Notifier,
                 new NoOpFinalizer(),
                 new NoOpLock(),
-                new FixedTimeProvider(Now));
+                new FixedTimeProvider(now ?? Now));
         }
 
         public FakeRepository Repository { get; }
@@ -112,6 +164,8 @@ public sealed class TaskInvocationCoordinatorTests
 
         public List<OccurrenceClaim> Claims { get; } = [];
 
+        public OccurrenceClaimResult NextClaimResult { get; set; } = OccurrenceClaimResult.Claimed;
+
         public Task<OccurrenceClaimResult> TryClaimAsync(
             OccurrenceClaim claim,
             CancellationToken cancellationToken = default)
@@ -122,7 +176,7 @@ public sealed class TaskInvocationCoordinatorTests
             }
 
             Claims.Add(claim);
-            return Task.FromResult(OccurrenceClaimResult.Claimed);
+            return Task.FromResult(NextClaimResult);
         }
 
         public Task CompleteAsync(Guid occurrenceId, CancellationToken cancellationToken = default) => Task.CompletedTask;

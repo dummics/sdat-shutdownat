@@ -13,6 +13,7 @@ public enum OccurrenceOutcome
 public enum OccurrenceClaimResult
 {
     Claimed,
+    SkippedByRequest,
     Stale,
     AlreadyHandled,
 }
@@ -27,7 +28,8 @@ public sealed record OccurrenceClaim(
     Guid OccurrenceId,
     TaskInvocation Invocation,
     DateTimeOffset DueAt,
-    OccurrenceOutcome InitialOutcome);
+    OccurrenceOutcome InitialOutcome,
+    DateTimeOffset? ExecuteDueAt = null);
 
 public interface ITaskExecutionLedger
 {
@@ -66,6 +68,7 @@ public enum TaskInvocationOutcome
 {
     Executed,
     ReminderShown,
+    SkippedByRequest,
     SkippedLate,
     IgnoredStale,
     IgnoredDuplicate,

@@ -5,7 +5,7 @@ namespace Sdat.Windows.Persistence;
 
 internal static class SqliteSchema
 {
-    public const int CurrentVersion = 1;
+    public const int CurrentVersion = 2;
 
     private const string MigrationOne = """
         CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -77,6 +77,22 @@ internal static class SqliteSchema
         );
         """;
 
+    private const string MigrationTwo = """
+        CREATE TABLE IF NOT EXISTS daily_skip_requests (
+            schedule_id TEXT NOT NULL,
+            schedule_revision INTEGER NOT NULL,
+            execute_due_utc TEXT NOT NULL,
+            requested_utc TEXT NOT NULL,
+            consumed_utc TEXT NULL,
+            PRIMARY KEY (schedule_id, schedule_revision, execute_due_utc),
+            FOREIGN KEY (schedule_id) REFERENCES schedules(id) ON DELETE CASCADE
+        );
+
+        CREATE INDEX IF NOT EXISTS ix_daily_skip_requests_pending
+            ON daily_skip_requests(schedule_id, schedule_revision, execute_due_utc)
+            WHERE consumed_utc IS NULL;
+        """;
+
     public static async Task<SqliteConnection> OpenAsync(
         SqliteStoreOptions options,
         CancellationToken cancellationToken)
@@ -116,18 +132,29 @@ internal static class SqliteSchema
         TimeProvider timeProvider,
         CancellationToken cancellationToken)
     {
+        var existingVersion = await GetUserVersionAsync(connection, cancellationToken).ConfigureAwait(false);
+        if (existingVersion > CurrentVersion)
+        {
+            throw new InvalidDataException(
+                $"The SDAT database schema version {existingVersion} is newer than this app supports ({CurrentVersion}).");
+        }
+
         await using var transaction = connection.BeginTransaction();
         await using var command = connection.CreateCommand();
         command.Transaction = transaction;
         command.CommandText = MigrationOne;
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
 
+        command.CommandText = MigrationTwo;
+        await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+
         command.CommandText = """
             INSERT OR IGNORE INTO schema_migrations(migration_id, applied_utc)
-            VALUES ($migrationId, $appliedUtc);
-            PRAGMA user_version = 1;
+            VALUES (1, $appliedUtc);
+            INSERT OR IGNORE INTO schema_migrations(migration_id, applied_utc)
+            VALUES (2, $appliedUtc);
+            PRAGMA user_version = 2;
             """;
-        command.Parameters.AddWithValue("$migrationId", CurrentVersion);
         command.Parameters.AddWithValue("$appliedUtc", timeProvider.GetUtcNow().ToString("O"));
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         transaction.Commit();

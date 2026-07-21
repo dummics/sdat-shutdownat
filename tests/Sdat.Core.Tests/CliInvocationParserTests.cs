@@ -6,6 +6,12 @@ namespace Sdat.Core.Tests;
 
 public sealed class CliInvocationParserTests
 {
+    [Fact]
+    public void Parses_skip_command()
+    {
+        Assert.Equal(CliCommandType.Skip, CliInvocationParser.Parse(["skip"]).Command);
+    }
+
     [Theory]
     [InlineData("3h")]
     [InlineData("23:30")]
