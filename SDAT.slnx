@@ -1,5 +1,6 @@
 <Solution>
   <Project Path="src/Sdat.Core/Sdat.Core.csproj" />
+  <Project Path="src/Sdat.Cli/Sdat.Cli.csproj" />
   <Project Path="src/Sdat.Windows/Sdat.Windows.csproj" />
   <Project Path="tests/Sdat.Core.Tests/Sdat.Core.Tests.csproj" />
   <Project Path="tests/Sdat.Windows.Tests/Sdat.Windows.Tests.csproj" />
