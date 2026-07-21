@@ -20,6 +20,7 @@ internal static class SdatCli
 
     public static async Task<int> RunAsync(string[] args)
     {
+        var requestedJson = args.Contains("--json", StringComparer.OrdinalIgnoreCase);
         CliInvocation invocation;
         try
         {
@@ -30,8 +31,16 @@ internal static class SdatCli
         }
         catch (Exception exception) when (exception is CliUsageException or FormatException or OverflowException)
         {
-            Console.Error.WriteLine(exception.Message);
-            Console.Error.WriteLine("Use 'sdat help' for examples.");
+            if (requestedJson)
+            {
+                WriteJson(MachineResponse<object>.Failed("parse", exception.GetType().Name, exception.Message));
+            }
+            else
+            {
+                Console.Error.WriteLine(exception.Message);
+                Console.Error.WriteLine("Use 'sdat help' for examples.");
+            }
+
             return 2;
         }
 
@@ -43,7 +52,15 @@ internal static class SdatCli
 
         if (invocation.Command == CliCommandType.Version)
         {
-            Console.WriteLine(GetVersion());
+            if (invocation.Json)
+            {
+                WriteMachineSuccess("version", new { version = GetVersion() });
+            }
+            else
+            {
+                Console.WriteLine(GetVersion());
+            }
+
             return 0;
         }
 
@@ -67,7 +84,15 @@ internal static class SdatCli
                     invocation.ReminderOffsetMinutes));
                 if (invocation.Json)
                 {
-                    WriteJson(result);
+                    var error = result.Outcome == TaskInvocationOutcome.Failed
+                        ? new MachineError("TaskInvocationFailed", result.Detail)
+                        : null;
+                    WriteMachineResponse(
+                        "task-run",
+                        result.Outcome != TaskInvocationOutcome.Failed,
+                        result,
+                        [],
+                        error);
                 }
                 else if (result.Outcome == TaskInvocationOutcome.Failed)
                 {
@@ -95,7 +120,7 @@ internal static class SdatCli
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            WriteError(exception, invocation.Json);
+            WriteError(exception, invocation.Json, invocation.Command.ToString().ToLowerInvariant());
             return 10;
         }
     }
@@ -123,7 +148,11 @@ internal static class SdatCli
         var schedules = await repository.ListAsync();
         if (json)
         {
-            WriteJson(new { schedules, reconciliation });
+            WriteMachineSuccess(
+                "status",
+                new { schedules, reconciliation },
+                GetReconciliationWarnings(reconciliation),
+                reconciliation.IsHealthy);
             return reconciliation.IsHealthy ? 0 : 3;
         }
 
@@ -161,7 +190,11 @@ internal static class SdatCli
         var result = await coordinator.SetAsync(prepared.Draft, reminderOffsets);
         if (invocation.Json)
         {
-            WriteJson(result);
+            WriteMachineSuccess(
+                "schedule",
+                result,
+                GetMutationWarnings(result),
+                result.IsFullyApplied);
         }
         else
         {
@@ -192,7 +225,12 @@ internal static class SdatCli
 
         if (invocation.Json)
         {
-            WriteJson(new { cancelled = results.Select(result => result.Schedule), results });
+            var warnings = results.SelectMany(GetMutationWarnings).ToArray();
+            WriteMachineSuccess(
+                "cancel",
+                new { cancelled = results.Select(result => result.Schedule), results },
+                warnings,
+                results.All(result => result.IsFullyApplied));
         }
         else if (results.Count == 0)
         {
@@ -218,7 +256,17 @@ internal static class SdatCli
         var store = await repository.CheckHealthAsync();
         if (json)
         {
-            WriteJson(new { store, reconciliation });
+            var warnings = GetReconciliationWarnings(reconciliation).ToList();
+            if (!store.CanExecutePowerActions)
+            {
+                warnings.Add(new MachineWarning("StoreUnhealthy", store.Detail));
+            }
+
+            WriteMachineSuccess(
+                "health",
+                new { store, reconciliation },
+                warnings,
+                store.CanExecutePowerActions && reconciliation.IsHealthy);
         }
         else
         {
@@ -235,7 +283,10 @@ internal static class SdatCli
         var result = await coordinator.RequestNextAsync();
         if (json)
         {
-            WriteJson(result);
+            var warnings = result.BackupFailure is null
+                ? Array.Empty<MachineWarning>()
+                : [new MachineWarning("BackupFailed", result.BackupFailure)];
+            WriteMachineSuccess("skip", result, warnings, result.IsFullyPersisted);
         }
         else
         {
@@ -258,7 +309,7 @@ internal static class SdatCli
         var events = await diagnostics.ReadRecentAsync();
         if (json)
         {
-            WriteJson(new { dataDirectory, events });
+            WriteMachineSuccess("logs", new { dataDirectory, events });
             return 0;
         }
 
@@ -422,7 +473,11 @@ internal static class SdatCli
     {
         if (json)
         {
-            WriteJson(report);
+            WriteMachineSuccess(
+                "reconcile",
+                report,
+                GetReconciliationWarnings(report),
+                report.IsHealthy);
         }
         else
         {
@@ -460,11 +515,16 @@ internal static class SdatCli
         }
     }
 
-    private static void WriteError(Exception exception, bool json)
+    private static void WriteError(Exception exception, bool json, string operation)
     {
         if (json)
         {
-            WriteJson(new { error = exception.GetType().Name, message = exception.Message });
+            WriteMachineResponse<object>(
+                operation,
+                false,
+                null,
+                [],
+                new MachineError(exception.GetType().Name, exception.Message));
         }
         else
         {
@@ -473,6 +533,45 @@ internal static class SdatCli
     }
 
     private static void WriteJson(object value) => Console.WriteLine(JsonSerializer.Serialize(value, JsonOptions));
+
+    private static void WriteMachineSuccess<T>(
+        string operation,
+        T result,
+        IReadOnlyList<MachineWarning>? warnings = null,
+        bool success = true) =>
+        WriteJson(MachineResponse<T>.Succeeded(operation, result, warnings, success));
+
+    private static void WriteMachineResponse<T>(
+        string operation,
+        bool success,
+        T? result,
+        IReadOnlyList<MachineWarning> warnings,
+        MachineError? error) =>
+        WriteJson(new MachineResponse<T>(
+            MachineResponse<T>.CurrentSchemaVersion,
+            operation,
+            success,
+            result,
+            warnings,
+            error));
+
+    private static IReadOnlyList<MachineWarning> GetMutationWarnings(ScheduleMutationResult result)
+    {
+        var warnings = GetReconciliationWarnings(result.Reconciliation).ToList();
+        if (result.BackupFailure is not null)
+        {
+            warnings.Add(new MachineWarning("BackupFailed", result.BackupFailure));
+        }
+
+        return warnings;
+    }
+
+    private static IReadOnlyList<MachineWarning> GetReconciliationWarnings(ReconciliationReport report) =>
+        report.Failures
+            .Select(failure => new MachineWarning(
+                "SchedulerProjectionFailed",
+                $"{failure.Operation} {failure.TaskName}: {failure.Detail}"))
+            .ToArray();
 
     private static string GetVersion() =>
         Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
