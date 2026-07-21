@@ -1,14 +1,15 @@
-# SDAT — shut down Windows at a human time
+# SDAT — Windows power scheduling without friction
 
 [![CI](https://github.com/dummics/sdat-shutdownat/actions/workflows/ci.yml/badge.svg)](https://github.com/dummics/sdat-shutdownat/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/dummics/sdat-shutdownat)](https://github.com/dummics/sdat-shutdownat/releases/latest)
 [![License](https://img.shields.io/github/license/dummics/sdat-shutdownat)](LICENSE)
 
-Schedule, inspect, or cancel a Windows shutdown directly from **Win+R**. No second calculations, no account, no telemetry, no background service.
+Schedule a shutdown, restart, or suspend using the fastest surface for the moment: Win+R, a terminal, the interactive TUI, or the Windows 11 companion. SDAT is local, open source, account-free, and telemetry-free.
 
 ```text
-sdat 3h
-sdat 23:30
+sdat 36m
+sdat 23:41
+sdat daily 02:00
 sdat cancel
 ```
 
@@ -16,17 +17,15 @@ SDAT is useful when a render, export, download, or long task should finish befor
 
 ## Install
 
-Windows 10/11, current user only, no administrator prompt:
+SDAT is a self-contained x64 application for Windows 10 version 2004 or newer and Windows 11. Installation is per-user and does not require an administrator prompt.
 
 ```powershell
 irm https://raw.githubusercontent.com/dummics/sdat-shutdownat/main/install.ps1 | iex
 ```
 
-The installer downloads the latest GitHub Release, validates its SHA256 checksum, installs to `%LOCALAPPDATA%\Programs\SDAT`, and adds `sdat` to the user PATH. Open a new terminal or Win+R after installation.
+The installer downloads the latest GitHub Release, verifies its SHA256 checksum, installs to `%LOCALAPPDATA%\Programs\SDAT`, and adds the CLI wrappers to the user PATH. For a manual install, download `sdat-v*-windows.zip` from the [latest release](https://github.com/dummics/sdat-shutdownat/releases/latest), extract it, and run `install.ps1`.
 
-Prefer a manual install? Download `sdat-v*-windows.zip` from the [latest release](https://github.com/dummics/sdat-shutdownat/releases/latest), extract it, and run `install.ps1`.
-
-## Use
+## Fast commands
 
 | Command | Result |
 |---|---|
@@ -34,43 +33,45 @@ Prefer a manual install? Download `sdat-v*-windows.zip` from the [latest release
 | `sdat 90m` | Shut down once in 90 minutes |
 | `sdat 23:30` | Shut down once at 23:30 |
 | `sdat daily 02:00` | Shut down every day at 02:00 |
-| `sdat` or `sdat status` | Show the current schedule at a glance |
-| `sdat cancel` | Abort Windows shutdown and remove the one-time action |
-| `sdat cancel all` | Abort Windows shutdown and remove one-time and daily actions |
-| `sdat skip` | Skip the next daily action once |
+| `ssat 45m` | Suspend once in 45 minutes |
+| `sdat 01:30 -Restart` | Restart once at 01:30 |
+| `sdat` or `sdat status` | Show active schedules |
+| `sdat cancel` | Abort a Windows countdown and cancel the one-time action |
+| `sdat cancel all` | Cancel one-time and daily actions |
+| `sdat skip` | Skip the next daily occurrence once |
+| `sdat preview 36m` | Parse and preview without changing state |
 | `sdat tui` | Open the interactive terminal UI |
-| `sdat logs` | Show the log folder and recent warnings/errors |
+| `sdat logs` | Show recent diagnostic history |
+| `sdat health` | Check SQLite and scheduler health |
+| `sdat reconcile` | Repair Task Scheduler from SQLite |
 
-The short aliases remain available: `-a`, `-aa`, `-p`, `-s`, `-k`, and `-tui`. Existing scripts do not need to change.
-
-### Other power actions
-
-`ssat` uses the same syntax for suspend:
-
-```text
-ssat 45m
-ssat daily 02:00
-```
-
-Restart uses the existing switch:
-
-```text
-sdat 01:30 -Restart
-```
-
-### Win+R behavior
-
-Run `sdat` from the Windows Run dialog for the fastest workflow. Status and result panels remain visible briefly and close without pause prompts. `sdat cancel` calls Windows' emergency abort before PowerShell or Task Scheduler cleanup, so a live countdown is stopped immediately.
+Short aliases remain available: `-a`, `-aa`, `-p`, `-s`, `-k`, and `-tui`. Machine clients can add `--json`; responses use an explicitly versioned envelope. This keeps the CLI suitable for scripts, AI agents, and a future MCP surface without giving those clients direct access to Windows power commands.
 
 ### Daily overlap safety
 
-A nearby one-time action wins over the next daily action by default. Keep both explicitly with:
+By default, a one-time action within two hours of the next daily action skips that daily occurrence. The window is configurable from 0 to 1440 minutes in the companion. Keep both for one command with:
 
 ```text
 sdat 45m -k
 ```
 
-Shutdown and restart currently force applications to close. Save work before scheduling them.
+## Windows companion
+
+`SDAT.exe` provides a compact WinUI 3 shell with Overview, Schedule, Notifications, Hotkey & Tray, Advanced diagnostics, and About panels. Static and dynamic UI text is localized in English and Italian using Windows MRT Core resources.
+
+The optional tray companion provides a configurable global hotkey (default `Ctrl+Alt+S`) for the bottom-center quick scheduler. A conflicting hotkey does not take down the tray; SDAT reports the conflict and keeps the previous working combination when possible.
+
+Reminder timing, the critical overlay, startup behavior, overlap policy, and hotkey are local settings. Reminder actions carry the schedule id and revision, so an old notification cannot cancel a newer schedule. Dismiss only closes the reminder; Cancel changes schedule state; Snooze is available for one-time actions.
+
+Windows notification availability and Focus/Do Not Disturb behavior remain controlled by Windows. SDAT does not claim an unconditional bypass. For shutdown and restart, Windows still owns the final 30-second system countdown.
+
+## Durable local state
+
+SQLite at `%LOCALAPPDATA%\SDAT\sdat.db` is authoritative. Windows Task Scheduler is a recoverable projection and is reconciled from the database. Mutations are serialized across processes, schedules use stable ids and monotonically increasing revisions, and stale task or notification activations are ignored.
+
+SDAT keeps up to five verified backups under `%LOCALAPPDATA%\SDAT\backups`. Startup performs database health checks and blocks power execution if state is corrupt or from a newer unsupported schema. A verified compatible backup can be restored when the primary database cannot be opened.
+
+When upgrading from v1, the installer preserves the old JSON state and script under `%LOCALAPPDATA%\SDAT\legacy-v1`. The native migrator imports only recognized state and exact SDAT v1 task signatures; ambiguous tasks are left untouched and reported.
 
 ## Update and remove
 
@@ -78,32 +79,28 @@ Shutdown and restart currently force applications to close. Save work before sch
 sdat version
 sdat update
 sdat uninstall
+sdat uninstall --keep-data
 ```
 
-Updates preserve `data/config.json`, `data/state.json`, and profile data. To keep a backup of those files when removing SDAT, run `sdat uninstall -KeepData`.
+Update packages are checksum-verified. Uninstall removes only SDAT-owned files and tasks. `--keep-data` moves the local data directory into a timestamped backup.
 
-## How it works
-
-SDAT uses two current-user Windows Scheduled Tasks: one one-time slot and one daily slot. The latest command replaces the matching slot, so schedules never accumulate silently. Runtime logs are stored under `%LOCALAPPDATA%\SDAT\logs`; `sdat logs` shows the location and recent problems without dumping internal JSON. Log files are kept for 30 days and capped at 5 MB each.
-
-The release package bundles the pinned terminal rendering dependency. If rich rendering is unavailable, SDAT falls back to plain console output.
+Shutdown and restart force applications to close. Save work before scheduling them.
 
 ## Development
 
-Run the complete self-test without triggering a real power action:
+Requirements: .NET 10 SDK and a Windows 10/11 x64 development host.
 
 ```powershell
-pwsh -NoProfile -File ./shutdownat.ps1 -SelfTest -DryRun
-```
-
-Build the same ZIP published by GitHub Releases:
-
-```powershell
+dotnet restore SDAT.slnx
+dotnet test SDAT.slnx -c Release --no-restore
+dotnet build src/Sdat.App/Sdat.App.csproj -c Release --no-restore
 pwsh -NoProfile -File ./tools/Build-Package.ps1
 ```
 
-See [ROADMAP.md](ROADMAP.md) for the optional tray companion and future explicit render-completion integrations. Generic CPU/GPU-idle shutdown is deliberately excluded because it cannot identify job completion reliably across applications.
+Automated tests and package verification never trigger a real shutdown, restart, or suspend. Live power-action testing requires separate explicit authorization.
+
+See [ROADMAP.md](ROADMAP.md) for release gates and intentionally deferred integrations.
 
 ## License
 
-SDAT is available under the [MIT License](LICENSE). Release packages include additional MIT-licensed components listed in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
+SDAT source is available under the [MIT License](LICENSE). Self-contained packages include third-party components governed by their own terms; see [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) and the packaged `licenses` directory.

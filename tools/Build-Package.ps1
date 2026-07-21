@@ -29,6 +29,23 @@ try {
     $files = @("VERSION", "LICENSE", "README.md", "CHANGELOG.md", "ROADMAP.md", "SECURITY.md", "THIRD-PARTY-NOTICES.md", "install.ps1", "uninstall.ps1", "sdat.bat", "ssat.bat", "sdatui.bat")
     foreach ($file in $files) { Copy-Item -LiteralPath (Join-Path $root $file) -Destination $packageRoot -Force }
 
+    $packageVersions = [xml](Get-Content -LiteralPath (Join-Path $root "Directory.Packages.props") -Raw)
+    $windowsAppSdkVersion = @($packageVersions.Project.ItemGroup.PackageVersion |
+        Where-Object { $_.Include -eq "Microsoft.WindowsAppSDK" })[0].Version
+    $nugetRoot = if ([string]::IsNullOrWhiteSpace($env:NUGET_PACKAGES)) {
+        Join-Path ([Environment]::GetFolderPath("UserProfile")) ".nuget\packages"
+    } else {
+        $env:NUGET_PACKAGES
+    }
+    $windowsAppSdkRoot = Join-Path $nugetRoot "microsoft.windowsappsdk\$windowsAppSdkVersion"
+    $licensesRoot = Join-Path $packageRoot "licenses"
+    New-Item -ItemType Directory -Path $licensesRoot -Force | Out-Null
+    foreach ($licenseFile in @("license.txt", "NOTICE.txt")) {
+        $licenseSource = Join-Path $windowsAppSdkRoot $licenseFile
+        if (-not (Test-Path -LiteralPath $licenseSource)) { throw "Missing Windows App SDK $licenseFile at $licenseSource" }
+        Copy-Item -LiteralPath $licenseSource -Destination (Join-Path $licensesRoot "Microsoft.WindowsAppSDK-$licenseFile") -Force
+    }
+
     $manifestFiles = Get-ChildItem -LiteralPath $packageRoot -File -Recurse |
         ForEach-Object { [IO.Path]::GetRelativePath($packageRoot, $_.FullName) } |
         Sort-Object
