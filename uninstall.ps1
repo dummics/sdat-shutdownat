@@ -41,6 +41,50 @@ function Remove-SdatFromUserPath {
     Send-EnvironmentChanged
 }
 
+function Test-SdatOwnedScheduledTask {
+    param([Parameter(Mandatory)]$Task)
+
+    if ($Task.TaskPath -ne '\' -or
+        $Task.TaskName -notmatch '^SDAT_(?:Volatile|Permanent)(?:_Reminder_[0-9]{4})?$') {
+        return $false
+    }
+
+    try {
+        [xml]$taskXml = Export-ScheduledTask -TaskName $Task.TaskName -TaskPath $Task.TaskPath -ErrorAction Stop
+        $source = [string]$taskXml.Task.RegistrationInfo.Source
+        if ($source -ceq 'SDAT') { return $true }
+
+        $exec = $taskXml.Task.Actions.Exec
+        if (-not $exec -or @($exec).Count -ne 1) { return $false }
+        if ([IO.Path]::GetFileName([string]$exec.Command) -ine 'wscript.exe') { return $false }
+
+        $match = [regex]::Match(
+            [string]$exec.Arguments,
+            '^//B\s+//NoLogo\s+"(?<launcher>[^"]+\\lib\\RunHidden\.vbs)"\s+"(?<script>[^"]+\\shutdownat\.ps1)"\s+-(?:RunVolatile|RunPermanent)(?:\s+-Profile\s+[^\s]+)?(?:\s+-Suspend)?(?:\s+-Restart)?(?:\s+-DryRun)?\s*$',
+            [Text.RegularExpressions.RegexOptions]::IgnoreCase)
+        if (-not $match.Success) { return $false }
+
+        $launcherRoot = [IO.Directory]::GetParent([IO.Path]::GetDirectoryName([IO.Path]::GetFullPath($match.Groups['launcher'].Value))).FullName
+        $scriptRoot = [IO.Path]::GetDirectoryName([IO.Path]::GetFullPath($match.Groups['script'].Value))
+        return $launcherRoot -ieq $scriptRoot
+    } catch {
+        return $false
+    }
+}
+
+function Stop-SdatInstalledCompanion {
+    param([Parameter(Mandatory)][string]$InstallPath)
+
+    $companionPath = [IO.Path]::GetFullPath((Join-Path $InstallPath 'SDAT.exe'))
+    $processes = @(Get-Process -Name 'SDAT' -ErrorAction SilentlyContinue | Where-Object {
+        try { $_.Path -and ([IO.Path]::GetFullPath($_.Path) -ieq $companionPath) } catch { $false }
+    })
+    if ($processes.Count -gt 0) {
+        $processes | Stop-Process -Force -ErrorAction Stop
+        $processes | Wait-Process -Timeout 10 -ErrorAction SilentlyContinue
+    }
+}
+
 function Start-SdatDeferredRemoval {
     param([Parameter(Mandatory)][string]$Path)
 
@@ -54,10 +98,11 @@ function Start-SdatDeferredRemoval {
 
 $installFull = [IO.Path]::GetFullPath($InstallDir)
 $dataRoot = Join-Path $env:LOCALAPPDATA "SDAT"
+Stop-SdatInstalledCompanion -InstallPath $installFull
 if (-not $SkipTaskCleanup) {
     & "$env:SystemRoot\System32\shutdown.exe" /a 2>$null | Out-Null
     Get-ScheduledTask -ErrorAction SilentlyContinue |
-        Where-Object { $_.TaskPath -eq '\' -and $_.TaskName -match '^SDAT(?:_|$)' } |
+        Where-Object { Test-SdatOwnedScheduledTask -Task $_ } |
         Unregister-ScheduledTask -Confirm:$false -ErrorAction SilentlyContinue
 }
 

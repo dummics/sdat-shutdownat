@@ -44,6 +44,14 @@ public sealed partial class MainWindow : Window
                 "Database: {0}",
                 _runtime.StoreOptions.DatabasePath);
             await RefreshStatusAsync();
+            if (_runtime.StartupRecovery is not null)
+            {
+                ShowStatus(
+                    AppText.Get(
+                        "DatabaseRecovered",
+                        "The local database was restored from the newest verified backup."),
+                    InfoBarSeverity.Warning);
+            }
             if (_runtime.LegacyMigration.Status == LegacyMigrationStatus.Failed)
             {
                 ShowStatus(
@@ -208,26 +216,43 @@ public sealed partial class MainWindow : Window
 
     private async void OnReconcile(object sender, RoutedEventArgs e)
     {
-        if (_runtime is null)
+        try
         {
-            return;
-        }
+            if (_runtime is null)
+            {
+                return;
+            }
 
-        var settings = await _runtime.Settings.LoadAsync();
-        var report = await _runtime.Coordinator.ReconcileAsync(settings.ReminderOffsetsMinutes);
-        await RefreshDiagnosticsAsync();
-        ShowStatus(
-            report.IsHealthy
-                ? AppText.Format(
-                    "ProjectionHealthy",
-                    "Projection healthy. {0} repaired, {1} removed.",
-                    report.CreatedOrUpdatedCount,
-                    report.RemovedCount)
-                : AppText.Get("ReconciliationWarnings", "Reconciliation completed with warnings."),
-            report.IsHealthy ? InfoBarSeverity.Success : InfoBarSeverity.Warning);
+            var settings = await _runtime.Settings.LoadAsync();
+            var report = await _runtime.Coordinator.ReconcileAsync(settings.ReminderOffsetsMinutes);
+            await RefreshDiagnosticsAsync();
+            ShowStatus(
+                report.IsHealthy
+                    ? AppText.Format(
+                        "ProjectionHealthy",
+                        "Projection healthy. {0} repaired, {1} removed.",
+                        report.CreatedOrUpdatedCount,
+                        report.RemovedCount)
+                    : AppText.Get("ReconciliationWarnings", "Reconciliation completed with warnings."),
+                report.IsHealthy ? InfoBarSeverity.Success : InfoBarSeverity.Warning);
+        }
+        catch (Exception exception)
+        {
+            ShowStatus(exception.Message, InfoBarSeverity.Error);
+        }
     }
 
-    private async void OnRefresh(object sender, RoutedEventArgs e) => await RefreshStatusAsync();
+    private async void OnRefresh(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            await RefreshStatusAsync();
+        }
+        catch (Exception exception)
+        {
+            ShowStatus(exception.Message, InfoBarSeverity.Error);
+        }
+    }
 
     private async Task RefreshStatusAsync()
     {

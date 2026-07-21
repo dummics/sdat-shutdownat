@@ -7,6 +7,7 @@ using Sdat.Core.Diagnostics;
 using Sdat.Core.Execution;
 using Sdat.Core.Operations;
 using Sdat.Core.Scheduling;
+using Sdat.Core.Storage;
 using Sdat.Windows.Hosting;
 using Sdat.Windows.Migration;
 using Sdat.Windows.Maintenance;
@@ -134,6 +135,7 @@ internal static class SdatCli
                     services.Schedules,
                     startup,
                     services.LegacyMigration,
+                    services.StartupRecovery,
                     invocation.Json),
                 CliCommandType.Schedule => await ScheduleAsync(services.ScheduleCommands, invocation),
                 CliCommandType.Cancel => await CancelAsync(services.Coordinator, services.Schedules, invocation, reminderOffsets),
@@ -147,6 +149,7 @@ internal static class SdatCli
                     services.Schedules,
                     startup,
                     services.LegacyMigration,
+                    services.StartupRecovery,
                     invocation.Json),
                 CliCommandType.Tui => await RunTuiAsync(services),
                 _ => 2,
@@ -198,6 +201,7 @@ internal static class SdatCli
         IScheduleRepository repository,
         ReconciliationReport reconciliation,
         LegacyMigrationResult legacyMigration,
+        DatabaseRecoveryResult? startupRecovery,
         bool json)
     {
         var schedules = await repository.ListAsync();
@@ -205,10 +209,11 @@ internal static class SdatCli
         {
             var warnings = GetReconciliationWarnings(reconciliation)
                 .Concat(GetLegacyMigrationWarnings(legacyMigration))
+                .Concat(GetRecoveryWarnings(startupRecovery))
                 .ToArray();
             WriteMachineSuccess(
                 "status",
-                new { schedules, reconciliation, legacyMigration },
+                new { schedules, reconciliation, legacyMigration, startupRecovery },
                 warnings,
                 reconciliation.IsHealthy && legacyMigration.Status != LegacyMigrationStatus.Failed);
             return reconciliation.IsHealthy && legacyMigration.Status != LegacyMigrationStatus.Failed ? 0 : 3;
@@ -228,6 +233,7 @@ internal static class SdatCli
 
         WriteReconciliationWarning(reconciliation);
         WriteLegacyMigrationWarnings(legacyMigration);
+        WriteRecoveryWarning(startupRecovery);
         return reconciliation.IsHealthy && legacyMigration.Status != LegacyMigrationStatus.Failed ? 0 : 3;
     }
 
@@ -341,6 +347,7 @@ internal static class SdatCli
         IScheduleRepository repository,
         ReconciliationReport reconciliation,
         LegacyMigrationResult legacyMigration,
+        DatabaseRecoveryResult? startupRecovery,
         bool json)
     {
         var store = await repository.CheckHealthAsync();
@@ -348,6 +355,7 @@ internal static class SdatCli
         {
             var warnings = GetReconciliationWarnings(reconciliation).ToList();
             warnings.AddRange(GetLegacyMigrationWarnings(legacyMigration));
+            warnings.AddRange(GetRecoveryWarnings(startupRecovery));
             if (!store.CanExecutePowerActions)
             {
                 warnings.Add(new MachineWarning("StoreUnhealthy", store.Detail));
@@ -355,7 +363,7 @@ internal static class SdatCli
 
             WriteMachineSuccess(
                 "health",
-                new { store, reconciliation, legacyMigration },
+                new { store, reconciliation, legacyMigration, startupRecovery },
                 warnings,
                 store.CanExecutePowerActions && reconciliation.IsHealthy &&
                 legacyMigration.Status != LegacyMigrationStatus.Failed);
@@ -366,6 +374,7 @@ internal static class SdatCli
             Console.WriteLine($"Task Scheduler projection: {(reconciliation.IsHealthy ? "Healthy" : "Degraded")}");
             WriteReconciliationWarning(reconciliation);
             WriteLegacyMigrationWarnings(legacyMigration);
+            WriteRecoveryWarning(startupRecovery);
         }
 
         return store.CanExecutePowerActions && reconciliation.IsHealthy &&
@@ -431,6 +440,7 @@ internal static class SdatCli
                 services.Schedules,
                 await services.Coordinator.ReconcileAsync((await services.Settings.LoadAsync()).ReminderOffsetsMinutes),
                 services.LegacyMigration,
+                services.StartupRecovery,
                 json: false);
         }
 
@@ -691,11 +701,24 @@ internal static class SdatCli
             .Select(warning => new MachineWarning("LegacyMigration", warning))
             .ToArray();
 
+    private static IReadOnlyList<MachineWarning> GetRecoveryWarnings(DatabaseRecoveryResult? recovery) =>
+        recovery is null
+            ? []
+            : [new MachineWarning("DatabaseRecovered", $"Restored verified backup: {recovery.RestoredBackupPath}")];
+
     private static void WriteLegacyMigrationWarnings(LegacyMigrationResult migration)
     {
         foreach (var warning in migration.Warnings)
         {
             Console.Error.WriteLine($"Warning: {warning}");
+        }
+    }
+
+    private static void WriteRecoveryWarning(DatabaseRecoveryResult? recovery)
+    {
+        if (recovery is not null)
+        {
+            Console.Error.WriteLine($"Warning: restored the local database from {recovery.RestoredBackupPath}");
         }
     }
 

@@ -16,6 +16,7 @@ public sealed class ScheduleCommandService(
     IScheduleRepository schedules,
     DailySkipCoordinator dailySkips,
     IAppSettingsRepository settingsRepository,
+    IOperationLock operationLock,
     TimeProvider? timeProvider = null)
 {
     private readonly TimeProvider _timeProvider = timeProvider ?? TimeProvider.System;
@@ -26,8 +27,9 @@ public sealed class ScheduleCommandService(
     {
         ArgumentNullException.ThrowIfNull(draft);
         var settings = await settingsRepository.LoadAsync(cancellationToken).ConfigureAwait(false);
+        await using var lease = await operationLock.AcquireAsync(cancellationToken).ConfigureAwait(false);
         var mutation = await coordinator
-            .SetAsync(draft, settings.ReminderOffsetsMinutes, cancellationToken)
+            .SetUnderAcquiredLockAsync(draft, settings.ReminderOffsetsMinutes, cancellationToken)
             .ConfigureAwait(false);
         if (draft.Kind != ScheduleKind.OneTime || draft.KeepDaily ||
             settings.DailyOverlapWindowMinutes == 0)
@@ -50,7 +52,7 @@ public sealed class ScheduleCommandService(
         }
 
         var skip = await dailySkips
-            .RequestExactAsync(daily.Id, daily.Revision, dailyDueAt, cancellationToken)
+            .RequestExactUnderAcquiredLockAsync(daily.Id, daily.Revision, dailyDueAt, cancellationToken)
             .ConfigureAwait(false);
         return new ScheduleCommandResult(mutation, skip);
     }

@@ -117,9 +117,17 @@ internal static class SqliteSchema
             Pooling = true,
         }.ToString());
 
-        await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
-        await ConfigureConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
-        return connection;
+        try
+        {
+            await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
+            await ConfigureConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
+            return connection;
+        }
+        catch
+        {
+            await connection.DisposeAsync().ConfigureAwait(false);
+            throw;
+        }
     }
 
     public static async Task ConfigureConnectionAsync(

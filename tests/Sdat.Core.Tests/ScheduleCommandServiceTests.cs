@@ -23,6 +23,7 @@ public sealed class ScheduleCommandServiceTests
         Assert.Equal(Now.AddHours(2), skip.ExecuteDueAt);
         Assert.Same(skip, result.AutomaticDailySkip!.Request);
         Assert.True(result.IsFullyApplied);
+        Assert.Equal(2, fixture.OperationLock.AcquisitionCount);
     }
 
     [Fact]
@@ -55,31 +56,34 @@ public sealed class ScheduleCommandServiceTests
     {
         public Fixture(AppSettings settings)
         {
-            var operationLock = new NoOpLock();
+            OperationLock = new CountingLock();
             var backup = new FakeBackup();
             var coordinator = new ScheduleCoordinator(
                 Repository,
                 backup,
                 new SchedulerReconciler(Repository, new FakeProjection(), new ScheduleTaskPlanner()),
-                operationLock,
+                OperationLock,
                 new FixedTimeProvider(Now));
             var dailySkips = new DailySkipCoordinator(
                 Repository,
                 SkipStore,
                 backup,
-                operationLock,
+                OperationLock,
                 new FixedTimeProvider(Now));
             Service = new ScheduleCommandService(
                 coordinator,
                 Repository,
                 dailySkips,
                 new FakeSettingsRepository(settings),
+                OperationLock,
                 new FixedTimeProvider(Now));
         }
 
         public FakeRepository Repository { get; } = new();
 
         public FakeSkipStore SkipStore { get; } = new();
+
+        public CountingLock OperationLock { get; }
 
         public ScheduleCommandService Service { get; }
     }
@@ -200,10 +204,18 @@ public sealed class ScheduleCommandServiceTests
             Task.CompletedTask;
     }
 
-    private sealed class NoOpLock : IOperationLock
+    private sealed class CountingLock : IOperationLock
     {
+        public int AcquisitionCount { get; private set; }
+
         public Task<IAsyncDisposable> AcquireAsync(CancellationToken cancellationToken = default) =>
-            Task.FromResult<IAsyncDisposable>(new Lease());
+            Task.FromResult<IAsyncDisposable>(CreateLease());
+
+        private IAsyncDisposable CreateLease()
+        {
+            AcquisitionCount++;
+            return new Lease();
+        }
 
         private sealed class Lease : IAsyncDisposable
         {

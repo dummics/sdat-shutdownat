@@ -86,8 +86,11 @@ public sealed class MaintenanceLauncher(string installDirectory)
         string installDirectory) => string.Join(
         Environment.NewLine,
         $"Wait-Process -Id {processId} -ErrorAction SilentlyContinue",
-        $"try {{ & '{EscapePowerShellLiteral(temporaryScript)}' -Update -InstallDir '{EscapePowerShellLiteral(installDirectory)}'; exit $LASTEXITCODE }}",
-        $"finally {{ Remove-Item -LiteralPath '{EscapePowerShellLiteral(temporaryScript)}' -Force -ErrorAction SilentlyContinue }}");
+        "try {",
+        BuildStopInstalledCompanionCommand(installDirectory),
+        $"& '{EscapePowerShellLiteral(temporaryScript)}' -Update -InstallDir '{EscapePowerShellLiteral(installDirectory)}'",
+        "exit $LASTEXITCODE",
+        $"}} finally {{ Remove-Item -LiteralPath '{EscapePowerShellLiteral(temporaryScript)}' -Force -ErrorAction SilentlyContinue }}");
 
     internal static string BuildDeferredUninstallCommand(
         int processId,
@@ -99,8 +102,21 @@ public sealed class MaintenanceLauncher(string installDirectory)
         return string.Join(
             Environment.NewLine,
             $"Wait-Process -Id {processId} -ErrorAction SilentlyContinue",
-            $"try {{ & '{EscapePowerShellLiteral(temporaryScript)}' -InstallDir '{EscapePowerShellLiteral(installDirectory)}'{keepDataSwitch}; exit $LASTEXITCODE }}",
-            $"finally {{ Remove-Item -LiteralPath '{EscapePowerShellLiteral(temporaryScript)}' -Force -ErrorAction SilentlyContinue }}");
+            "try {",
+            BuildStopInstalledCompanionCommand(installDirectory),
+            $"& '{EscapePowerShellLiteral(temporaryScript)}' -InstallDir '{EscapePowerShellLiteral(installDirectory)}'{keepDataSwitch}",
+            "exit $LASTEXITCODE",
+            $"}} finally {{ Remove-Item -LiteralPath '{EscapePowerShellLiteral(temporaryScript)}' -Force -ErrorAction SilentlyContinue }}");
+    }
+
+    private static string BuildStopInstalledCompanionCommand(string installDirectory)
+    {
+        var companionPath = EscapePowerShellLiteral(Path.Combine(installDirectory, "SDAT.exe"));
+        return string.Join(
+            Environment.NewLine,
+            $"$sdatCompanionPath = [IO.Path]::GetFullPath('{companionPath}')",
+            "$sdatCompanion = @(Get-Process -Name 'SDAT' -ErrorAction SilentlyContinue | Where-Object { try { $_.Path -and ([IO.Path]::GetFullPath($_.Path) -ieq $sdatCompanionPath) } catch { $false } })",
+            "if ($sdatCompanion.Count -gt 0) { $sdatCompanion | Stop-Process -Force -ErrorAction Stop; $sdatCompanion | Wait-Process -Timeout 10 -ErrorAction SilentlyContinue }");
     }
 
     private static string EscapePowerShellLiteral(string value) => value.Replace("'", "''", StringComparison.Ordinal);

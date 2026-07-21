@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Microsoft.Win32.TaskScheduler;
 using Sdat.Core.Scheduling;
+using Sdat.Windows.Migration;
 using AsyncTask = System.Threading.Tasks.Task;
 using ScheduledTask = Microsoft.Win32.TaskScheduler.Task;
 
@@ -55,6 +56,18 @@ public sealed class WindowsTaskSchedulerProjection : ITaskSchedulerProjection
         EnsureOwnedName(definition.TaskName);
 
         using var service = new TaskService();
+        using var existing = service.GetTask(definition.TaskName);
+        if (existing is not null &&
+            !string.Equals(
+                existing.Definition.RegistrationInfo.Source,
+                RegistrationSource,
+                StringComparison.Ordinal) &&
+            !IsVerifiedLegacy(existing))
+        {
+            throw new InvalidOperationException(
+                $"Task '{definition.TaskName}' already exists and is not owned by SDAT. It was left untouched.");
+        }
+
         var task = service.NewTask();
         task.RegistrationInfo.Source = RegistrationSource;
         task.RegistrationInfo.Description = "SDAT managed power schedule. Manual edits are repaired from local state.";
@@ -88,6 +101,21 @@ public sealed class WindowsTaskSchedulerProjection : ITaskSchedulerProjection
         EnsureOwnedName(taskName);
 
         using var service = new TaskService();
+        using var existing = service.GetTask(taskName);
+        if (existing is null)
+        {
+            return AsyncTask.CompletedTask;
+        }
+
+        if (!string.Equals(
+                existing.Definition.RegistrationInfo.Source,
+                RegistrationSource,
+                StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                $"Task '{taskName}' is not owned by SDAT. It was left untouched.");
+        }
+
         service.RootFolder.DeleteTask(taskName, exceptionOnNotExists: false);
         return AsyncTask.CompletedTask;
     }
@@ -99,6 +127,11 @@ public sealed class WindowsTaskSchedulerProjection : ITaskSchedulerProjection
         return new SchedulerTaskSnapshot(task.Name, isValid ? manifest!.Fingerprint : string.Empty);
     }
 
+    private static bool IsVerifiedLegacy(ScheduledTask task) =>
+        task.Definition.Actions.Count == 1 &&
+        task.Definition.Actions[0] is ExecAction action &&
+        LegacyTaskSignature.IsVerified(action.Path, action.Arguments);
+
     private bool DefinitionMatchesManifest(ScheduledTask task, TaskManifest manifest)
     {
         if (!string.Equals(manifest.ApplicationPath, _applicationPath, StringComparison.OrdinalIgnoreCase) ||
@@ -107,7 +140,17 @@ public sealed class WindowsTaskSchedulerProjection : ITaskSchedulerProjection
             !string.Equals(action.Path, manifest.ApplicationPath, StringComparison.OrdinalIgnoreCase) ||
             !string.Equals(action.Arguments, manifest.Arguments, StringComparison.Ordinal) ||
             !string.Equals(action.WorkingDirectory, manifest.WorkingDirectory, StringComparison.OrdinalIgnoreCase) ||
-            task.Definition.Triggers.Count != 1)
+            task.Definition.Triggers.Count != 1 ||
+            !DefinitionMatchesRequiredSettings(
+                task.Enabled,
+                task.Definition.Principal.LogonType,
+                task.Definition.Principal.RunLevel,
+                task.Definition.Settings.AllowDemandStart,
+                task.Definition.Settings.DisallowStartIfOnBatteries,
+                task.Definition.Settings.StopIfGoingOnBatteries,
+                task.Definition.Settings.StartWhenAvailable,
+                task.Definition.Settings.MultipleInstances,
+                task.Definition.Settings.ExecutionTimeLimit))
         {
             return false;
         }
@@ -167,6 +210,26 @@ public sealed class WindowsTaskSchedulerProjection : ITaskSchedulerProjection
 
     private static bool AreClose(DateTime left, DateTime right) =>
         Math.Abs((left - right).TotalSeconds) < 1;
+
+    internal static bool DefinitionMatchesRequiredSettings(
+        bool enabled,
+        TaskLogonType logonType,
+        TaskRunLevel runLevel,
+        bool allowDemandStart,
+        bool disallowStartIfOnBatteries,
+        bool stopIfGoingOnBatteries,
+        bool startWhenAvailable,
+        TaskInstancesPolicy multipleInstances,
+        TimeSpan executionTimeLimit) =>
+        enabled &&
+        logonType == TaskLogonType.InteractiveToken &&
+        runLevel == TaskRunLevel.LUA &&
+        allowDemandStart &&
+        !disallowStartIfOnBatteries &&
+        !stopIfGoingOnBatteries &&
+        startWhenAvailable &&
+        multipleInstances == TaskInstancesPolicy.IgnoreNew &&
+        executionTimeLimit == TimeSpan.FromMinutes(5);
 
     private void EnsureOwnedName(string taskName)
     {

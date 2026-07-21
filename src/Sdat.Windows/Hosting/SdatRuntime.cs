@@ -3,6 +3,7 @@ using Sdat.Core.Diagnostics;
 using Sdat.Core.Operations;
 using Sdat.Core.Scheduling;
 using Sdat.Core.Settings;
+using Sdat.Core.Storage;
 using Sdat.Windows.Concurrency;
 using Sdat.Windows.Execution;
 using Sdat.Windows.Migration;
@@ -22,6 +23,7 @@ public sealed record SdatRuntime(
     IDiagnosticLogReader Diagnostics,
     TaskInvocationCoordinator TaskInvocations,
     AppSettings CurrentSettings,
+    DatabaseRecoveryResult? StartupRecovery,
     LegacyMigrationResult LegacyMigration,
     ReconciliationReport StartupReconciliation)
 {
@@ -34,7 +36,14 @@ public sealed record SdatRuntime(
             ? SqliteStoreOptions.CreateDefault()
             : SqliteStoreOptions.CreateAtRoot(dataRoot);
         var schedules = new SqliteScheduleRepository(options);
-        await schedules.InitializeAsync(cancellationToken).ConfigureAwait(false);
+        var operationLock = new FileOperationLock(options.OperationLockPath);
+        var initialization = await new SqliteStoreInitializer(
+                options,
+                schedules,
+                new SqliteRecoveryService(options),
+                operationLock)
+            .InitializeAsync(cancellationToken)
+            .ConfigureAwait(false);
         var settingsRepository = new SqliteAppSettingsRepository(options);
         var settings = await settingsRepository.LoadAsync(cancellationToken).ConfigureAwait(false);
         var taskPrefix = Environment.GetEnvironmentVariable("SDAT_TASK_PREFIX");
@@ -43,7 +52,6 @@ public sealed record SdatRuntime(
             string.IsNullOrWhiteSpace(taskPrefix) ? "SDAT_" : taskPrefix);
         var reconciler = new SchedulerReconciler(schedules, projection, new ScheduleTaskPlanner());
         var backup = new SqliteBackupService(options);
-        var operationLock = new FileOperationLock(options.OperationLockPath);
         var coordinator = new ScheduleCoordinator(schedules, backup, reconciler, operationLock);
         var dailySkips = new DailySkipCoordinator(
             schedules,
@@ -54,8 +62,8 @@ public sealed record SdatRuntime(
             coordinator,
             schedules,
             dailySkips,
-            settingsRepository);
-        await coordinator.InitializeAsync(cancellationToken).ConfigureAwait(false);
+            settingsRepository,
+            operationLock);
         var legacyRoot = Environment.GetEnvironmentVariable("SDAT_LEGACY_ROOT");
         if (string.IsNullOrWhiteSpace(legacyRoot))
         {
@@ -103,6 +111,7 @@ public sealed record SdatRuntime(
             new SqliteDiagnosticLogReader(options),
             taskInvocations,
             settings,
+            initialization.Recovery,
             legacyMigration,
             startup);
     }

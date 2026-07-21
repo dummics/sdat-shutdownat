@@ -14,6 +14,11 @@ public sealed class MaintenanceLauncherTests
             @"C:\Program Files\SDAT");
 
         Assert.Contains("Wait-Process -Id 42", command, StringComparison.Ordinal);
+        Assert.Contains("C:\\Program Files\\SDAT\\SDAT.exe", command, StringComparison.Ordinal);
+        Assert.Contains("Get-Process -Name 'SDAT'", command, StringComparison.Ordinal);
+        Assert.Contains("Stop-Process -Force", command, StringComparison.Ordinal);
+        Assert.Contains("try {", command, StringComparison.Ordinal);
+        Assert.Contains("} finally {", command, StringComparison.Ordinal);
         Assert.Contains("dom''s update.ps1", command, StringComparison.Ordinal);
         Assert.Contains("-Update", command, StringComparison.Ordinal);
     }
@@ -37,5 +42,9 @@ public sealed class MaintenanceLauncherTests
         {
             Assert.DoesNotContain("-KeepData", command, StringComparison.Ordinal);
         }
+
+        Assert.Contains("C:\\SDAT\\SDAT.exe", command, StringComparison.Ordinal);
+        Assert.Contains("Get-Process -Name 'SDAT'", command, StringComparison.Ordinal);
+        Assert.Contains("} finally {", command, StringComparison.Ordinal);
     }
 }

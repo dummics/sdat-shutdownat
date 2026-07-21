@@ -108,4 +108,5 @@
   <data name="SeverityInformation" xml:space="preserve"><value>Informazione</value></data>
   <data name="SeverityWarning" xml:space="preserve"><value>Avviso</value></data>
   <data name="SeverityError" xml:space="preserve"><value>Errore</value></data>
+  <data name="DatabaseRecovered" xml:space="preserve"><value>Il database locale è stato ripristinato dal backup verificato più recente.</value></data>
 </root>

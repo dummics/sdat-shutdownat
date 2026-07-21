@@ -35,6 +35,16 @@ public sealed class ScheduleCoordinator(
     {
         ArgumentNullException.ThrowIfNull(draft);
         await using var lease = await operationLock.AcquireAsync(cancellationToken).ConfigureAwait(false);
+        return await SetUnderAcquiredLockAsync(draft, reminderOffsetsMinutes, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    internal async Task<ScheduleMutationResult> SetUnderAcquiredLockAsync(
+        ScheduleDraft draft,
+        IReadOnlyList<int> reminderOffsetsMinutes,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(draft);
         await EnsureHealthyAsync(cancellationToken).ConfigureAwait(false);
 
         var existing = (await repository.ListAsync(cancellationToken: cancellationToken).ConfigureAwait(false))

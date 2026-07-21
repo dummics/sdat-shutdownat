@@ -61,6 +61,20 @@ public sealed class DailySkipCoordinator(
         CancellationToken cancellationToken = default)
     {
         await using var lease = await operationLock.AcquireAsync(cancellationToken).ConfigureAwait(false);
+        return await RequestExactUnderAcquiredLockAsync(
+                scheduleId,
+                scheduleRevision,
+                executeDueAt,
+                cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    internal async Task<DailySkipResult> RequestExactUnderAcquiredLockAsync(
+        Guid scheduleId,
+        long scheduleRevision,
+        DateTimeOffset executeDueAt,
+        CancellationToken cancellationToken = default)
+    {
         var health = await schedules.CheckHealthAsync(cancellationToken).ConfigureAwait(false);
         if (!health.CanExecutePowerActions)
         {

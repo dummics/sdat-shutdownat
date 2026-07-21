@@ -82,6 +82,19 @@ function Add-SdatToUserPath {
     Send-EnvironmentChanged
 }
 
+function Stop-SdatInstalledCompanion {
+    param([Parameter(Mandatory)][string]$InstallPath)
+
+    $companionPath = [IO.Path]::GetFullPath((Join-Path $InstallPath 'SDAT.exe'))
+    $processes = @(Get-Process -Name 'SDAT' -ErrorAction SilentlyContinue | Where-Object {
+        try { $_.Path -and ([IO.Path]::GetFullPath($_.Path) -ieq $companionPath) } catch { $false }
+    })
+    if ($processes.Count -gt 0) {
+        $processes | Stop-Process -Force -ErrorAction Stop
+        $processes | Wait-Process -Timeout 10 -ErrorAction SilentlyContinue
+    }
+}
+
 function Get-RemotePackage {
     $headers = @{ "User-Agent" = "SDAT-Installer"; "Accept" = "application/vnd.github+json" }
     $releaseUri = if ($Version -eq "latest") {
@@ -127,6 +140,7 @@ try {
 
     $installFull = [IO.Path]::GetFullPath($InstallDir)
     $sourceFull = [IO.Path]::GetFullPath($packageRoot)
+    Stop-SdatInstalledCompanion -InstallPath $installFull
     Write-Host "SDAT installer" -ForegroundColor White
     Write-InstallStep "Installing to $installFull"
     New-Item -ItemType Directory -Path $installFull -Force | Out-Null

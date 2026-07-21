@@ -1,6 +1,8 @@
 using Sdat.Core.Scheduling;
 using Sdat.Windows.Execution;
+using Sdat.Windows.Migration;
 using Sdat.Windows.Notifications;
+using Sdat.Windows.Scheduling;
 using Xunit;
 
 namespace Sdat.Windows.Tests;
@@ -44,5 +46,38 @@ public sealed class WindowsExecutionSurfaceTests
         Assert.Contains("Cancel", payload, StringComparison.Ordinal);
         Assert.Contains("action=cancel", payload, StringComparison.Ordinal);
         Assert.Contains(schedule.Id.ToString("D"), payload, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
+    [InlineData("C:\\Windows\\System32\\wscript.exe", "//B //NoLogo \"C:\\SDAT\\lib\\RunHidden.vbs\" \"C:\\SDAT\\shutdownat.ps1\" -RunVolatile", true)]
+    [InlineData("wscript.exe", "//B //NoLogo \"C:\\SDAT\\lib\\RunHidden.vbs\" \"C:\\SDAT\\shutdownat.ps1\" -RunPermanent -Profile media -Suspend -DryRun", true)]
+    [InlineData("C:\\Windows\\System32\\notepad.exe", "RunHidden.vbs shutdownat.ps1", false)]
+    [InlineData("C:\\Windows\\System32\\wscript.exe", "unrelated.vbs", false)]
+    [InlineData("C:\\Windows\\System32\\wscript.exe", "//B //NoLogo \"C:\\Other\\lib\\RunHidden.vbs\" \"C:\\SDAT\\shutdownat.ps1\" -RunPermanent", false)]
+    public void Legacy_task_takeover_requires_the_exact_v1_launcher_shape(
+        string applicationPath,
+        string arguments,
+        bool expected)
+    {
+        Assert.Equal(expected, LegacyTaskSignature.IsVerified(applicationPath, arguments));
+    }
+
+    [Theory]
+    [InlineData(true, true)]
+    [InlineData(false, false)]
+    public void Scheduler_projection_requires_an_enabled_task(bool enabled, bool expected)
+    {
+        Assert.Equal(
+            expected,
+            WindowsTaskSchedulerProjection.DefinitionMatchesRequiredSettings(
+                enabled,
+                Microsoft.Win32.TaskScheduler.TaskLogonType.InteractiveToken,
+                Microsoft.Win32.TaskScheduler.TaskRunLevel.LUA,
+                true,
+                false,
+                false,
+                true,
+                Microsoft.Win32.TaskScheduler.TaskInstancesPolicy.IgnoreNew,
+                TimeSpan.FromMinutes(5)));
     }
 }
