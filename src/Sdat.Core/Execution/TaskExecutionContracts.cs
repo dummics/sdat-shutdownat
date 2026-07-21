@@ -57,6 +57,11 @@ public interface ITaskReminderNotifier
         CancellationToken cancellationToken = default);
 }
 
+public interface IOneTimeExecutionFinalizer
+{
+    Task<string?> FinalizeAsync(CancellationToken cancellationToken = default);
+}
+
 public enum TaskInvocationOutcome
 {
     Executed,

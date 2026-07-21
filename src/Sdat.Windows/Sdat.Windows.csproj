@@ -5,6 +5,7 @@
   <ItemGroup>
     <ProjectReference Include="../Sdat.Core/Sdat.Core.csproj" />
     <PackageReference Include="Microsoft.Data.Sqlite" />
+    <PackageReference Include="Microsoft.WindowsAppSDK" />
     <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" />
     <PackageReference Include="TaskScheduler" />
   </ItemGroup>

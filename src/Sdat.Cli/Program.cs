@@ -2,10 +2,13 @@ using System.Diagnostics;
 using System.Reflection;
 using System.Text.Json;
 using Sdat.Core.Commands;
+using Sdat.Core.Execution;
 using Sdat.Core.Operations;
 using Sdat.Core.Scheduling;
 using Sdat.Core.TimeExpressions;
 using Sdat.Windows.Concurrency;
+using Sdat.Windows.Execution;
+using Sdat.Windows.Notifications;
 using Sdat.Windows.Persistence;
 using Sdat.Windows.Scheduling;
 
@@ -48,12 +51,6 @@ internal static class SdatCli
             return 0;
         }
 
-        if (invocation.Command == CliCommandType.TaskRun)
-        {
-            Console.Error.WriteLine("Scheduled execution is not enabled in this development build.");
-            return 4;
-        }
-
         if (invocation.Command == CliCommandType.Cancel)
         {
             TryAbortWindowsCountdown();
@@ -63,6 +60,25 @@ internal static class SdatCli
         {
             var services = CreateServices();
             var startup = await services.Coordinator.InitializeAndReconcileAsync(DefaultReminderOffsets);
+
+            if (invocation.Command == CliCommandType.TaskRun)
+            {
+                var result = await services.TaskInvocationCoordinator.RunAsync(new TaskInvocation(
+                    invocation.ScheduleId!.Value,
+                    invocation.Revision!.Value,
+                    invocation.TaskRole!.Value,
+                    invocation.ReminderOffsetMinutes));
+                if (invocation.Json)
+                {
+                    WriteJson(result);
+                }
+                else if (result.Outcome == TaskInvocationOutcome.Failed)
+                {
+                    Console.Error.WriteLine(result.Detail);
+                }
+
+                return result.Outcome == TaskInvocationOutcome.Failed ? 10 : 0;
+            }
 
             return invocation.Command switch
             {
@@ -95,12 +111,21 @@ internal static class SdatCli
 
         var projection = new WindowsTaskSchedulerProjection(applicationPath);
         var reconciler = new SchedulerReconciler(repository, projection, new ScheduleTaskPlanner());
+        var backup = new SqliteBackupService(options);
+        var operationLock = new FileOperationLock(options.OperationLockPath);
         var coordinator = new ScheduleCoordinator(
             repository,
-            new SqliteBackupService(options),
+            backup,
             reconciler,
-            new FileOperationLock(options.OperationLockPath));
-        return new Services(repository, coordinator);
+            operationLock);
+        var taskInvocationCoordinator = new TaskInvocationCoordinator(
+            repository,
+            new SqliteTaskExecutionLedger(options),
+            new WindowsPowerActionExecutor(),
+            new WindowsReminderNotifier(),
+            new DurableExecutionFinalizer(backup, reconciler, DefaultReminderOffsets),
+            operationLock);
+        return new Services(repository, coordinator, taskInvocationCoordinator);
     }
 
     private static async Task<int> ShowStatusAsync(
@@ -326,5 +351,8 @@ internal static class SdatCli
         Legacy aliases: -a (cancel one-time), -aa (cancel all)
         """);
 
-    private sealed record Services(IScheduleRepository Repository, ScheduleCoordinator Coordinator);
+    private sealed record Services(
+        IScheduleRepository Repository,
+        ScheduleCoordinator Coordinator,
+        TaskInvocationCoordinator TaskInvocationCoordinator);
 }

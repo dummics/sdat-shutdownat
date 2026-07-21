@@ -90,6 +90,7 @@ public sealed class TaskInvocationCoordinatorTests
                 Ledger,
                 Executor,
                 Notifier,
+                new NoOpFinalizer(),
                 new NoOpLock(),
                 new FixedTimeProvider(Now));
         }
@@ -197,6 +198,12 @@ public sealed class TaskInvocationCoordinatorTests
         {
             public ValueTask DisposeAsync() => ValueTask.CompletedTask;
         }
+    }
+
+    private sealed class NoOpFinalizer : IOneTimeExecutionFinalizer
+    {
+        public Task<string?> FinalizeAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult<string?>(null);
     }
 
     private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider

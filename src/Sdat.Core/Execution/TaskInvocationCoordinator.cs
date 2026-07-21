@@ -10,6 +10,7 @@ public sealed class TaskInvocationCoordinator(
     ITaskExecutionLedger ledger,
     IPowerActionExecutor powerActionExecutor,
     ITaskReminderNotifier reminderNotifier,
+    IOneTimeExecutionFinalizer oneTimeExecutionFinalizer,
     IOperationLock operationLock,
     TimeProvider? timeProvider = null,
     TimeSpan? earlyTolerance = null,
@@ -68,9 +69,38 @@ public sealed class TaskInvocationCoordinator(
             return new TaskInvocationResult(TaskInvocationOutcome.IgnoredDuplicate, "Occurrence was already handled.", occurrenceId);
         }
 
+        var consumesOneTime = schedule.Kind == ScheduleKind.OneTime &&
+                              invocation.Role == SchedulerTaskRole.Execute;
+        string? finalizationWarning = null;
+        if (consumesOneTime)
+        {
+            try
+            {
+                finalizationWarning = await oneTimeExecutionFinalizer.FinalizeAsync(cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (Exception exception) when (exception is not OperationCanceledException)
+            {
+                if (!isLate)
+                {
+                    await ledger
+                        .FailAsync(occurrenceId, exception.GetType().Name, exception.Message, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+
+                return new TaskInvocationResult(
+                    TaskInvocationOutcome.Failed,
+                    $"One-time state could not be finalized safely: {exception.Message}",
+                    occurrenceId);
+            }
+        }
+
         if (isLate)
         {
-            return new TaskInvocationResult(TaskInvocationOutcome.SkippedLate, "Occurrence exceeded the allowed lateness.", occurrenceId);
+            return new TaskInvocationResult(
+                TaskInvocationOutcome.SkippedLate,
+                AppendWarning("Occurrence exceeded the allowed lateness.", finalizationWarning),
+                occurrenceId);
         }
 
         try
@@ -86,7 +116,10 @@ public sealed class TaskInvocationCoordinator(
 
             await powerActionExecutor.ExecuteAsync(schedule.Action, cancellationToken).ConfigureAwait(false);
             await ledger.CompleteAsync(occurrenceId, cancellationToken).ConfigureAwait(false);
-            return new TaskInvocationResult(TaskInvocationOutcome.Executed, "Power action accepted by Windows.", occurrenceId);
+            return new TaskInvocationResult(
+                TaskInvocationOutcome.Executed,
+                AppendWarning("Power action accepted by Windows.", finalizationWarning),
+                occurrenceId);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
@@ -96,6 +129,9 @@ public sealed class TaskInvocationCoordinator(
             return new TaskInvocationResult(TaskInvocationOutcome.Failed, exception.Message, occurrenceId);
         }
     }
+
+    private static string AppendWarning(string detail, string? warning) =>
+        warning is null ? detail : $"{detail} Warning: {warning}";
 
     private static DateTimeOffset ResolveDueAt(
         ScheduleSnapshot schedule,
