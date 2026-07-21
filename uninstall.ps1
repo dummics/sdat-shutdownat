@@ -53,6 +53,7 @@ function Start-SdatDeferredRemoval {
 }
 
 $installFull = [IO.Path]::GetFullPath($InstallDir)
+$dataRoot = Join-Path $env:LOCALAPPDATA "SDAT"
 if (-not $SkipTaskCleanup) {
     & "$env:SystemRoot\System32\shutdown.exe" /a 2>$null | Out-Null
     Get-ScheduledTask -ErrorAction SilentlyContinue |
@@ -60,12 +61,22 @@ if (-not $SkipTaskCleanup) {
         Unregister-ScheduledTask -Confirm:$false -ErrorAction SilentlyContinue
 }
 
+try {
+    $runKey = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run"
+    $startupValue = Get-ItemPropertyValue -LiteralPath $runKey -Name "SDAT" -ErrorAction SilentlyContinue
+    if ($startupValue -and $startupValue -like "*$installFull*") {
+        Remove-ItemProperty -LiteralPath $runKey -Name "SDAT" -ErrorAction SilentlyContinue
+    }
+} catch { }
+
 $backupPath = $null
-if ($KeepData -and (Test-Path -LiteralPath (Join-Path $installFull "data"))) {
-    $backupRoot = Join-Path $env:LOCALAPPDATA "SDAT\uninstall-backups"
+if ($KeepData -and (Test-Path -LiteralPath $dataRoot)) {
+    $backupRoot = Join-Path $env:LOCALAPPDATA "SDAT-uninstall-backups"
     New-Item -ItemType Directory -Path $backupRoot -Force | Out-Null
     $backupPath = Join-Path $backupRoot (Get-Date -Format "yyyyMMdd-HHmmss")
-    Move-Item -LiteralPath (Join-Path $installFull "data") -Destination $backupPath -Force
+    Move-Item -LiteralPath $dataRoot -Destination $backupPath -Force
+} elseif (Test-Path -LiteralPath $dataRoot) {
+    Remove-Item -LiteralPath $dataRoot -Recurse -Force
 }
 
 if (-not $NoPath) { Remove-SdatFromUserPath -Path $installFull }

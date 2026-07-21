@@ -20,7 +20,7 @@ $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 
 $repository = "dummics/sdat-shutdownat"
-$requiredFiles = @("VERSION", "shutdownat.ps1", "sdat.bat", "ssat.bat", "sdatui.bat", "uninstall.ps1", "lib", "data\config.template.json", "modules\PwshSpectreConsole\2.6.3\PwshSpectreConsole.psd1")
+$requiredFiles = @("VERSION", "SDAT.exe", "sdat-cli.exe", "sdat.bat", "ssat.bat", "sdatui.bat", "uninstall.ps1", ".sdat-package-manifest.json")
 $tempRoot = $null
 
 function Write-InstallStep {
@@ -132,12 +132,35 @@ try {
     New-Item -ItemType Directory -Path $installFull -Force | Out-Null
 
     if ($sourceFull.TrimEnd('\') -ine $installFull.TrimEnd('\')) {
-        # Replace shipped files as a unit so updates cannot leave removed code or modules behind.
-        # Runtime state lives under data\ and is intentionally preserved.
+        # Preserve the last v1 JSON state for the native first-run migrator and rollback.
+        $legacyState = Join-Path $installFull "data\state.json"
+        $legacyScript = Join-Path $installFull "shutdownat.ps1"
+        if ((Test-Path -LiteralPath $legacyScript) -and (Test-Path -LiteralPath $legacyState)) {
+            $legacyBackup = Join-Path $env:LOCALAPPDATA "SDAT\legacy-v1"
+            if (-not (Test-Path -LiteralPath $legacyBackup)) {
+                New-Item -ItemType Directory -Path $legacyBackup -Force | Out-Null
+                Copy-Item -LiteralPath (Join-Path $installFull "data") -Destination $legacyBackup -Recurse -Force
+                Copy-Item -LiteralPath $legacyScript -Destination $legacyBackup -Force
+                Write-InstallStep "Preserved v1 state for native migration"
+            }
+        }
+
+        # Remove files owned by the previous native package, validating every target stays in the install root.
+        $previousManifestPath = Join-Path $installFull ".sdat-package-manifest.json"
+        if (Test-Path -LiteralPath $previousManifestPath) {
+            $previousManifest = Get-Content -LiteralPath $previousManifestPath -Raw | ConvertFrom-Json -ErrorAction Stop
+            foreach ($relative in @($previousManifest.Files)) {
+                $target = [IO.Path]::GetFullPath((Join-Path $installFull ([string]$relative)))
+                if (-not $target.StartsWith(($installFull.TrimEnd('\') + '\'), [StringComparison]::OrdinalIgnoreCase)) {
+                    throw "Package manifest contains a path outside the install directory: $relative"
+                }
+                if (Test-Path -LiteralPath $target) { Remove-Item -LiteralPath $target -Force }
+            }
+        }
+
+        # First native update also retires known v1 runtime files while keeping the rollback copy above.
         $shippedEntries = @(
-            "VERSION", "LICENSE", "README.md", "CHANGELOG.md", "ROADMAP.md", "SECURITY.md",
-            "THIRD-PARTY-NOTICES.md", "install.ps1", "uninstall.ps1", "shutdownat.ps1",
-            "sdat.bat", "ssat.bat", "sdatui.bat", "lib", "modules"
+            "shutdownat.ps1", "lib", "modules", "data"
         )
         foreach ($entry in $shippedEntries) {
             $installedEntry = Join-Path $installFull $entry

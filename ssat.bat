@@ -20,11 +20,5 @@ if "%SDAT_CANCEL_FAST%"=="1" (
     )
 )
 
-set "PS_EXE=powershell.exe"
-where pwsh.exe >nul 2>nul && set "PS_EXE=pwsh.exe"
-
-:: Let shutdownat.ps1 distinguish a transient Win+R console from a real terminal.
-set "SDAT_WRAPPER_PROCESS=1"
-
-"%PS_EXE%" -NoProfile -ExecutionPolicy Bypass -File "%SDAT_DIR%shutdownat.ps1" -Suspend %*
+"%SDAT_DIR%sdat-cli.exe" --suspend %*
 exit /b %ERRORLEVEL%

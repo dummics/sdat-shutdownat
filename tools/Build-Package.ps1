@@ -1,7 +1,6 @@
 [CmdletBinding()]
 param(
-    [string]$OutputDir,
-    [string]$SpectreSourcePath
+    [string]$OutputDir
 )
 
 $ErrorActionPreference = "Stop"
@@ -17,20 +16,27 @@ $packageRoot = Join-Path $tempRoot "SDAT"
 
 try {
     New-Item -ItemType Directory -Path $packageRoot -Force | Out-Null
-    $files = @("VERSION", "LICENSE", "README.md", "CHANGELOG.md", "ROADMAP.md", "SECURITY.md", "THIRD-PARTY-NOTICES.md", "install.ps1", "uninstall.ps1", "shutdownat.ps1", "sdat.bat", "ssat.bat", "sdatui.bat")
-    foreach ($file in $files) { Copy-Item -LiteralPath (Join-Path $root $file) -Destination $packageRoot -Force }
-    Copy-Item -LiteralPath (Join-Path $root "lib") -Destination $packageRoot -Recurse -Force
-    New-Item -ItemType Directory -Path (Join-Path $packageRoot "data") -Force | Out-Null
-    Copy-Item -LiteralPath (Join-Path $root "data\config.template.json") -Destination (Join-Path $packageRoot "data") -Force
+    $appPublish = Join-Path $tempRoot "publish-app"
+    $cliPublish = Join-Path $tempRoot "publish-cli"
+    & dotnet publish (Join-Path $root "src\Sdat.App\Sdat.App.csproj") -c Release -r win-x64 --self-contained true -o $appPublish
+    if ($LASTEXITCODE -ne 0) { throw "SDAT app publish failed with exit code $LASTEXITCODE." }
+    & dotnet publish (Join-Path $root "src\Sdat.Cli\Sdat.Cli.csproj") -c Release -r win-x64 --self-contained true -o $cliPublish
+    if ($LASTEXITCODE -ne 0) { throw "SDAT CLI publish failed with exit code $LASTEXITCODE." }
 
-    $moduleDestination = Join-Path $packageRoot "modules"
-    if (-not [string]::IsNullOrWhiteSpace($SpectreSourcePath)) {
-        $source = (Resolve-Path -LiteralPath $SpectreSourcePath).Path
-        New-Item -ItemType Directory -Path (Join-Path $moduleDestination "PwshSpectreConsole") -Force | Out-Null
-        Copy-Item -LiteralPath $source -Destination (Join-Path $moduleDestination "PwshSpectreConsole\2.6.3") -Recurse -Force
-    } else {
-        Save-Module -Name PwshSpectreConsole -RequiredVersion 2.6.3 -Repository PSGallery -Path $moduleDestination -Force
-    }
+    Copy-Item -Path (Join-Path $appPublish '*') -Destination $packageRoot -Recurse -Force
+    Copy-Item -Path (Join-Path $cliPublish '*') -Destination $packageRoot -Recurse -Force
+
+    $files = @("VERSION", "LICENSE", "README.md", "CHANGELOG.md", "ROADMAP.md", "SECURITY.md", "THIRD-PARTY-NOTICES.md", "install.ps1", "uninstall.ps1", "sdat.bat", "ssat.bat", "sdatui.bat")
+    foreach ($file in $files) { Copy-Item -LiteralPath (Join-Path $root $file) -Destination $packageRoot -Force }
+
+    $manifestFiles = Get-ChildItem -LiteralPath $packageRoot -File -Recurse |
+        ForEach-Object { [IO.Path]::GetRelativePath($packageRoot, $_.FullName) } |
+        Sort-Object
+    [pscustomobject]@{
+        SchemaVersion = 1
+        Version = $version
+        Files = @($manifestFiles)
+    } | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $packageRoot ".sdat-package-manifest.json") -Encoding UTF8
 
     New-Item -ItemType Directory -Path $outputFull -Force | Out-Null
     $zipName = "sdat-v$version-windows.zip"
