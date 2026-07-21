@@ -17,17 +17,19 @@
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
             <ComboBox x:Name="ActionPicker" SelectedIndex="0" VerticalAlignment="Center">
-                <ComboBoxItem Content="Shut down" Tag="Shutdown" />
-                <ComboBoxItem Content="Suspend" Tag="Suspend" />
-                <ComboBoxItem Content="Restart" Tag="Restart" />
+                <ComboBoxItem x:Uid="ShutdownAction" Content="Shut down" Tag="Shutdown" />
+                <ComboBoxItem x:Uid="SuspendAction" Content="Suspend" Tag="Suspend" />
+                <ComboBoxItem x:Uid="RestartAction" Content="Restart" Tag="Restart" />
             </ComboBox>
             <TextBox
                 Grid.Column="1"
                 x:Name="TimeInput"
+                x:Uid="TimeInput"
                 PlaceholderText="36m or 23:41"
                 VerticalAlignment="Center" />
             <Button
                 Grid.Column="2"
+                x:Uid="ScheduleButton"
                 Content="Schedule"
                 Style="{ThemeResource AccentButtonStyle}"
                 Click="OnSchedule"

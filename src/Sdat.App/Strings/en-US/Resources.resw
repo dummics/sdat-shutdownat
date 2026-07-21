@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType><xsd:sequence><xsd:element name="value" type="xsd:string" minOccurs="0" /></xsd:sequence><xsd:attribute name="name" use="required" type="xsd:string" /><xsd:attribute name="type" type="xsd:string" /><xsd:attribute name="mimetype" type="xsd:string" /><xsd:attribute ref="xml:space" /></xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly"><xsd:complexType><xsd:attribute name="alias" type="xsd:string" /><xsd:attribute name="name" type="xsd:string" /></xsd:complexType></xsd:element>
+          <xsd:element name="data"><xsd:complexType><xsd:sequence><xsd:element name="value" type="xsd:string" minOccurs="0" /><xsd:element name="comment" type="xsd:string" minOccurs="0" /></xsd:sequence><xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" /><xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" /><xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" /><xsd:attribute ref="xml:space" /></xsd:complexType></xsd:element>
+          <xsd:element name="resheader"><xsd:complexType><xsd:sequence><xsd:element name="value" type="xsd:string" minOccurs="0" /></xsd:sequence><xsd:attribute name="name" type="xsd:string" use="required" /></xsd:complexType></xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <data name="NavOverview.Content" xml:space="preserve"><value>Overview</value></data>
+  <data name="NavSchedule.Content" xml:space="preserve"><value>Schedule</value></data>
+  <data name="NavNotifications.Content" xml:space="preserve"><value>Notifications</value></data>
+  <data name="NavHotkey.Content" xml:space="preserve"><value>Hotkey &amp; Tray</value></data>
+  <data name="NavAdvanced.Content" xml:space="preserve"><value>Advanced</value></data>
+  <data name="NavAbout.Content" xml:space="preserve"><value>About</value></data>
+  <data name="OverviewTitle.Text" xml:space="preserve"><value>Overview</value></data>
+  <data name="OverviewSubtitle.Text" xml:space="preserve"><value>Your active power schedules at a glance.</value></data>
+  <data name="OneTimeTitle.Text" xml:space="preserve"><value>One-time</value></data>
+  <data name="LoadingStatus.Text" xml:space="preserve"><value>Loading…</value></data>
+  <data name="CancelButton.Content" xml:space="preserve"><value>Cancel</value></data>
+  <data name="DailyTitle.Text" xml:space="preserve"><value>Daily</value></data>
+  <data name="NewScheduleButton.Content" xml:space="preserve"><value>New schedule</value></data>
+  <data name="ScheduleTitle.Text" xml:space="preserve"><value>Schedule</value></data>
+  <data name="ScheduleSubtitle.Text" xml:space="preserve"><value>Use a duration such as 36m, or a clock time such as 23:41.</value></data>
+  <data name="PowerActionLabel.Text" xml:space="preserve"><value>Power action</value></data>
+  <data name="ShutdownAction.Content" xml:space="preserve"><value>Shut down</value></data>
+  <data name="SuspendAction.Content" xml:space="preserve"><value>Suspend</value></data>
+  <data name="RestartAction.Content" xml:space="preserve"><value>Restart</value></data>
+  <data name="RepeatsLabel.Text" xml:space="preserve"><value>Repeats</value></data>
+  <data name="OnceKind.Content" xml:space="preserve"><value>Once</value></data>
+  <data name="DailyKind.Content" xml:space="preserve"><value>Daily</value></data>
+  <data name="WhenLabel.Text" xml:space="preserve"><value>When</value></data>
+  <data name="TimeInput.PlaceholderText" xml:space="preserve"><value>36m or 23:41</value></data>
+  <data name="KeepDailyToggle.Header" xml:space="preserve"><value>Keep the daily schedule when times overlap</value></data>
+  <data name="ScheduleButton.Content" xml:space="preserve"><value>Schedule</value></data>
+  <data name="NotificationsTitle.Text" xml:space="preserve"><value>Notifications</value></data>
+  <data name="NotificationsSubtitle.Text" xml:space="preserve"><value>Choose when SDAT warns you before a power action.</value></data>
+  <data name="ReminderMinutesLabel.Text" xml:space="preserve"><value>Reminder minutes</value></data>
+  <data name="ReminderOffsetsInput.PlaceholderText" xml:space="preserve"><value>2 or 10, 2</value></data>
+  <data name="ReminderMinutesHelp.Text" xml:space="preserve"><value>Up to five values, from 1 minute to 24 hours.</value></data>
+  <data name="DailyOverlapLabel.Text" xml:space="preserve"><value>Daily overlap window</value></data>
+  <data name="DailyOverlapHelp.Text" xml:space="preserve"><value>When a one-time action is this many minutes from the next daily action, SDAT skips that daily occurrence. Set 0 to disable.</value></data>
+  <data name="CriticalOverlayToggle.Header" xml:space="preserve"><value>Show the critical bottom-center overlay</value></data>
+  <data name="SaveSettingsButton.Content" xml:space="preserve"><value>Save settings</value></data>
+  <data name="HotkeyTitle.Text" xml:space="preserve"><value>Hotkey &amp; Tray</value></data>
+  <data name="HotkeySubtitle.Text" xml:space="preserve"><value>Open the quick scheduler without leaving what you are doing.</value></data>
+  <data name="PaletteHotkeyLabel.Text" xml:space="preserve"><value>Quick scheduler hotkey</value></data>
+  <data name="PaletteHotkeyInput.PlaceholderText" xml:space="preserve"><value>Ctrl+Alt+S</value></data>
+  <data name="PaletteHotkeyHelp.Text" xml:space="preserve"><value>Use at least one modifier plus a letter, number, or F1-F24.</value></data>
+  <data name="StartupToggle.Header" xml:space="preserve"><value>Start the companion when I sign in</value></data>
+  <data name="TrayHelp.Text" xml:space="preserve"><value>The tray icon keeps the hotkey available and provides quick access to SDAT.</value></data>
+  <data name="AdvancedTitle.Text" xml:space="preserve"><value>Advanced</value></data>
+  <data name="AdvancedDescription.Text" xml:space="preserve"><value>SQLite is authoritative. Windows Task Scheduler is repaired from this local state.</value></data>
+  <data name="ReconcileButton.Content" xml:space="preserve"><value>Reconcile tasks</value></data>
+  <data name="RefreshButton.Content" xml:space="preserve"><value>Refresh status</value></data>
+  <data name="AboutDescription.Text" xml:space="preserve"><value>Local, open-source Windows power scheduling without accounts or telemetry.</value></data>
+  <data name="AboutCliDescription.Text" xml:space="preserve"><value>CLI and terminal UI remain first-class clients of the same C# core.</value></data>
+  <data name="DismissButton.Content" xml:space="preserve"><value>Dismiss</value></data>
+  <data name="SnoozeButton.Content" xml:space="preserve"><value>Snooze 10 min</value></data>
+  <data name="DatabasePath" xml:space="preserve"><value>Database: {0}</value></data>
+  <data name="SchedulerRepairWarning" xml:space="preserve"><value>The database is healthy, but some Windows tasks could not be repaired.</value></data>
+  <data name="ScheduleSaved" xml:space="preserve"><value>Schedule saved.</value></data>
+  <data name="ScheduleSavedWarnings" xml:space="preserve"><value>Schedule saved with recovery warnings.</value></data>
+  <data name="ScheduleCancelled" xml:space="preserve"><value>Schedule cancelled.</value></data>
+  <data name="NoScheduleInSlot" xml:space="preserve"><value>There is no active schedule in that slot.</value></data>
+  <data name="SettingsSaved" xml:space="preserve"><value>Settings saved.</value></data>
+  <data name="ProjectionHealthy" xml:space="preserve"><value>Projection healthy. {0} repaired, {1} removed.</value></data>
+  <data name="ReconciliationWarnings" xml:space="preserve"><value>Reconciliation completed with warnings.</value></data>
+  <data name="NoOneTimeSchedule" xml:space="preserve"><value>No one-time action scheduled.</value></data>
+  <data name="OneTimeScheduleStatus" xml:space="preserve"><value>{0} at {1:ddd HH:mm}</value></data>
+  <data name="NoDailySchedule" xml:space="preserve"><value>No daily action scheduled.</value></data>
+  <data name="DailyScheduleStatus" xml:space="preserve"><value>{0} every day at {1:HH:mm}</value></data>
+  <data name="NotificationCancelled" xml:space="preserve"><value>Schedule cancelled from the notification.</value></data>
+  <data name="NotificationUnavailable" xml:space="preserve"><value>Windows notifications are unavailable. Critical overlays remain enabled. {0}</value></data>
+  <data name="HotkeyUnavailable" xml:space="preserve"><value>The tray companion is running, but the palette hotkey is unavailable. {0}</value></data>
+  <data name="ActionShutdown" xml:space="preserve"><value>Shut down</value></data>
+  <data name="ActionSuspend" xml:space="preserve"><value>Suspend</value></data>
+  <data name="ActionRestart" xml:space="preserve"><value>Restart</value></data>
+  <data name="QuickPaletteTitle" xml:space="preserve"><value>Quick schedule — SDAT</value></data>
+  <data name="PaletteRecoveryWarning" xml:space="preserve"><value>Saved with a recovery warning. Open SDAT for details.</value></data>
+  <data name="ReminderTitle" xml:space="preserve"><value>SDAT reminder</value></data>
+  <data name="RestartScheduledTitle" xml:space="preserve"><value>This PC is scheduled to restart</value></data>
+  <data name="ShutdownScheduledTitle" xml:space="preserve"><value>This PC is scheduled to shut down</value></data>
+  <data name="DailyActionAt" xml:space="preserve"><value>Daily action at {0:HH:mm}.</value></data>
+  <data name="SecondsRemaining" xml:space="preserve"><value>{0} seconds remaining. Save your work now.</value></data>
+  <data name="CountdownStarting" xml:space="preserve"><value>The Windows countdown is about to begin.</value></data>
+  <data name="TrayTooltip" xml:space="preserve"><value>SDAT power scheduler</value></data>
+  <data name="TrayQuickSchedule" xml:space="preserve"><value>Quick schedule</value></data>
+  <data name="TrayOpen" xml:space="preserve"><value>Open SDAT</value></data>
+  <data name="TrayExit" xml:space="preserve"><value>Exit</value></data>
+</root>

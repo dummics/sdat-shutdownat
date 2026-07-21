@@ -10,22 +10,22 @@
             PaneDisplayMode="LeftCompact"
             SelectionChanged="OnNavigationChanged">
             <NavigationView.MenuItems>
-                <NavigationViewItem Content="Overview" Tag="overview">
+                <NavigationViewItem x:Uid="NavOverview" Content="Overview" Tag="overview">
                     <NavigationViewItem.Icon><SymbolIcon Symbol="Home" /></NavigationViewItem.Icon>
                 </NavigationViewItem>
-                <NavigationViewItem Content="Schedule" Tag="schedule">
+                <NavigationViewItem x:Uid="NavSchedule" Content="Schedule" Tag="schedule">
                     <NavigationViewItem.Icon><SymbolIcon Symbol="Clock" /></NavigationViewItem.Icon>
                 </NavigationViewItem>
-                <NavigationViewItem Content="Notifications" Tag="notifications">
+                <NavigationViewItem x:Uid="NavNotifications" Content="Notifications" Tag="notifications">
                     <NavigationViewItem.Icon><SymbolIcon Symbol="Message" /></NavigationViewItem.Icon>
                 </NavigationViewItem>
-                <NavigationViewItem Content="Hotkey &amp; Tray" Tag="hotkey">
+                <NavigationViewItem x:Uid="NavHotkey" Content="Hotkey &amp; Tray" Tag="hotkey">
                     <NavigationViewItem.Icon><SymbolIcon Symbol="Keyboard" /></NavigationViewItem.Icon>
                 </NavigationViewItem>
-                <NavigationViewItem Content="Advanced" Tag="advanced">
+                <NavigationViewItem x:Uid="NavAdvanced" Content="Advanced" Tag="advanced">
                     <NavigationViewItem.Icon><SymbolIcon Symbol="Setting" /></NavigationViewItem.Icon>
                 </NavigationViewItem>
-                <NavigationViewItem Content="About" Tag="about">
+                <NavigationViewItem x:Uid="NavAbout" Content="About" Tag="about">
                     <NavigationViewItem.Icon><SymbolIcon Symbol="Help" /></NavigationViewItem.Icon>
                 </NavigationViewItem>
             </NavigationView.MenuItems>
@@ -33,108 +33,108 @@
                 <ScrollViewer x:Name="OverviewView">
                     <StackPanel Padding="36,28" Spacing="20" MaxWidth="980" HorizontalAlignment="Left">
                         <StackPanel Spacing="4">
-                            <TextBlock Text="Overview" Style="{ThemeResource TitleTextBlockStyle}" />
-                            <TextBlock Text="Your active power schedules at a glance." Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            <TextBlock x:Uid="OverviewTitle" Text="Overview" Style="{ThemeResource TitleTextBlockStyle}" />
+                            <TextBlock x:Uid="OverviewSubtitle" Text="Your active power schedules at a glance." Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                         </StackPanel>
                         <Grid ColumnSpacing="16">
                             <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition /></Grid.ColumnDefinitions>
                             <Border Grid.Column="0" Padding="20" CornerRadius="8" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
                                 <StackPanel Spacing="8">
-                                    <TextBlock Text="One-time" Style="{ThemeResource SubtitleTextBlockStyle}" />
-                                    <TextBlock x:Name="OneTimeStatusText" Text="Loading…" TextWrapping="Wrap" />
-                                    <Button Content="Cancel" Click="OnCancelOneTime" HorizontalAlignment="Left" />
+                                    <TextBlock x:Uid="OneTimeTitle" Text="One-time" Style="{ThemeResource SubtitleTextBlockStyle}" />
+                                    <TextBlock x:Uid="LoadingStatus" x:Name="OneTimeStatusText" Text="Loading…" TextWrapping="Wrap" />
+                                    <Button x:Uid="CancelButton" Content="Cancel" Click="OnCancelOneTime" HorizontalAlignment="Left" />
                                 </StackPanel>
                             </Border>
                             <Border Grid.Column="1" Padding="20" CornerRadius="8" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
                                 <StackPanel Spacing="8">
-                                    <TextBlock Text="Daily" Style="{ThemeResource SubtitleTextBlockStyle}" />
-                                    <TextBlock x:Name="DailyStatusText" Text="Loading…" TextWrapping="Wrap" />
-                                    <Button Content="Cancel" Click="OnCancelDaily" HorizontalAlignment="Left" />
+                                    <TextBlock x:Uid="DailyTitle" Text="Daily" Style="{ThemeResource SubtitleTextBlockStyle}" />
+                                    <TextBlock x:Uid="LoadingStatus" x:Name="DailyStatusText" Text="Loading…" TextWrapping="Wrap" />
+                                    <Button x:Uid="CancelButton" Content="Cancel" Click="OnCancelDaily" HorizontalAlignment="Left" />
                                 </StackPanel>
                             </Border>
                         </Grid>
-                        <Button Content="New schedule" Style="{ThemeResource AccentButtonStyle}" Click="OnOpenSchedule" HorizontalAlignment="Left" />
+                        <Button x:Uid="NewScheduleButton" Content="New schedule" Style="{ThemeResource AccentButtonStyle}" Click="OnOpenSchedule" HorizontalAlignment="Left" />
                     </StackPanel>
                 </ScrollViewer>
 
                 <ScrollViewer x:Name="ScheduleView" Visibility="Collapsed">
                     <StackPanel Padding="36,28" Spacing="20" MaxWidth="720" HorizontalAlignment="Left">
                         <StackPanel Spacing="4">
-                            <TextBlock Text="Schedule" Style="{ThemeResource TitleTextBlockStyle}" />
-                            <TextBlock Text="Use a duration such as 36m, or a clock time such as 23:41." Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            <TextBlock x:Uid="ScheduleTitle" Text="Schedule" Style="{ThemeResource TitleTextBlockStyle}" />
+                            <TextBlock x:Uid="ScheduleSubtitle" Text="Use a duration such as 36m, or a clock time such as 23:41." Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                         </StackPanel>
                         <Grid ColumnSpacing="12">
                             <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition /></Grid.ColumnDefinitions>
                             <StackPanel Grid.Column="0" Spacing="6">
-                                <TextBlock Text="Power action" />
+                                <TextBlock x:Uid="PowerActionLabel" Text="Power action" />
                                 <ComboBox x:Name="ActionPicker" SelectedIndex="0" HorizontalAlignment="Stretch">
-                                    <ComboBoxItem Content="Shut down" Tag="Shutdown" />
-                                    <ComboBoxItem Content="Suspend" Tag="Suspend" />
-                                    <ComboBoxItem Content="Restart" Tag="Restart" />
+                                    <ComboBoxItem x:Uid="ShutdownAction" Content="Shut down" Tag="Shutdown" />
+                                    <ComboBoxItem x:Uid="SuspendAction" Content="Suspend" Tag="Suspend" />
+                                    <ComboBoxItem x:Uid="RestartAction" Content="Restart" Tag="Restart" />
                                 </ComboBox>
                             </StackPanel>
                             <StackPanel Grid.Column="1" Spacing="6">
-                                <TextBlock Text="Repeats" />
+                                <TextBlock x:Uid="RepeatsLabel" Text="Repeats" />
                                 <ComboBox x:Name="KindPicker" SelectedIndex="0" HorizontalAlignment="Stretch" SelectionChanged="OnKindChanged">
-                                    <ComboBoxItem Content="Once" Tag="OneTime" />
-                                    <ComboBoxItem Content="Daily" Tag="Daily" />
+                                    <ComboBoxItem x:Uid="OnceKind" Content="Once" Tag="OneTime" />
+                                    <ComboBoxItem x:Uid="DailyKind" Content="Daily" Tag="Daily" />
                                 </ComboBox>
                             </StackPanel>
                         </Grid>
                         <StackPanel Spacing="6">
-                            <TextBlock Text="When" />
-                            <TextBox x:Name="TimeInput" PlaceholderText="36m or 23:41" />
+                            <TextBlock x:Uid="WhenLabel" Text="When" />
+                            <TextBox x:Uid="TimeInput" x:Name="TimeInput" PlaceholderText="36m or 23:41" />
                         </StackPanel>
-                        <ToggleSwitch x:Name="KeepDailyToggle" Header="Keep the daily schedule when times overlap" />
-                        <Button Content="Schedule" Style="{ThemeResource AccentButtonStyle}" Click="OnSchedule" HorizontalAlignment="Left" />
+                        <ToggleSwitch x:Uid="KeepDailyToggle" x:Name="KeepDailyToggle" Header="Keep the daily schedule when times overlap" />
+                        <Button x:Uid="ScheduleButton" Content="Schedule" Style="{ThemeResource AccentButtonStyle}" Click="OnSchedule" HorizontalAlignment="Left" />
                     </StackPanel>
                 </ScrollViewer>
 
                 <ScrollViewer x:Name="NotificationsView" Visibility="Collapsed">
                     <StackPanel Padding="36,28" Spacing="22" MaxWidth="720" HorizontalAlignment="Left">
                         <StackPanel Spacing="4">
-                            <TextBlock Text="Notifications" Style="{ThemeResource TitleTextBlockStyle}" />
-                            <TextBlock Text="Choose when SDAT warns you before a power action." Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            <TextBlock x:Uid="NotificationsTitle" Text="Notifications" Style="{ThemeResource TitleTextBlockStyle}" />
+                            <TextBlock x:Uid="NotificationsSubtitle" Text="Choose when SDAT warns you before a power action." Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                         </StackPanel>
                         <StackPanel Spacing="6">
-                            <TextBlock Text="Reminder minutes" />
-                            <TextBox x:Name="ReminderOffsetsInput" PlaceholderText="2 or 10, 2" />
-                            <TextBlock Text="Up to five values, from 1 minute to 24 hours." Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            <TextBlock x:Uid="ReminderMinutesLabel" Text="Reminder minutes" />
+                            <TextBox x:Uid="ReminderOffsetsInput" x:Name="ReminderOffsetsInput" PlaceholderText="2 or 10, 2" />
+                            <TextBlock x:Uid="ReminderMinutesHelp" Text="Up to five values, from 1 minute to 24 hours." Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                         </StackPanel>
                         <StackPanel Spacing="6">
-                            <TextBlock Text="Daily overlap window" />
+                            <TextBlock x:Uid="DailyOverlapLabel" Text="Daily overlap window" />
                             <NumberBox x:Name="DailyOverlapInput" Minimum="0" Maximum="1440" SpinButtonPlacementMode="Compact" />
-                            <TextBlock Text="When a one-time action is this many minutes from the next daily action, SDAT skips that daily occurrence. Set 0 to disable." TextWrapping="Wrap" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            <TextBlock x:Uid="DailyOverlapHelp" Text="When a one-time action is this many minutes from the next daily action, SDAT skips that daily occurrence. Set 0 to disable." TextWrapping="Wrap" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                         </StackPanel>
-                        <ToggleSwitch x:Name="CriticalOverlayToggle" Header="Show the critical bottom-center overlay" />
-                        <Button Content="Save settings" Style="{ThemeResource AccentButtonStyle}" Click="OnSaveSettings" HorizontalAlignment="Left" />
+                        <ToggleSwitch x:Uid="CriticalOverlayToggle" x:Name="CriticalOverlayToggle" Header="Show the critical bottom-center overlay" />
+                        <Button x:Uid="SaveSettingsButton" Content="Save settings" Style="{ThemeResource AccentButtonStyle}" Click="OnSaveSettings" HorizontalAlignment="Left" />
                     </StackPanel>
                 </ScrollViewer>
 
                 <ScrollViewer x:Name="HotkeyTrayView" Visibility="Collapsed">
                     <StackPanel Padding="36,28" Spacing="22" MaxWidth="720" HorizontalAlignment="Left">
                         <StackPanel Spacing="4">
-                            <TextBlock Text="Hotkey &amp; Tray" Style="{ThemeResource TitleTextBlockStyle}" />
-                            <TextBlock Text="Open the quick scheduler without leaving what you are doing." Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            <TextBlock x:Uid="HotkeyTitle" Text="Hotkey &amp; Tray" Style="{ThemeResource TitleTextBlockStyle}" />
+                            <TextBlock x:Uid="HotkeySubtitle" Text="Open the quick scheduler without leaving what you are doing." Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                         </StackPanel>
                         <StackPanel Spacing="6">
-                            <TextBlock Text="Quick scheduler hotkey" />
-                            <TextBox x:Name="PaletteHotkeyInput" PlaceholderText="Ctrl+Alt+S" />
-                            <TextBlock Text="Use at least one modifier plus a letter, number, or F1-F24." Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            <TextBlock x:Uid="PaletteHotkeyLabel" Text="Quick scheduler hotkey" />
+                            <TextBox x:Uid="PaletteHotkeyInput" x:Name="PaletteHotkeyInput" PlaceholderText="Ctrl+Alt+S" />
+                            <TextBlock x:Uid="PaletteHotkeyHelp" Text="Use at least one modifier plus a letter, number, or F1-F24." Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                         </StackPanel>
-                        <ToggleSwitch x:Name="StartupToggle" Header="Start the companion when I sign in" />
-                        <TextBlock Text="The tray icon keeps the hotkey available and provides quick access to SDAT." TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                        <Button Content="Save settings" Style="{ThemeResource AccentButtonStyle}" Click="OnSaveSettings" HorizontalAlignment="Left" />
+                        <ToggleSwitch x:Uid="StartupToggle" x:Name="StartupToggle" Header="Start the companion when I sign in" />
+                        <TextBlock x:Uid="TrayHelp" Text="The tray icon keeps the hotkey available and provides quick access to SDAT." TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        <Button x:Uid="SaveSettingsButton" Content="Save settings" Style="{ThemeResource AccentButtonStyle}" Click="OnSaveSettings" HorizontalAlignment="Left" />
                     </StackPanel>
                 </ScrollViewer>
 
                 <ScrollViewer x:Name="AdvancedView" Visibility="Collapsed">
                     <StackPanel Padding="36,28" Spacing="20" MaxWidth="720" HorizontalAlignment="Left">
-                        <TextBlock Text="Advanced" Style="{ThemeResource TitleTextBlockStyle}" />
-                        <TextBlock Text="SQLite is authoritative. Windows Task Scheduler is repaired from this local state." TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        <TextBlock x:Uid="AdvancedTitle" Text="Advanced" Style="{ThemeResource TitleTextBlockStyle}" />
+                        <TextBlock x:Uid="AdvancedDescription" Text="SQLite is authoritative. Windows Task Scheduler is repaired from this local state." TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                         <StackPanel Orientation="Horizontal" Spacing="12">
-                            <Button Content="Reconcile tasks" Click="OnReconcile" />
-                            <Button Content="Refresh status" Click="OnRefresh" />
+                            <Button x:Uid="ReconcileButton" Content="Reconcile tasks" Click="OnReconcile" />
+                            <Button x:Uid="RefreshButton" Content="Refresh status" Click="OnRefresh" />
                         </StackPanel>
                         <TextBlock x:Name="DatabasePathText" TextWrapping="Wrap" Style="{ThemeResource CaptionTextBlockStyle}" />
                     </StackPanel>
@@ -143,8 +143,8 @@
                 <ScrollViewer x:Name="AboutView" Visibility="Collapsed">
                     <StackPanel Padding="36,28" Spacing="12" MaxWidth="720" HorizontalAlignment="Left">
                         <TextBlock Text="SDAT" Style="{ThemeResource TitleTextBlockStyle}" />
-                        <TextBlock Text="Local, open-source Windows power scheduling without accounts or telemetry." TextWrapping="Wrap" />
-                        <TextBlock Text="CLI and terminal UI remain first-class clients of the same C# core." TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        <TextBlock x:Uid="AboutDescription" Text="Local, open-source Windows power scheduling without accounts or telemetry." TextWrapping="Wrap" />
+                        <TextBlock x:Uid="AboutCliDescription" Text="CLI and terminal UI remain first-class clients of the same C# core." TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                     </StackPanel>
                 </ScrollViewer>
 

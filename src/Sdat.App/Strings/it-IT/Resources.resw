@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType><xsd:sequence><xsd:element name="value" type="xsd:string" minOccurs="0" /></xsd:sequence><xsd:attribute name="name" use="required" type="xsd:string" /><xsd:attribute name="type" type="xsd:string" /><xsd:attribute name="mimetype" type="xsd:string" /><xsd:attribute ref="xml:space" /></xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly"><xsd:complexType><xsd:attribute name="alias" type="xsd:string" /><xsd:attribute name="name" type="xsd:string" /></xsd:complexType></xsd:element>
+          <xsd:element name="data"><xsd:complexType><xsd:sequence><xsd:element name="value" type="xsd:string" minOccurs="0" /><xsd:element name="comment" type="xsd:string" minOccurs="0" /></xsd:sequence><xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" /><xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" /><xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" /><xsd:attribute ref="xml:space" /></xsd:complexType></xsd:element>
+          <xsd:element name="resheader"><xsd:complexType><xsd:sequence><xsd:element name="value" type="xsd:string" minOccurs="0" /></xsd:sequence><xsd:attribute name="name" type="xsd:string" use="required" /></xsd:complexType></xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <data name="NavOverview.Content" xml:space="preserve"><value>Panoramica</value></data>
+  <data name="NavSchedule.Content" xml:space="preserve"><value>Pianifica</value></data>
+  <data name="NavNotifications.Content" xml:space="preserve"><value>Notifiche</value></data>
+  <data name="NavHotkey.Content" xml:space="preserve"><value>Hotkey e tray</value></data>
+  <data name="NavAdvanced.Content" xml:space="preserve"><value>Avanzate</value></data>
+  <data name="NavAbout.Content" xml:space="preserve"><value>Informazioni</value></data>
+  <data name="OverviewTitle.Text" xml:space="preserve"><value>Panoramica</value></data>
+  <data name="OverviewSubtitle.Text" xml:space="preserve"><value>Le pianificazioni energetiche attive in un colpo d'occhio.</value></data>
+  <data name="OneTimeTitle.Text" xml:space="preserve"><value>Singola</value></data>
+  <data name="LoadingStatus.Text" xml:space="preserve"><value>Caricamento…</value></data>
+  <data name="CancelButton.Content" xml:space="preserve"><value>Annulla</value></data>
+  <data name="DailyTitle.Text" xml:space="preserve"><value>Giornaliera</value></data>
+  <data name="NewScheduleButton.Content" xml:space="preserve"><value>Nuova pianificazione</value></data>
+  <data name="ScheduleTitle.Text" xml:space="preserve"><value>Pianifica</value></data>
+  <data name="ScheduleSubtitle.Text" xml:space="preserve"><value>Usa una durata come 36m oppure un orario come 23:41.</value></data>
+  <data name="PowerActionLabel.Text" xml:space="preserve"><value>Azione energetica</value></data>
+  <data name="ShutdownAction.Content" xml:space="preserve"><value>Spegni</value></data>
+  <data name="SuspendAction.Content" xml:space="preserve"><value>Sospendi</value></data>
+  <data name="RestartAction.Content" xml:space="preserve"><value>Riavvia</value></data>
+  <data name="RepeatsLabel.Text" xml:space="preserve"><value>Ripetizione</value></data>
+  <data name="OnceKind.Content" xml:space="preserve"><value>Una volta</value></data>
+  <data name="DailyKind.Content" xml:space="preserve"><value>Ogni giorno</value></data>
+  <data name="WhenLabel.Text" xml:space="preserve"><value>Quando</value></data>
+  <data name="TimeInput.PlaceholderText" xml:space="preserve"><value>36m oppure 23:41</value></data>
+  <data name="KeepDailyToggle.Header" xml:space="preserve"><value>Mantieni la pianificazione giornaliera quando gli orari si sovrappongono</value></data>
+  <data name="ScheduleButton.Content" xml:space="preserve"><value>Pianifica</value></data>
+  <data name="NotificationsTitle.Text" xml:space="preserve"><value>Notifiche</value></data>
+  <data name="NotificationsSubtitle.Text" xml:space="preserve"><value>Scegli quando SDAT deve avvisarti prima di un'azione energetica.</value></data>
+  <data name="ReminderMinutesLabel.Text" xml:space="preserve"><value>Minuti di preavviso</value></data>
+  <data name="ReminderOffsetsInput.PlaceholderText" xml:space="preserve"><value>2 oppure 10, 2</value></data>
+  <data name="ReminderMinutesHelp.Text" xml:space="preserve"><value>Fino a cinque valori, da 1 minuto a 24 ore.</value></data>
+  <data name="DailyOverlapLabel.Text" xml:space="preserve"><value>Finestra di sovrapposizione giornaliera</value></data>
+  <data name="DailyOverlapHelp.Text" xml:space="preserve"><value>Se un'azione singola dista al massimo questi minuti dalla prossima azione giornaliera, SDAT salta quell'occorrenza. Imposta 0 per disattivare.</value></data>
+  <data name="CriticalOverlayToggle.Header" xml:space="preserve"><value>Mostra l'overlay critico in basso al centro</value></data>
+  <data name="SaveSettingsButton.Content" xml:space="preserve"><value>Salva impostazioni</value></data>
+  <data name="HotkeyTitle.Text" xml:space="preserve"><value>Hotkey e tray</value></data>
+  <data name="HotkeySubtitle.Text" xml:space="preserve"><value>Apri la pianificazione rapida senza interrompere quello che stai facendo.</value></data>
+  <data name="PaletteHotkeyLabel.Text" xml:space="preserve"><value>Hotkey pianificazione rapida</value></data>
+  <data name="PaletteHotkeyInput.PlaceholderText" xml:space="preserve"><value>Ctrl+Alt+S</value></data>
+  <data name="PaletteHotkeyHelp.Text" xml:space="preserve"><value>Usa almeno un modificatore più una lettera, un numero oppure F1–F24.</value></data>
+  <data name="StartupToggle.Header" xml:space="preserve"><value>Avvia il companion all'accesso</value></data>
+  <data name="TrayHelp.Text" xml:space="preserve"><value>L'icona nella tray mantiene disponibile la hotkey e offre accesso rapido a SDAT.</value></data>
+  <data name="AdvancedTitle.Text" xml:space="preserve"><value>Avanzate</value></data>
+  <data name="AdvancedDescription.Text" xml:space="preserve"><value>SQLite è la fonte autorevole. Le attività di Utilità di pianificazione vengono riparate partendo dallo stato locale.</value></data>
+  <data name="ReconcileButton.Content" xml:space="preserve"><value>Riconcilia attività</value></data>
+  <data name="RefreshButton.Content" xml:space="preserve"><value>Aggiorna stato</value></data>
+  <data name="AboutDescription.Text" xml:space="preserve"><value>Pianificazione energetica locale e open source per Windows, senza account né telemetria.</value></data>
+  <data name="AboutCliDescription.Text" xml:space="preserve"><value>CLI e terminal UI restano client di prima classe dello stesso core C#.</value></data>
+  <data name="DismissButton.Content" xml:space="preserve"><value>Ignora</value></data>
+  <data name="SnoozeButton.Content" xml:space="preserve"><value>Rimanda di 10 min</value></data>
+  <data name="DatabasePath" xml:space="preserve"><value>Database: {0}</value></data>
+  <data name="SchedulerRepairWarning" xml:space="preserve"><value>Il database è integro, ma non è stato possibile riparare alcune attività di Windows.</value></data>
+  <data name="ScheduleSaved" xml:space="preserve"><value>Pianificazione salvata.</value></data>
+  <data name="ScheduleSavedWarnings" xml:space="preserve"><value>Pianificazione salvata con avvisi di ripristino.</value></data>
+  <data name="ScheduleCancelled" xml:space="preserve"><value>Pianificazione annullata.</value></data>
+  <data name="NoScheduleInSlot" xml:space="preserve"><value>Non esiste una pianificazione attiva in questa posizione.</value></data>
+  <data name="SettingsSaved" xml:space="preserve"><value>Impostazioni salvate.</value></data>
+  <data name="ProjectionHealthy" xml:space="preserve"><value>Proiezione integra. Riparate: {0}; rimosse: {1}.</value></data>
+  <data name="ReconciliationWarnings" xml:space="preserve"><value>Riconciliazione completata con avvisi.</value></data>
+  <data name="NoOneTimeSchedule" xml:space="preserve"><value>Nessuna azione singola pianificata.</value></data>
+  <data name="OneTimeScheduleStatus" xml:space="preserve"><value>{0} alle {1:ddd HH:mm}</value></data>
+  <data name="NoDailySchedule" xml:space="preserve"><value>Nessuna azione giornaliera pianificata.</value></data>
+  <data name="DailyScheduleStatus" xml:space="preserve"><value>{0} ogni giorno alle {1:HH:mm}</value></data>
+  <data name="NotificationCancelled" xml:space="preserve"><value>Pianificazione annullata dalla notifica.</value></data>
+  <data name="NotificationUnavailable" xml:space="preserve"><value>Le notifiche Windows non sono disponibili. Gli overlay critici restano attivi. {0}</value></data>
+  <data name="HotkeyUnavailable" xml:space="preserve"><value>Il companion nella tray è attivo, ma la hotkey della palette non è disponibile. {0}</value></data>
+  <data name="ActionShutdown" xml:space="preserve"><value>Spegni</value></data>
+  <data name="ActionSuspend" xml:space="preserve"><value>Sospendi</value></data>
+  <data name="ActionRestart" xml:space="preserve"><value>Riavvia</value></data>
+  <data name="QuickPaletteTitle" xml:space="preserve"><value>Pianificazione rapida — SDAT</value></data>
+  <data name="PaletteRecoveryWarning" xml:space="preserve"><value>Salvata con un avviso di ripristino. Apri SDAT per i dettagli.</value></data>
+  <data name="ReminderTitle" xml:space="preserve"><value>Promemoria SDAT</value></data>
+  <data name="RestartScheduledTitle" xml:space="preserve"><value>Questo PC è pianificato per il riavvio</value></data>
+  <data name="ShutdownScheduledTitle" xml:space="preserve"><value>Questo PC è pianificato per lo spegnimento</value></data>
+  <data name="DailyActionAt" xml:space="preserve"><value>Azione giornaliera alle {0:HH:mm}.</value></data>
+  <data name="SecondsRemaining" xml:space="preserve"><value>{0} secondi rimanenti. Salva subito il lavoro.</value></data>
+  <data name="CountdownStarting" xml:space="preserve"><value>Il conto alla rovescia di Windows sta per iniziare.</value></data>
+  <data name="TrayTooltip" xml:space="preserve"><value>Pianificatore energetico SDAT</value></data>
+  <data name="TrayQuickSchedule" xml:space="preserve"><value>Pianificazione rapida</value></data>
+  <data name="TrayOpen" xml:space="preserve"><value>Apri SDAT</value></data>
+  <data name="TrayExit" xml:space="preserve"><value>Esci</value></data>
+</root>

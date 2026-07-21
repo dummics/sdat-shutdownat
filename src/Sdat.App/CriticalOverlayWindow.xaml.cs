@@ -23,7 +23,7 @@ public sealed partial class CriticalOverlayWindow : Window
         _schedule = schedule;
         _countdownWindowSeconds = Math.Max(1, reminderOffsetMinutes) * 60d;
         InitializeComponent();
-        Title = "SDAT reminder";
+        Title = AppText.Get("ReminderTitle", "SDAT reminder");
         SystemBackdrop = new DesktopAcrylicBackdrop();
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(OverlayRoot);
@@ -31,8 +31,8 @@ public sealed partial class CriticalOverlayWindow : Window
             ? Visibility.Visible
             : Visibility.Collapsed;
         TitleText.Text = schedule.Action == PowerActionType.Restart
-            ? "This PC is scheduled to restart"
-            : "This PC is scheduled to shut down";
+            ? AppText.Get("RestartScheduledTitle", "This PC is scheduled to restart")
+            : AppText.Get("ShutdownScheduledTitle", "This PC is scheduled to shut down");
         ConfigureWindow();
         UpdateCountdown();
         _timer.Tick += OnTimerTick;
@@ -69,15 +69,21 @@ public sealed partial class CriticalOverlayWindow : Window
         var target = _schedule.TargetAt?.ToLocalTime();
         if (target is null)
         {
-            CountdownText.Text = $"Daily action at {_schedule.DailyAt:HH:mm}.";
+            CountdownText.Text = AppText.Format(
+                "DailyActionAt",
+                "Daily action at {0:HH:mm}.",
+                _schedule.DailyAt);
             CountdownProgress.Value = 100;
             return;
         }
 
         var remaining = target.Value - DateTimeOffset.Now;
         CountdownText.Text = remaining > TimeSpan.Zero
-            ? $"{Math.Max(1, (int)Math.Ceiling(remaining.TotalSeconds))} seconds remaining. Save your work now."
-            : "The Windows countdown is about to begin.";
+            ? AppText.Format(
+                "SecondsRemaining",
+                "{0} seconds remaining. Save your work now.",
+                Math.Max(1, (int)Math.Ceiling(remaining.TotalSeconds)))
+            : AppText.Get("CountdownStarting", "The Windows countdown is about to begin.");
         CountdownProgress.Value = Math.Clamp(
             remaining.TotalSeconds / _countdownWindowSeconds * 100d,
             0d,

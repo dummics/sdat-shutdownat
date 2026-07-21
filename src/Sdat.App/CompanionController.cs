@@ -135,7 +135,7 @@ internal sealed class CompanionController : IDisposable
                 Flags = NifMessage | NifIcon | NifTip,
                 CallbackMessage = TrayMessage,
                 Icon = LoadIcon(IntPtr.Zero, DefaultApplicationIcon),
-                Tip = "SDAT power scheduler",
+                Tip = AppText.Get("TrayTooltip", "SDAT power scheduler"),
                 Info = string.Empty,
                 InfoTitle = string.Empty,
             };
@@ -302,10 +302,10 @@ internal sealed class CompanionController : IDisposable
 
             try
             {
-                AppendMenu(menu, MfString, CommandPalette, "Quick schedule");
-                AppendMenu(menu, MfString, CommandOpen, "Open SDAT");
+                AppendMenu(menu, MfString, CommandPalette, AppText.Get("TrayQuickSchedule", "Quick schedule"));
+                AppendMenu(menu, MfString, CommandOpen, AppText.Get("TrayOpen", "Open SDAT"));
                 AppendMenu(menu, MfSeparator, 0, null);
-                AppendMenu(menu, MfString, CommandExit, "Exit");
+                AppendMenu(menu, MfString, CommandExit, AppText.Get("TrayExit", "Exit"));
                 GetCursorPos(out var cursor);
                 SetForegroundWindow(_window);
                 TrackPopupMenu(menu, TpmRightButton, cursor.X, cursor.Y, 0, _window, IntPtr.Zero);

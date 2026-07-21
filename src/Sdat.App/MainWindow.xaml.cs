@@ -38,7 +38,10 @@ public sealed partial class MainWindow : Window
         {
             _runtime ??= await SdatRuntime.CreateAsync(Environment.ProcessPath!);
             ApplySettings(_runtime.CurrentSettings);
-            DatabasePathText.Text = $"Database: {_runtime.StoreOptions.DatabasePath}";
+            DatabasePathText.Text = AppText.Format(
+                "DatabasePath",
+                "Database: {0}",
+                _runtime.StoreOptions.DatabasePath);
             await RefreshStatusAsync();
             if (_runtime.LegacyMigration.Status == LegacyMigrationStatus.Failed)
             {
@@ -48,7 +51,11 @@ public sealed partial class MainWindow : Window
             }
             if (!_runtime.StartupReconciliation.IsHealthy)
             {
-                ShowStatus("The database is healthy, but some Windows tasks could not be repaired.", InfoBarSeverity.Warning);
+                ShowStatus(
+                    AppText.Get(
+                        "SchedulerRepairWarning",
+                        "The database is healthy, but some Windows tasks could not be repaired."),
+                    InfoBarSeverity.Warning);
             }
         }
         catch (Exception exception)
@@ -102,7 +109,9 @@ public sealed partial class MainWindow : Window
             await RefreshStatusAsync();
             ShellNav.SelectedItem = ShellNav.MenuItems[0];
             ShowStatus(
-                result.IsFullyApplied ? "Schedule saved." : "Schedule saved with recovery warnings.",
+                result.IsFullyApplied
+                    ? AppText.Get("ScheduleSaved", "Schedule saved.")
+                    : AppText.Get("ScheduleSavedWarnings", "Schedule saved with recovery warnings."),
                 result.IsFullyApplied ? InfoBarSeverity.Success : InfoBarSeverity.Warning);
         }
         catch (Exception exception)
@@ -127,11 +136,13 @@ public sealed partial class MainWindow : Window
             var settings = await _runtime.Settings.LoadAsync();
             await _runtime.Coordinator.CancelAsync(kind, settings.ReminderOffsetsMinutes);
             await RefreshStatusAsync();
-            ShowStatus("Schedule cancelled.", InfoBarSeverity.Success);
+            ShowStatus(AppText.Get("ScheduleCancelled", "Schedule cancelled."), InfoBarSeverity.Success);
         }
         catch (KeyNotFoundException)
         {
-            ShowStatus("There is no active schedule in that slot.", InfoBarSeverity.Informational);
+            ShowStatus(
+                AppText.Get("NoScheduleInSlot", "There is no active schedule in that slot."),
+                InfoBarSeverity.Informational);
         }
         catch (Exception exception)
         {
@@ -186,7 +197,7 @@ public sealed partial class MainWindow : Window
 
                 throw;
             }
-            ShowStatus("Settings saved.", InfoBarSeverity.Success);
+            ShowStatus(AppText.Get("SettingsSaved", "Settings saved."), InfoBarSeverity.Success);
         }
         catch (Exception exception)
         {
@@ -205,8 +216,12 @@ public sealed partial class MainWindow : Window
         var report = await _runtime.Coordinator.ReconcileAsync(settings.ReminderOffsetsMinutes);
         ShowStatus(
             report.IsHealthy
-                ? $"Projection healthy. {report.CreatedOrUpdatedCount} repaired, {report.RemovedCount} removed."
-                : "Reconciliation completed with warnings.",
+                ? AppText.Format(
+                    "ProjectionHealthy",
+                    "Projection healthy. {0} repaired, {1} removed.",
+                    report.CreatedOrUpdatedCount,
+                    report.RemovedCount)
+                : AppText.Get("ReconciliationWarnings", "Reconciliation completed with warnings."),
             report.IsHealthy ? InfoBarSeverity.Success : InfoBarSeverity.Warning);
     }
 
@@ -223,26 +238,44 @@ public sealed partial class MainWindow : Window
         var oneTime = schedules.SingleOrDefault(schedule => schedule.Kind == ScheduleKind.OneTime);
         var daily = schedules.SingleOrDefault(schedule => schedule.Kind == ScheduleKind.Daily);
         OneTimeStatusText.Text = oneTime is null
-            ? "No one-time action scheduled."
-            : $"{oneTime.Action} at {oneTime.TargetAt!.Value.ToLocalTime():ddd HH:mm}";
+            ? AppText.Get("NoOneTimeSchedule", "No one-time action scheduled.")
+            : AppText.Format(
+                "OneTimeScheduleStatus",
+                "{0} at {1:ddd HH:mm}",
+                AppText.PowerAction(oneTime.Action),
+                oneTime.TargetAt!.Value.ToLocalTime());
         DailyStatusText.Text = daily is null
-            ? "No daily action scheduled."
-            : $"{daily.Action} every day at {daily.DailyAt:HH:mm}";
+            ? AppText.Get("NoDailySchedule", "No daily action scheduled.")
+            : AppText.Format(
+                "DailyScheduleStatus",
+                "{0} every day at {1:HH:mm}",
+                AppText.PowerAction(daily.Action),
+                daily.DailyAt);
     }
 
     internal async Task RefreshAfterExternalChangeAsync()
     {
         await RefreshStatusAsync();
-        ShowStatus("Schedule cancelled from the notification.", InfoBarSeverity.Success);
+        ShowStatus(
+            AppText.Get("NotificationCancelled", "Schedule cancelled from the notification."),
+            InfoBarSeverity.Success);
     }
 
     internal void ShowNotificationInitializationWarning(string detail) =>
         ShowStatus(
-            $"Windows notifications are unavailable. Critical overlays remain enabled. {detail}",
+            AppText.Format(
+                "NotificationUnavailable",
+                "Windows notifications are unavailable. Critical overlays remain enabled. {0}",
+                detail),
             InfoBarSeverity.Warning);
 
     internal void ShowHotkeyInitializationWarning(string detail) =>
-        ShowStatus($"The tray companion is running, but the palette hotkey is unavailable. {detail}", InfoBarSeverity.Warning);
+        ShowStatus(
+            AppText.Format(
+                "HotkeyUnavailable",
+                "The tray companion is running, but the palette hotkey is unavailable. {0}",
+                detail),
+            InfoBarSeverity.Warning);
 
     internal void EnableCompanionMode() => _companionMode = true;
 
