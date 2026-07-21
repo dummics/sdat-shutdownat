@@ -132,11 +132,40 @@
                     <StackPanel Padding="36,28" Spacing="20" MaxWidth="720" HorizontalAlignment="Left">
                         <TextBlock x:Uid="AdvancedTitle" Text="Advanced" Style="{ThemeResource TitleTextBlockStyle}" />
                         <TextBlock x:Uid="AdvancedDescription" Text="SQLite is authoritative. Windows Task Scheduler is repaired from this local state." TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        <Border Padding="16" CornerRadius="8" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
+                            <StackPanel Spacing="6">
+                                <TextBlock x:Uid="DatabaseHealthTitle" Text="Database health" Style="{ThemeResource SubtitleTextBlockStyle}" />
+                                <TextBlock x:Name="DatabaseHealthText" TextWrapping="Wrap" />
+                                <TextBlock x:Name="DatabasePathText" TextWrapping="Wrap" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            </StackPanel>
+                        </Border>
                         <StackPanel Orientation="Horizontal" Spacing="12">
                             <Button x:Uid="ReconcileButton" Content="Reconcile tasks" Click="OnReconcile" />
                             <Button x:Uid="RefreshButton" Content="Refresh status" Click="OnRefresh" />
                         </StackPanel>
-                        <TextBlock x:Name="DatabasePathText" TextWrapping="Wrap" Style="{ThemeResource CaptionTextBlockStyle}" />
+                        <StackPanel Spacing="8">
+                            <TextBlock x:Uid="RecentActivityTitle" Text="Recent activity" Style="{ThemeResource SubtitleTextBlockStyle}" />
+                            <TextBlock x:Uid="NoDiagnosticsText" x:Name="DiagnosticsEmptyText" Text="No diagnostic events recorded yet." Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            <ListView x:Name="DiagnosticsList" SelectionMode="None">
+                                <ListView.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Padding="0,8" ColumnSpacing="12">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="130" />
+                                                <ColumnDefinition Width="90" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="{Binding OccurredAt}" Style="{ThemeResource CaptionTextBlockStyle}" />
+                                            <TextBlock Grid.Column="1" Text="{Binding Severity}" Style="{ThemeResource CaptionTextBlockStyle}" />
+                                            <StackPanel Grid.Column="2" Spacing="2">
+                                                <TextBlock Text="{Binding Source}" FontWeight="SemiBold" />
+                                                <TextBlock Text="{Binding Message}" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListView.ItemTemplate>
+                            </ListView>
+                        </StackPanel>
                     </StackPanel>
                 </ScrollViewer>
 

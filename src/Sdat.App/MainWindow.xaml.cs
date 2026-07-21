@@ -2,6 +2,7 @@ using Microsoft.UI;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Sdat.Core.Diagnostics;
 using Sdat.Core.Scheduling;
 using Sdat.Core.Settings;
 using Sdat.Windows.Hosting;
@@ -214,6 +215,7 @@ public sealed partial class MainWindow : Window
 
         var settings = await _runtime.Settings.LoadAsync();
         var report = await _runtime.Coordinator.ReconcileAsync(settings.ReminderOffsetsMinutes);
+        await RefreshDiagnosticsAsync();
         ShowStatus(
             report.IsHealthy
                 ? AppText.Format(
@@ -251,6 +253,34 @@ public sealed partial class MainWindow : Window
                 "{0} every day at {1:HH:mm}",
                 AppText.PowerAction(daily.Action),
                 daily.DailyAt);
+        await RefreshDiagnosticsAsync();
+    }
+
+    private async Task RefreshDiagnosticsAsync()
+    {
+        if (_runtime is null)
+        {
+            return;
+        }
+
+        var health = await _runtime.Schedules.CheckHealthAsync();
+        DatabaseHealthText.Text = health.CanExecutePowerActions
+            ? AppText.Get("DatabaseHealthy", "Healthy — power actions are enabled.")
+            : AppText.Format(
+                "DatabaseUnhealthy",
+                "Power actions are blocked: {0}",
+                health.Detail);
+
+        var events = await _runtime.Diagnostics.ReadRecentAsync(20);
+        DiagnosticsList.ItemsSource = events
+            .Select(entry => new DiagnosticViewItem(
+                entry.OccurredAt.ToLocalTime().ToString("g", System.Globalization.CultureInfo.CurrentCulture),
+                AppText.Get($"Severity{entry.Severity}", entry.Severity.ToString()),
+                entry.Source,
+                entry.Message))
+            .ToArray();
+        DiagnosticsEmptyText.Visibility = events.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        DiagnosticsList.Visibility = events.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
     }
 
     internal async Task RefreshAfterExternalChangeAsync()
@@ -309,4 +339,10 @@ public sealed partial class MainWindow : Window
     private static string GetSelectedTag(ComboBox comboBox) =>
         ((ComboBoxItem)comboBox.SelectedItem).Tag?.ToString()
         ?? throw new InvalidOperationException("Select a value.");
+
+    private sealed record DiagnosticViewItem(
+        string OccurredAt,
+        string Severity,
+        string Source,
+        string Message);
 }

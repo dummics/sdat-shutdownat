@@ -100,4 +100,12 @@
   <data name="TrayQuickSchedule" xml:space="preserve"><value>Pianificazione rapida</value></data>
   <data name="TrayOpen" xml:space="preserve"><value>Apri SDAT</value></data>
   <data name="TrayExit" xml:space="preserve"><value>Esci</value></data>
+  <data name="DatabaseHealthTitle.Text" xml:space="preserve"><value>Integrità database</value></data>
+  <data name="RecentActivityTitle.Text" xml:space="preserve"><value>Attività recente</value></data>
+  <data name="NoDiagnosticsText.Text" xml:space="preserve"><value>Non sono ancora presenti eventi diagnostici.</value></data>
+  <data name="DatabaseHealthy" xml:space="preserve"><value>Integro — le azioni energetiche sono abilitate.</value></data>
+  <data name="DatabaseUnhealthy" xml:space="preserve"><value>Le azioni energetiche sono bloccate: {0}</value></data>
+  <data name="SeverityInformation" xml:space="preserve"><value>Informazione</value></data>
+  <data name="SeverityWarning" xml:space="preserve"><value>Avviso</value></data>
+  <data name="SeverityError" xml:space="preserve"><value>Errore</value></data>
 </root>

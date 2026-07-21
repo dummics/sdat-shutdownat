@@ -100,4 +100,12 @@
   <data name="TrayQuickSchedule" xml:space="preserve"><value>Quick schedule</value></data>
   <data name="TrayOpen" xml:space="preserve"><value>Open SDAT</value></data>
   <data name="TrayExit" xml:space="preserve"><value>Exit</value></data>
+  <data name="DatabaseHealthTitle.Text" xml:space="preserve"><value>Database health</value></data>
+  <data name="RecentActivityTitle.Text" xml:space="preserve"><value>Recent activity</value></data>
+  <data name="NoDiagnosticsText.Text" xml:space="preserve"><value>No diagnostic events recorded yet.</value></data>
+  <data name="DatabaseHealthy" xml:space="preserve"><value>Healthy — power actions are enabled.</value></data>
+  <data name="DatabaseUnhealthy" xml:space="preserve"><value>Power actions are blocked: {0}</value></data>
+  <data name="SeverityInformation" xml:space="preserve"><value>Information</value></data>
+  <data name="SeverityWarning" xml:space="preserve"><value>Warning</value></data>
+  <data name="SeverityError" xml:space="preserve"><value>Error</value></data>
 </root>
