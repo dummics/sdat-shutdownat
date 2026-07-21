@@ -9,6 +9,7 @@ using Sdat.Core.Operations;
 using Sdat.Core.Scheduling;
 using Sdat.Windows.Hosting;
 using Sdat.Windows.Migration;
+using Sdat.Windows.Maintenance;
 using Spectre.Console;
 
 return await SdatCli.RunAsync(args);
@@ -74,6 +75,19 @@ internal static class SdatCli
         if (invocation.Command == CliCommandType.Cancel)
         {
             TryAbortWindowsCountdown();
+        }
+
+        if (invocation.Command is CliCommandType.Update or CliCommandType.Uninstall)
+        {
+            try
+            {
+                return RunMaintenance(invocation);
+            }
+            catch (Exception exception) when (exception is not OperationCanceledException)
+            {
+                WriteError(exception, invocation.Json, invocation.Command.ToString().ToLowerInvariant());
+                return 10;
+            }
         }
 
         try
@@ -158,6 +172,26 @@ internal static class SdatCli
         var companionPath = Path.Combine(Path.GetDirectoryName(applicationPath)!, "SDAT.exe");
         var taskHostPath = File.Exists(companionPath) ? companionPath : applicationPath;
         return SdatRuntime.CreateAsync(taskHostPath);
+    }
+
+    private static int RunMaintenance(CliInvocation invocation)
+    {
+        var executablePath = Environment.ProcessPath
+            ?? throw new InvalidOperationException("Cannot resolve the SDAT executable path.");
+        var launcher = new MaintenanceLauncher(Path.GetDirectoryName(executablePath)!);
+        var result = invocation.Command == CliCommandType.Update
+            ? launcher.StartUpdate()
+            : launcher.StartUninstall(invocation.KeepData);
+        if (invocation.Json)
+        {
+            WriteMachineSuccess(invocation.Command.ToString().ToLowerInvariant(), result);
+        }
+        else
+        {
+            Console.WriteLine(result.Detail);
+        }
+
+        return 0;
     }
 
     private static async Task<int> ShowStatusAsync(
@@ -681,6 +715,8 @@ internal static class SdatCli
           sdat cancel [all]       cancel one-time or all schedules
           sdat skip               skip the next daily action once
           sdat logs               show recent diagnostic history
+          sdat update             install the latest verified release
+          sdat uninstall          remove SDAT (--keep-data preserves runtime data)
           sdat reconcile          repair Task Scheduler from SQLite
           sdat health             check database and scheduler state
           sdat tui                open the interactive terminal UI

@@ -55,6 +55,16 @@ public sealed class CliInvocationParserTests
             CliInvocationParser.Parse(["preview", "--action", "99", "--time", "36m"]));
     }
 
+    [Fact]
+    public void Parses_uninstall_keep_data_contract()
+    {
+        var invocation = CliInvocationParser.Parse(["uninstall", "--keep-data", "--json"]);
+
+        Assert.Equal(CliCommandType.Uninstall, invocation.Command);
+        Assert.True(invocation.KeepData);
+        Assert.True(invocation.Json);
+    }
+
     [Theory]
     [InlineData("3h")]
     [InlineData("23:30")]

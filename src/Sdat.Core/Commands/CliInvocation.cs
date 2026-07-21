@@ -10,6 +10,8 @@ public enum CliCommandType
     Cancel,
     Skip,
     Logs,
+    Update,
+    Uninstall,
     Reconcile,
     Health,
     Help,
@@ -29,7 +31,8 @@ public sealed record CliInvocation(
     Guid? ScheduleId,
     long? Revision,
     SchedulerTaskRole? TaskRole,
-    int? ReminderOffsetMinutes);
+    int? ReminderOffsetMinutes,
+    bool KeepData = false);
 
 public sealed class CliUsageException(string message) : ArgumentException(message);
 
@@ -42,6 +45,7 @@ public static class CliInvocationParser
         var keepDaily = false;
         var json = false;
         var dryRun = false;
+        var keepData = false;
         string? explicitTime = null;
         Guid? scheduleId = null;
         long? revision = null;
@@ -83,6 +87,9 @@ public static class CliInvocationParser
                     break;
                 case "-dryrun" or "--dry-run":
                     dryRun = true;
+                    break;
+                case "-keepdata" or "--keep-data":
+                    keepData = true;
                     break;
                 case "--json":
                     json = true;
@@ -154,6 +161,8 @@ public static class CliInvocationParser
             "health" => RequireCount(CliCommandType.Health, 1),
             "skip" => RequireCount(CliCommandType.Skip, 1),
             "logs" => RequireCount(CliCommandType.Logs, 1),
+            "update" => RequireCount(CliCommandType.Update, 1),
+            "uninstall" => RequireCount(CliCommandType.Uninstall, 1),
             "preview" when positional.Count == 1 && explicitTime is not null =>
                 Create(CliCommandType.Preview, explicitTime),
             "preview" when positional.Count == 2 && explicitTime is null =>
@@ -201,7 +210,8 @@ public static class CliInvocationParser
             scheduleId,
             revision,
             taskRole,
-            reminderOffset);
+            reminderOffset,
+            keepData);
     }
 
     private static string ReadValue(IReadOnlyList<string> args, ref int index, string option)
