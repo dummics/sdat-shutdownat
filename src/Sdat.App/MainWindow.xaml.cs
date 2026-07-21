@@ -5,6 +5,7 @@ using Microsoft.UI.Xaml.Controls;
 using Sdat.Core.Scheduling;
 using Sdat.Core.Settings;
 using Sdat.Windows.Hosting;
+using Sdat.Windows.Migration;
 using Sdat.Windows.Startup;
 using Windows.Graphics;
 
@@ -37,6 +38,12 @@ public sealed partial class MainWindow : Window
             ApplySettings(_runtime.CurrentSettings);
             DatabasePathText.Text = $"Database: {_runtime.StoreOptions.DatabasePath}";
             await RefreshStatusAsync();
+            if (_runtime.LegacyMigration.Status == LegacyMigrationStatus.Failed)
+            {
+                ShowStatus(
+                    string.Join(" ", _runtime.LegacyMigration.Warnings),
+                    InfoBarSeverity.Warning);
+            }
             if (!_runtime.StartupReconciliation.IsHealthy)
             {
                 ShowStatus("The database is healthy, but some Windows tasks could not be repaired.", InfoBarSeverity.Warning);

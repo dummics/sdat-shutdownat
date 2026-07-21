@@ -5,6 +5,7 @@ using Sdat.Core.Scheduling;
 using Sdat.Core.Settings;
 using Sdat.Windows.Concurrency;
 using Sdat.Windows.Execution;
+using Sdat.Windows.Migration;
 using Sdat.Windows.Notifications;
 using Sdat.Windows.Persistence;
 using Sdat.Windows.Scheduling;
@@ -20,6 +21,7 @@ public sealed record SdatRuntime(
     IDiagnosticLogReader Diagnostics,
     TaskInvocationCoordinator TaskInvocations,
     AppSettings CurrentSettings,
+    LegacyMigrationResult LegacyMigration,
     ReconciliationReport StartupReconciliation)
 {
     public static async Task<SdatRuntime> CreateAsync(
@@ -47,9 +49,36 @@ public sealed record SdatRuntime(
             new SqliteDailySkipStore(options),
             backup,
             operationLock);
-        var startup = await coordinator
-            .InitializeAndReconcileAsync(settings.ReminderOffsetsMinutes, cancellationToken)
+        await coordinator.InitializeAsync(cancellationToken).ConfigureAwait(false);
+        var legacyRoot = Environment.GetEnvironmentVariable("SDAT_LEGACY_ROOT");
+        if (string.IsNullOrWhiteSpace(legacyRoot))
+        {
+            legacyRoot = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "SDAT",
+                "legacy-v1");
+        }
+
+        var legacyMigration = await new LegacyV1MigrationService(
+                new LegacyV1Source(legacyRoot, new WindowsLegacyTaskReader()),
+                new SqliteLegacyImportJournal(options),
+                coordinator,
+                dailySkips,
+                settings.ReminderOffsetsMinutes)
+            .MigrateAsync(cancellationToken)
             .ConfigureAwait(false);
+        var startup = legacyMigration.Status == LegacyMigrationStatus.Failed
+            ? new ReconciliationReport(
+                0,
+                0,
+                0,
+                [new ReconciliationFailure(
+                    "SDAT v1",
+                    "Migrate",
+                    string.Join(" ", legacyMigration.Warnings))])
+            : await coordinator
+                .ReconcileAsync(settings.ReminderOffsetsMinutes, cancellationToken)
+                .ConfigureAwait(false);
         var taskInvocations = new TaskInvocationCoordinator(
             schedules,
             new SqliteTaskExecutionLedger(options),
@@ -67,6 +96,7 @@ public sealed record SdatRuntime(
             new SqliteDiagnosticLogReader(options),
             taskInvocations,
             settings,
+            legacyMigration,
             startup);
     }
 }

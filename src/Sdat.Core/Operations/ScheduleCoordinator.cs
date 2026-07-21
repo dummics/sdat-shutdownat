@@ -11,6 +11,13 @@ public sealed class ScheduleCoordinator(
 {
     private readonly TimeProvider _timeProvider = timeProvider ?? TimeProvider.System;
 
+    public async Task InitializeAsync(CancellationToken cancellationToken = default)
+    {
+        await using var lease = await operationLock.AcquireAsync(cancellationToken).ConfigureAwait(false);
+        await repository.InitializeAsync(cancellationToken).ConfigureAwait(false);
+        await EnsureHealthyAsync(cancellationToken).ConfigureAwait(false);
+    }
+
     public async Task<ReconciliationReport> InitializeAndReconcileAsync(
         IReadOnlyList<int> reminderOffsetsMinutes,
         CancellationToken cancellationToken = default)

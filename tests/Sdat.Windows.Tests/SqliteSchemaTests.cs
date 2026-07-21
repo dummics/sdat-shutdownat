@@ -9,7 +9,7 @@ public sealed class SqliteSchemaTests : IDisposable
     private readonly string _root = Path.Combine(Path.GetTempPath(), $"sdat-schema-tests-{Guid.NewGuid():N}");
 
     [Fact]
-    public async Task Existing_version_one_store_is_upgraded_to_version_two()
+    public async Task Existing_version_one_store_is_upgraded_to_current_version()
     {
         var options = CreateOptions();
         await using (var connection = await SqliteSchema.OpenAsync(options, CancellationToken.None))
@@ -22,7 +22,7 @@ public sealed class SqliteSchemaTests : IDisposable
         await new SqliteScheduleRepository(options).InitializeAsync();
 
         await using var verification = await SqliteSchema.OpenAsync(options, CancellationToken.None);
-        Assert.Equal(2, await SqliteSchema.GetUserVersionAsync(verification, CancellationToken.None));
+        Assert.Equal(SqliteSchema.CurrentVersion, await SqliteSchema.GetUserVersionAsync(verification, CancellationToken.None));
     }
 
     [Fact]

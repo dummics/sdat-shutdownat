@@ -8,6 +8,7 @@ using Sdat.Core.Execution;
 using Sdat.Core.Operations;
 using Sdat.Core.Scheduling;
 using Sdat.Windows.Hosting;
+using Sdat.Windows.Migration;
 using Spectre.Console;
 
 return await SdatCli.RunAsync(args);
@@ -115,7 +116,11 @@ internal static class SdatCli
 
             return invocation.Command switch
             {
-                CliCommandType.Status => await ShowStatusAsync(services.Schedules, startup, invocation.Json),
+                CliCommandType.Status => await ShowStatusAsync(
+                    services.Schedules,
+                    startup,
+                    services.LegacyMigration,
+                    invocation.Json),
                 CliCommandType.Schedule => await ScheduleAsync(services.Coordinator, invocation, reminderOffsets),
                 CliCommandType.Cancel => await CancelAsync(services.Coordinator, services.Schedules, invocation, reminderOffsets),
                 CliCommandType.Skip => await SkipNextDailyAsync(services.DailySkips, invocation.Json),
@@ -124,7 +129,11 @@ internal static class SdatCli
                     Path.GetDirectoryName(services.StoreOptions.DatabasePath)!,
                     invocation.Json),
                 CliCommandType.Reconcile => WriteReconciliation(startup, invocation.Json),
-                CliCommandType.Health => await ShowHealthAsync(services.Schedules, startup, invocation.Json),
+                CliCommandType.Health => await ShowHealthAsync(
+                    services.Schedules,
+                    startup,
+                    services.LegacyMigration,
+                    invocation.Json),
                 CliCommandType.Tui => await RunTuiAsync(services),
                 _ => 2,
             };
@@ -154,17 +163,21 @@ internal static class SdatCli
     private static async Task<int> ShowStatusAsync(
         IScheduleRepository repository,
         ReconciliationReport reconciliation,
+        LegacyMigrationResult legacyMigration,
         bool json)
     {
         var schedules = await repository.ListAsync();
         if (json)
         {
+            var warnings = GetReconciliationWarnings(reconciliation)
+                .Concat(GetLegacyMigrationWarnings(legacyMigration))
+                .ToArray();
             WriteMachineSuccess(
                 "status",
-                new { schedules, reconciliation },
-                GetReconciliationWarnings(reconciliation),
-                reconciliation.IsHealthy);
-            return reconciliation.IsHealthy ? 0 : 3;
+                new { schedules, reconciliation, legacyMigration },
+                warnings,
+                reconciliation.IsHealthy && legacyMigration.Status != LegacyMigrationStatus.Failed);
+            return reconciliation.IsHealthy && legacyMigration.Status != LegacyMigrationStatus.Failed ? 0 : 3;
         }
 
         if (schedules.Count == 0)
@@ -180,7 +193,8 @@ internal static class SdatCli
         }
 
         WriteReconciliationWarning(reconciliation);
-        return reconciliation.IsHealthy ? 0 : 3;
+        WriteLegacyMigrationWarnings(legacyMigration);
+        return reconciliation.IsHealthy && legacyMigration.Status != LegacyMigrationStatus.Failed ? 0 : 3;
     }
 
     private static async Task<int> ScheduleAsync(
@@ -286,12 +300,14 @@ internal static class SdatCli
     private static async Task<int> ShowHealthAsync(
         IScheduleRepository repository,
         ReconciliationReport reconciliation,
+        LegacyMigrationResult legacyMigration,
         bool json)
     {
         var store = await repository.CheckHealthAsync();
         if (json)
         {
             var warnings = GetReconciliationWarnings(reconciliation).ToList();
+            warnings.AddRange(GetLegacyMigrationWarnings(legacyMigration));
             if (!store.CanExecutePowerActions)
             {
                 warnings.Add(new MachineWarning("StoreUnhealthy", store.Detail));
@@ -299,18 +315,21 @@ internal static class SdatCli
 
             WriteMachineSuccess(
                 "health",
-                new { store, reconciliation },
+                new { store, reconciliation, legacyMigration },
                 warnings,
-                store.CanExecutePowerActions && reconciliation.IsHealthy);
+                store.CanExecutePowerActions && reconciliation.IsHealthy &&
+                legacyMigration.Status != LegacyMigrationStatus.Failed);
         }
         else
         {
             Console.WriteLine($"Database: {store.Status} — {store.Detail}");
             Console.WriteLine($"Task Scheduler projection: {(reconciliation.IsHealthy ? "Healthy" : "Degraded")}");
             WriteReconciliationWarning(reconciliation);
+            WriteLegacyMigrationWarnings(legacyMigration);
         }
 
-        return store.CanExecutePowerActions && reconciliation.IsHealthy ? 0 : 3;
+        return store.CanExecutePowerActions && reconciliation.IsHealthy &&
+               legacyMigration.Status != LegacyMigrationStatus.Failed ? 0 : 3;
     }
 
     private static async Task<int> SkipNextDailyAsync(DailySkipCoordinator coordinator, bool json)
@@ -371,6 +390,7 @@ internal static class SdatCli
             return await ShowStatusAsync(
                 services.Schedules,
                 await services.Coordinator.ReconcileAsync((await services.Settings.LoadAsync()).ReminderOffsetsMinutes),
+                services.LegacyMigration,
                 json: false);
         }
 
@@ -607,6 +627,19 @@ internal static class SdatCli
                 "SchedulerProjectionFailed",
                 $"{failure.Operation} {failure.TaskName}: {failure.Detail}"))
             .ToArray();
+
+    private static IReadOnlyList<MachineWarning> GetLegacyMigrationWarnings(LegacyMigrationResult migration) =>
+        migration.Warnings
+            .Select(warning => new MachineWarning("LegacyMigration", warning))
+            .ToArray();
+
+    private static void WriteLegacyMigrationWarnings(LegacyMigrationResult migration)
+    {
+        foreach (var warning in migration.Warnings)
+        {
+            Console.Error.WriteLine($"Warning: {warning}");
+        }
+    }
 
     private static string GetVersion() =>
         Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion

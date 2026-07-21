@@ -5,7 +5,7 @@ namespace Sdat.Windows.Persistence;
 
 internal static class SqliteSchema
 {
-    public const int CurrentVersion = 2;
+    public const int CurrentVersion = 3;
 
     private const string MigrationOne = """
         CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -93,6 +93,15 @@ internal static class SqliteSchema
             WHERE consumed_utc IS NULL;
         """;
 
+    private const string MigrationThree = """
+        CREATE TABLE IF NOT EXISTS legacy_imports (
+            import_key TEXT PRIMARY KEY,
+            imported_utc TEXT NOT NULL,
+            source_path TEXT NOT NULL,
+            detail_json TEXT NULL
+        );
+        """;
+
     public static async Task<SqliteConnection> OpenAsync(
         SqliteStoreOptions options,
         CancellationToken cancellationToken)
@@ -148,12 +157,17 @@ internal static class SqliteSchema
         command.CommandText = MigrationTwo;
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
 
+        command.CommandText = MigrationThree;
+        await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+
         command.CommandText = """
             INSERT OR IGNORE INTO schema_migrations(migration_id, applied_utc)
             VALUES (1, $appliedUtc);
             INSERT OR IGNORE INTO schema_migrations(migration_id, applied_utc)
             VALUES (2, $appliedUtc);
-            PRAGMA user_version = 2;
+            INSERT OR IGNORE INTO schema_migrations(migration_id, applied_utc)
+            VALUES (3, $appliedUtc);
+            PRAGMA user_version = 3;
             """;
         command.Parameters.AddWithValue("$appliedUtc", timeProvider.GetUtcNow().ToString("O"));
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
