@@ -53,6 +53,19 @@ public sealed class SqliteRecoveryService(
         return verified;
     }
 
+    internal async Task<int?> GetCurrentSchemaVersionAsync(
+        CancellationToken cancellationToken = default)
+    {
+        if (!File.Exists(options.DatabasePath))
+        {
+            return null;
+        }
+
+        await using var connection = await OpenReadOnlyAsync(options.DatabasePath, cancellationToken)
+            .ConfigureAwait(false);
+        return await SqliteSchema.GetUserVersionAsync(connection, cancellationToken).ConfigureAwait(false);
+    }
+
     public async Task<DatabaseRecoveryResult> RestoreLatestVerifiedBackupAsync(
         bool allowHealthyOverwrite = false,
         CancellationToken cancellationToken = default)
@@ -142,15 +155,38 @@ public sealed class SqliteRecoveryService(
         var evidenceDirectory = Path.Combine(
             options.BackupDirectory,
             "recovery-evidence",
-            _timeProvider.GetUtcNow().ToString("yyyyMMddTHHmmssfffZ"));
+            $"{_timeProvider.GetUtcNow():yyyyMMddTHHmmssfffZ}-{Guid.NewGuid():N}");
         Directory.CreateDirectory(evidenceDirectory);
 
-        foreach (var path in existingFiles)
+        var moved = new List<(string Original, string Evidence)>();
+        try
         {
-            File.Move(path, Path.Combine(evidenceDirectory, Path.GetFileName(path)), overwrite: false);
-        }
+            foreach (var path in existingFiles)
+            {
+                var evidencePath = Path.Combine(evidenceDirectory, Path.GetFileName(path));
+                File.Move(path, evidencePath, overwrite: false);
+                moved.Add((path, evidencePath));
+            }
 
-        return evidenceDirectory;
+            return evidenceDirectory;
+        }
+        catch
+        {
+            foreach (var item in moved.AsEnumerable().Reverse())
+            {
+                if (File.Exists(item.Evidence) && !File.Exists(item.Original))
+                {
+                    File.Move(item.Evidence, item.Original, overwrite: false);
+                }
+            }
+
+            if (!Directory.EnumerateFileSystemEntries(evidenceDirectory).Any())
+            {
+                Directory.Delete(evidenceDirectory);
+            }
+
+            throw;
+        }
     }
 
     private void RollBackEvidence(string? evidenceDirectory)
@@ -196,11 +232,19 @@ public sealed class SqliteRecoveryService(
             Mode = SqliteOpenMode.ReadOnly,
             Pooling = false,
         }.ToString());
-        await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
 
-        await using var command = connection.CreateCommand();
-        command.CommandText = "PRAGMA busy_timeout = 5000;";
-        await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-        return connection;
+            await using var command = connection.CreateCommand();
+            command.CommandText = "PRAGMA busy_timeout = 5000;";
+            await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            return connection;
+        }
+        catch
+        {
+            await connection.DisposeAsync().ConfigureAwait(false);
+            throw;
+        }
     }
 }

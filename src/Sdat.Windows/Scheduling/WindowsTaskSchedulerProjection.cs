@@ -130,7 +130,7 @@ public sealed class WindowsTaskSchedulerProjection : ITaskSchedulerProjection
     private static bool IsVerifiedLegacy(ScheduledTask task) =>
         task.Definition.Actions.Count == 1 &&
         task.Definition.Actions[0] is ExecAction action &&
-        LegacyTaskSignature.IsVerified(action.Path, action.Arguments);
+        LegacyTaskSignature.IsVerified(task.Name, action.Path, action.Arguments);
 
     private bool DefinitionMatchesManifest(ScheduledTask task, TaskManifest manifest)
     {

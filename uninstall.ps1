@@ -60,9 +60,18 @@ function Test-SdatOwnedScheduledTask {
 
         $match = [regex]::Match(
             [string]$exec.Arguments,
-            '^//B\s+//NoLogo\s+"(?<launcher>[^"]+\\lib\\RunHidden\.vbs)"\s+"(?<script>[^"]+\\shutdownat\.ps1)"\s+-(?:RunVolatile|RunPermanent)(?:\s+-Profile\s+[^\s]+)?(?:\s+-Suspend)?(?:\s+-Restart)?(?:\s+-DryRun)?\s*$',
+            '^//B\s+//NoLogo\s+"(?<launcher>[^"]+\\lib\\RunHidden\.vbs)"\s+"(?<script>[^"]+\\shutdownat\.ps1)"\s+-(?<mode>RunVolatile|RunPermanent)(?:\s+-Profile\s+[^\s]+)?(?:\s+-Suspend)?(?:\s+-Restart)?(?:\s+-DryRun)?\s*$',
             [Text.RegularExpressions.RegexOptions]::IgnoreCase)
         if (-not $match.Success) { return $false }
+
+        $expectedMode = if ($Task.TaskName -ieq 'SDAT_Volatile') {
+            'RunVolatile'
+        } elseif ($Task.TaskName -ieq 'SDAT_Permanent') {
+            'RunPermanent'
+        } else {
+            return $false
+        }
+        if ($match.Groups['mode'].Value -ine $expectedMode) { return $false }
 
         $launcherRoot = [IO.Directory]::GetParent([IO.Path]::GetDirectoryName([IO.Path]::GetFullPath($match.Groups['launcher'].Value))).FullName
         $scriptRoot = [IO.Path]::GetDirectoryName([IO.Path]::GetFullPath($match.Groups['script'].Value))

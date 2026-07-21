@@ -49,17 +49,20 @@ public sealed class WindowsExecutionSurfaceTests
     }
 
     [Theory]
-    [InlineData("C:\\Windows\\System32\\wscript.exe", "//B //NoLogo \"C:\\SDAT\\lib\\RunHidden.vbs\" \"C:\\SDAT\\shutdownat.ps1\" -RunVolatile", true)]
-    [InlineData("wscript.exe", "//B //NoLogo \"C:\\SDAT\\lib\\RunHidden.vbs\" \"C:\\SDAT\\shutdownat.ps1\" -RunPermanent -Profile media -Suspend -DryRun", true)]
-    [InlineData("C:\\Windows\\System32\\notepad.exe", "RunHidden.vbs shutdownat.ps1", false)]
-    [InlineData("C:\\Windows\\System32\\wscript.exe", "unrelated.vbs", false)]
-    [InlineData("C:\\Windows\\System32\\wscript.exe", "//B //NoLogo \"C:\\Other\\lib\\RunHidden.vbs\" \"C:\\SDAT\\shutdownat.ps1\" -RunPermanent", false)]
+    [InlineData("SDAT_Volatile", "C:\\Windows\\System32\\wscript.exe", "//B //NoLogo \"C:\\SDAT\\lib\\RunHidden.vbs\" \"C:\\SDAT\\shutdownat.ps1\" -RunVolatile", true)]
+    [InlineData("SDAT_Permanent", "wscript.exe", "//B //NoLogo \"C:\\SDAT\\lib\\RunHidden.vbs\" \"C:\\SDAT\\shutdownat.ps1\" -RunPermanent -Profile media -Suspend -DryRun", true)]
+    [InlineData("SDAT_Volatile", "C:\\Windows\\System32\\notepad.exe", "RunHidden.vbs shutdownat.ps1", false)]
+    [InlineData("SDAT_Volatile", "C:\\Windows\\System32\\wscript.exe", "unrelated.vbs", false)]
+    [InlineData("SDAT_Permanent", "C:\\Windows\\System32\\wscript.exe", "//B //NoLogo \"C:\\Other\\lib\\RunHidden.vbs\" \"C:\\SDAT\\shutdownat.ps1\" -RunPermanent", false)]
+    [InlineData("SDAT_Volatile", "wscript.exe", "//B //NoLogo \"C:\\SDAT\\lib\\RunHidden.vbs\" \"C:\\SDAT\\shutdownat.ps1\" -RunPermanent", false)]
+    [InlineData("SDAT_Volatile_Reminder_0002", "wscript.exe", "//B //NoLogo \"C:\\SDAT\\lib\\RunHidden.vbs\" \"C:\\SDAT\\shutdownat.ps1\" -RunVolatile", false)]
     public void Legacy_task_takeover_requires_the_exact_v1_launcher_shape(
+        string taskName,
         string applicationPath,
         string arguments,
         bool expected)
     {
-        Assert.Equal(expected, LegacyTaskSignature.IsVerified(applicationPath, arguments));
+        Assert.Equal(expected, LegacyTaskSignature.IsVerified(taskName, applicationPath, arguments));
     }
 
     [Theory]

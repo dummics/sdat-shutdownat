@@ -43,6 +43,23 @@ public sealed class SqliteStoreInitializerTests : IDisposable
     }
 
     [Fact]
+    public async Task Existing_uninitialized_database_is_restored_instead_of_migrated_over_a_backup()
+    {
+        var options = CreateOptions();
+        await CreateBackedUpScheduleAsync(options);
+        SqliteConnection.ClearAllPools();
+        DeletePrimaryFiles(options);
+        Directory.CreateDirectory(Path.GetDirectoryName(options.DatabasePath)!);
+        await File.WriteAllBytesAsync(options.DatabasePath, []);
+
+        var repository = new SqliteScheduleRepository(options, new FixedTimeProvider(Now));
+        var result = await CreateInitializer(options, repository).InitializeAsync();
+
+        Assert.True(result.WasRecovered);
+        Assert.Single(await repository.ListAsync());
+    }
+
+    [Fact]
     public async Task Healthy_forward_schema_is_never_overwritten_by_an_older_backup()
     {
         var options = CreateOptions();

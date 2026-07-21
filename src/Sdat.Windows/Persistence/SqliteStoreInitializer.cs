@@ -32,6 +32,20 @@ public sealed class SqliteStoreInitializer(
             return new StoreInitializationResult(null);
         }
 
+        var verifiedBackups = await recovery.ListVerifiedBackupsAsync(cancellationToken).ConfigureAwait(false);
+        var preflightHealth = await recovery.CheckCurrentAsync(full: true, cancellationToken).ConfigureAwait(false);
+        var schemaVersion = preflightHealth.Status == StoreHealthStatus.Healthy
+            ? await recovery.GetCurrentSchemaVersionAsync(cancellationToken).ConfigureAwait(false)
+            : null;
+        if (verifiedBackups.Count > 0 &&
+            (preflightHealth.Status != StoreHealthStatus.Healthy || schemaVersion == 0))
+        {
+            return await RestoreAndInitializeAsync(
+                    cancellationToken,
+                    allowHealthyOverwrite: schemaVersion == 0)
+                .ConfigureAwait(false);
+        }
+
         try
         {
             await repository.InitializeAsync(cancellationToken).ConfigureAwait(false);
@@ -40,8 +54,7 @@ public sealed class SqliteStoreInitializer(
         catch (Exception initializationException) when (
             initializationException is SqliteException or IOException or UnauthorizedAccessException or InvalidDataException)
         {
-            var currentHealth = await recovery.CheckCurrentAsync(full: true, cancellationToken).ConfigureAwait(false);
-            if (currentHealth.Status == StoreHealthStatus.Healthy)
+            if (preflightHealth.Status == StoreHealthStatus.Healthy)
             {
                 // A healthy database can still be intentionally unsupported, for example a forward schema version.
                 throw;
@@ -61,10 +74,11 @@ public sealed class SqliteStoreInitializer(
     }
 
     private async Task<StoreInitializationResult> RestoreAndInitializeAsync(
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool allowHealthyOverwrite = false)
     {
         var result = await recovery
-            .RestoreLatestVerifiedBackupAsync(cancellationToken: cancellationToken)
+            .RestoreLatestVerifiedBackupAsync(allowHealthyOverwrite, cancellationToken)
             .ConfigureAwait(false);
         await repository.InitializeAsync(cancellationToken).ConfigureAwait(false);
         return new StoreInitializationResult(result);

@@ -167,7 +167,7 @@ public sealed class WindowsLegacyTaskReader : ILegacyTaskReader
         var definition = task.Definition;
         var action = definition.Actions.Count == 1 ? definition.Actions[0] as ExecAction : null;
         var command = action is null ? string.Empty : $"{action.Path} {action.Arguments}";
-        var isVerified = LegacyTaskSignature.IsVerified(action?.Path, action?.Arguments);
+        var isVerified = LegacyTaskSignature.IsVerified(taskName, action?.Path, action?.Arguments);
         PowerActionType? powerAction = command.Contains("-Restart", StringComparison.OrdinalIgnoreCase)
             ? PowerActionType.Restart
             : command.Contains("-Suspend", StringComparison.OrdinalIgnoreCase)
@@ -205,7 +205,7 @@ public sealed class WindowsLegacyTaskReader : ILegacyTaskReader
         var action = task.Definition.Actions.Count == 1
             ? task.Definition.Actions[0] as ExecAction
             : null;
-        if (!LegacyTaskSignature.IsVerified(action?.Path, action?.Arguments))
+        if (!LegacyTaskSignature.IsVerified(taskName, action?.Path, action?.Arguments))
         {
             throw new InvalidOperationException(
                 $"Legacy task '{taskName}' changed before removal and was left untouched.");
