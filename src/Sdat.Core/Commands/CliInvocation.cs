@@ -8,6 +8,7 @@ public enum CliCommandType
     Schedule,
     Cancel,
     Skip,
+    Logs,
     Reconcile,
     Health,
     Help,
@@ -129,6 +130,7 @@ public static class CliInvocationParser
             "reconcile" => RequireCount(CliCommandType.Reconcile, 1),
             "health" => RequireCount(CliCommandType.Health, 1),
             "skip" => RequireCount(CliCommandType.Skip, 1),
+            "logs" => RequireCount(CliCommandType.Logs, 1),
             "daily" when positional.Count == 2 => Create(
                 CliCommandType.Schedule,
                 positional[1],

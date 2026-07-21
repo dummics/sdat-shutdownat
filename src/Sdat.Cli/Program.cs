@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Reflection;
 using System.Text.Json;
 using Sdat.Core.Commands;
+using Sdat.Core.Diagnostics;
 using Sdat.Core.Execution;
 using Sdat.Core.Operations;
 using Sdat.Core.Scheduling;
@@ -82,6 +83,10 @@ internal static class SdatCli
                 CliCommandType.Schedule => await ScheduleAsync(services.Coordinator, invocation, reminderOffsets),
                 CliCommandType.Cancel => await CancelAsync(services.Coordinator, services.Schedules, invocation, reminderOffsets),
                 CliCommandType.Skip => await SkipNextDailyAsync(services.DailySkips, invocation.Json),
+                CliCommandType.Logs => await ShowLogsAsync(
+                    services.Diagnostics,
+                    Path.GetDirectoryName(services.StoreOptions.DatabasePath)!,
+                    invocation.Json),
                 CliCommandType.Reconcile => WriteReconciliation(startup, invocation.Json),
                 CliCommandType.Health => await ShowHealthAsync(services.Schedules, startup, invocation.Json),
                 CliCommandType.Tui => await RunTuiAsync(services),
@@ -243,6 +248,34 @@ internal static class SdatCli
         }
 
         return result.IsFullyPersisted ? 0 : 3;
+    }
+
+    private static async Task<int> ShowLogsAsync(
+        IDiagnosticLogReader diagnostics,
+        string dataDirectory,
+        bool json)
+    {
+        var events = await diagnostics.ReadRecentAsync();
+        if (json)
+        {
+            WriteJson(new { dataDirectory, events });
+            return 0;
+        }
+
+        Console.WriteLine($"SDAT data: {dataDirectory}");
+        if (events.Count == 0)
+        {
+            Console.WriteLine("No diagnostic events recorded yet.");
+            return 0;
+        }
+
+        foreach (var entry in events)
+        {
+            Console.WriteLine(
+                $"{entry.OccurredAt.ToLocalTime():yyyy-MM-dd HH:mm:ss} [{entry.Severity}] {entry.Message}");
+        }
+
+        return 0;
     }
 
     private static async Task<int> RunTuiAsync(SdatRuntime services)
@@ -478,6 +511,7 @@ internal static class SdatCli
           sdat status             show active schedules
           sdat cancel [all]       cancel one-time or all schedules
           sdat skip               skip the next daily action once
+          sdat logs               show recent diagnostic history
           sdat reconcile          repair Task Scheduler from SQLite
           sdat health             check database and scheduler state
           sdat tui                open the interactive terminal UI

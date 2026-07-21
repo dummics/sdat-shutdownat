@@ -12,6 +12,15 @@ public sealed class CliInvocationParserTests
         Assert.Equal(CliCommandType.Skip, CliInvocationParser.Parse(["skip"]).Command);
     }
 
+    [Fact]
+    public void Parses_logs_command_with_machine_output()
+    {
+        var invocation = CliInvocationParser.Parse(["logs", "--json"]);
+
+        Assert.Equal(CliCommandType.Logs, invocation.Command);
+        Assert.True(invocation.Json);
+    }
+
     [Theory]
     [InlineData("3h")]
     [InlineData("23:30")]

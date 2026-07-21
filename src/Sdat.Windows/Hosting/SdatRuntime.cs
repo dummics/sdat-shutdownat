@@ -1,4 +1,5 @@
 using Sdat.Core.Execution;
+using Sdat.Core.Diagnostics;
 using Sdat.Core.Operations;
 using Sdat.Core.Scheduling;
 using Sdat.Core.Settings;
@@ -16,6 +17,7 @@ public sealed record SdatRuntime(
     SqliteAppSettingsRepository Settings,
     ScheduleCoordinator Coordinator,
     DailySkipCoordinator DailySkips,
+    IDiagnosticLogReader Diagnostics,
     TaskInvocationCoordinator TaskInvocations,
     AppSettings CurrentSettings,
     ReconciliationReport StartupReconciliation)
@@ -62,6 +64,7 @@ public sealed record SdatRuntime(
             settingsRepository,
             coordinator,
             dailySkips,
+            new SqliteDiagnosticLogReader(options),
             taskInvocations,
             settings,
             startup);
