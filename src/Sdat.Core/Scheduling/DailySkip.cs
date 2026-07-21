@@ -51,8 +51,38 @@ public sealed class DailySkipCoordinator(
         }
 
         var dueAt = DailyScheduleOccurrenceResolver.GetNextExecution(daily, _timeProvider.GetUtcNow());
+        return await RequestCoreAsync(daily.Id, daily.Revision, dueAt, cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<DailySkipResult> RequestExactAsync(
+        Guid scheduleId,
+        long scheduleRevision,
+        DateTimeOffset executeDueAt,
+        CancellationToken cancellationToken = default)
+    {
+        await using var lease = await operationLock.AcquireAsync(cancellationToken).ConfigureAwait(false);
+        var health = await schedules.CheckHealthAsync(cancellationToken).ConfigureAwait(false);
+        if (!health.CanExecutePowerActions)
+        {
+            throw new ScheduleStoreUnavailableException($"Database health blocks updates: {health.Detail}");
+        }
+
+        return await RequestCoreAsync(
+                scheduleId,
+                scheduleRevision,
+                executeDueAt,
+                cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    private async Task<DailySkipResult> RequestCoreAsync(
+        Guid scheduleId,
+        long scheduleRevision,
+        DateTimeOffset executeDueAt,
+        CancellationToken cancellationToken)
+    {
         var request = await skipStore
-            .RequestAsync(daily.Id, daily.Revision, dueAt, cancellationToken)
+            .RequestAsync(scheduleId, scheduleRevision, executeDueAt, cancellationToken)
             .ConfigureAwait(false);
 
         try

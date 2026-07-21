@@ -98,6 +98,11 @@
                             <TextBox x:Name="ReminderOffsetsInput" PlaceholderText="2 or 10, 2" />
                             <TextBlock Text="Up to five values, from 1 minute to 24 hours." Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                         </StackPanel>
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="Daily overlap window" />
+                            <NumberBox x:Name="DailyOverlapInput" Minimum="0" Maximum="1440" SpinButtonPlacementMode="Compact" />
+                            <TextBlock Text="When a one-time action is this many minutes from the next daily action, SDAT skips that daily occurrence. Set 0 to disable." TextWrapping="Wrap" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        </StackPanel>
                         <ToggleSwitch x:Name="CriticalOverlayToggle" Header="Show the critical bottom-center overlay" />
                         <ToggleSwitch x:Name="StartupToggle" Header="Start the companion when I sign in" />
                         <Button Content="Save settings" Style="{ThemeResource AccentButtonStyle}" Click="OnSaveSettings" HorizontalAlignment="Left" />

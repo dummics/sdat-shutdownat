@@ -17,6 +17,7 @@ public sealed record SdatRuntime(
     SqliteScheduleRepository Schedules,
     SqliteAppSettingsRepository Settings,
     ScheduleCoordinator Coordinator,
+    ScheduleCommandService ScheduleCommands,
     DailySkipCoordinator DailySkips,
     IDiagnosticLogReader Diagnostics,
     TaskInvocationCoordinator TaskInvocations,
@@ -49,6 +50,11 @@ public sealed record SdatRuntime(
             new SqliteDailySkipStore(options),
             backup,
             operationLock);
+        var scheduleCommands = new ScheduleCommandService(
+            coordinator,
+            schedules,
+            dailySkips,
+            settingsRepository);
         await coordinator.InitializeAsync(cancellationToken).ConfigureAwait(false);
         var legacyRoot = Environment.GetEnvironmentVariable("SDAT_LEGACY_ROOT");
         if (string.IsNullOrWhiteSpace(legacyRoot))
@@ -92,6 +98,7 @@ public sealed record SdatRuntime(
             schedules,
             settingsRepository,
             coordinator,
+            scheduleCommands,
             dailySkips,
             new SqliteDiagnosticLogReader(options),
             taskInvocations,

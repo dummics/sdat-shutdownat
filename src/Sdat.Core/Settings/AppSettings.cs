@@ -8,6 +8,8 @@ public sealed record AppSettings
 
     public bool StartCompanionAtLogin { get; init; }
 
+    public int DailyOverlapWindowMinutes { get; init; } = 120;
+
     public AppSettings Validate()
     {
         var offsets = ReminderOffsetsMinutes.Distinct().OrderDescending().ToArray();
@@ -16,6 +18,13 @@ public sealed record AppSettings
             throw new ArgumentOutOfRangeException(
                 nameof(ReminderOffsetsMinutes),
                 "Use at most five unique reminder offsets between 1 and 1440 minutes.");
+        }
+
+        if (DailyOverlapWindowMinutes is < 0 or > 1440)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(DailyOverlapWindowMinutes),
+                "The daily overlap window must be between 0 and 1440 minutes.");
         }
 
         return this with { ReminderOffsetsMinutes = offsets };

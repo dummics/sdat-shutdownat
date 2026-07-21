@@ -21,4 +21,19 @@ public sealed class AppSettingsTests
         Assert.Throws<ArgumentOutOfRangeException>(() =>
             new AppSettings { ReminderOffsetsMinutes = [offset] }.Validate());
     }
+
+    [Fact]
+    public void Daily_overlap_defaults_to_two_hours()
+    {
+        Assert.Equal(120, new AppSettings().Validate().DailyOverlapWindowMinutes);
+    }
+
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(1441)]
+    public void Invalid_daily_overlap_window_is_rejected(int minutes)
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new AppSettings { DailyOverlapWindowMinutes = minutes }.Validate());
+    }
 }

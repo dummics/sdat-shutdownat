@@ -95,8 +95,7 @@ public sealed partial class MainWindow : Window
                 KeepDailyToggle.IsOn,
                 DateTimeOffset.UtcNow,
                 TimeZoneInfo.Local);
-            var settings = await _runtime.Settings.LoadAsync();
-            var result = await _runtime.Coordinator.SetAsync(prepared.Draft, settings.ReminderOffsetsMinutes);
+            var result = await _runtime.ScheduleCommands.SetAsync(prepared.Draft);
             await RefreshStatusAsync();
             ShellNav.SelectedItem = ShellNav.MenuItems[0];
             ShowStatus(
@@ -155,6 +154,7 @@ public sealed partial class MainWindow : Window
                 ReminderOffsetsMinutes = offsets,
                 CriticalOverlayEnabled = CriticalOverlayToggle.IsOn,
                 StartCompanionAtLogin = StartupToggle.IsOn,
+                DailyOverlapWindowMinutes = checked((int)DailyOverlapInput.Value),
             });
             new StartupRegistrationService(Environment.ProcessPath!).SetEnabled(settings.StartCompanionAtLogin);
             await _runtime.Coordinator.ReconcileAsync(settings.ReminderOffsetsMinutes);
@@ -232,6 +232,7 @@ public sealed partial class MainWindow : Window
         ReminderOffsetsInput.Text = string.Join(", ", settings.ReminderOffsetsMinutes);
         CriticalOverlayToggle.IsOn = settings.CriticalOverlayEnabled;
         StartupToggle.IsOn = settings.StartCompanionAtLogin;
+        DailyOverlapInput.Value = settings.DailyOverlapWindowMinutes;
     }
 
     private void ShowStatus(string message, InfoBarSeverity severity)

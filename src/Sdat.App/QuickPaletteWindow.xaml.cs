@@ -63,10 +63,7 @@ public sealed partial class QuickPaletteWindow : Window
                 keepDaily: false,
                 DateTimeOffset.UtcNow,
                 TimeZoneInfo.Local);
-            var settings = await _runtime.Settings.LoadAsync();
-            var result = await _runtime.Coordinator.SetAsync(
-                prepared.Draft,
-                settings.ReminderOffsetsMinutes);
+            var result = await _runtime.ScheduleCommands.SetAsync(prepared.Draft);
             if (result.IsFullyApplied)
             {
                 Close();

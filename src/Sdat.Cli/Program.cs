@@ -135,7 +135,7 @@ internal static class SdatCli
                     startup,
                     services.LegacyMigration,
                     invocation.Json),
-                CliCommandType.Schedule => await ScheduleAsync(services.Coordinator, invocation, reminderOffsets),
+                CliCommandType.Schedule => await ScheduleAsync(services.ScheduleCommands, invocation),
                 CliCommandType.Cancel => await CancelAsync(services.Coordinator, services.Schedules, invocation, reminderOffsets),
                 CliCommandType.Skip => await SkipNextDailyAsync(services.DailySkips, invocation.Json),
                 CliCommandType.Logs => await ShowLogsAsync(
@@ -232,9 +232,8 @@ internal static class SdatCli
     }
 
     private static async Task<int> ScheduleAsync(
-        ScheduleCoordinator coordinator,
-        CliInvocation invocation,
-        IReadOnlyList<int> reminderOffsets)
+        ScheduleCommandService scheduleCommands,
+        CliInvocation invocation)
     {
         var now = DateTimeOffset.UtcNow;
         var timeZone = TimeZoneInfo.Local;
@@ -246,7 +245,7 @@ internal static class SdatCli
             now,
             timeZone);
 
-        var result = await coordinator.SetAsync(prepared.Draft, reminderOffsets);
+        var result = await scheduleCommands.SetAsync(prepared.Draft);
         if (invocation.Json)
         {
             WriteMachineSuccess(
@@ -257,8 +256,15 @@ internal static class SdatCli
         }
         else
         {
-            Console.WriteLine($"Scheduled: {FormatSchedule(result.Schedule)}");
-            WriteMutationWarnings(result);
+            Console.WriteLine($"Scheduled: {FormatSchedule(result.Mutation.Schedule)}");
+            if (result.AutomaticDailySkip is not null)
+            {
+                Console.WriteLine(
+                    $"Skipped the overlapping daily occurrence at {result.AutomaticDailySkip.Request.ExecuteDueAt.ToLocalTime():yyyy-MM-dd HH:mm}.");
+            }
+
+            WriteMutationWarnings(result.Mutation);
+            WriteDailySkipWarnings(result.AutomaticDailySkip);
         }
 
         return result.IsFullyApplied ? 0 : 3;
@@ -481,8 +487,7 @@ internal static class SdatCli
                         null,
                         null,
                         null);
-                    var offsets = (await services.Settings.LoadAsync()).ReminderOffsetsMinutes;
-                    var exitCode = await ScheduleAsync(services.Coordinator, invocation, offsets);
+                    var exitCode = await ScheduleAsync(services.ScheduleCommands, invocation);
                     ShowTuiResult(exitCode == 0 ? "Schedule saved." : "Schedule saved with warnings.", exitCode == 0);
                 }
                 else
@@ -653,6 +658,25 @@ internal static class SdatCli
         }
 
         return warnings;
+    }
+
+    private static IReadOnlyList<MachineWarning> GetMutationWarnings(ScheduleCommandResult result)
+    {
+        var warnings = GetMutationWarnings(result.Mutation).ToList();
+        if (result.AutomaticDailySkip?.BackupFailure is not null)
+        {
+            warnings.Add(new MachineWarning("DailySkipBackupFailed", result.AutomaticDailySkip.BackupFailure));
+        }
+
+        return warnings;
+    }
+
+    private static void WriteDailySkipWarnings(DailySkipResult? result)
+    {
+        if (result?.BackupFailure is not null)
+        {
+            Console.Error.WriteLine($"Warning: daily skip was saved, but its backup failed: {result.BackupFailure}");
+        }
     }
 
     private static IReadOnlyList<MachineWarning> GetReconciliationWarnings(ReconciliationReport report) =>
