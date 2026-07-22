@@ -235,9 +235,11 @@ if (-not $NoPath) { Remove-SdatFromUserPath -Path @((Join-Path $installFull "bin
 if (-not $NoShortcuts) {
     $programsRoot = [Environment]::GetFolderPath("Programs")
     if (-not [string]::IsNullOrWhiteSpace($programsRoot)) {
-        $shortcutRoot = Join-Path $programsRoot "SDAT"
-        if (Test-Path -LiteralPath $shortcutRoot) {
-            Remove-Item -LiteralPath $shortcutRoot -Recurse -Force
+        foreach ($shortcutFolder in @("ShutdownAT", "SDAT")) {
+            $shortcutRoot = Join-Path $programsRoot $shortcutFolder
+            if (Test-Path -LiteralPath $shortcutRoot) {
+                Remove-Item -LiteralPath $shortcutRoot -Recurse -Force
+            }
         }
     }
 }
@@ -249,5 +251,5 @@ if (Test-Path -LiteralPath $installFull) {
     }
 }
 
-Write-Host "SDAT was removed." -ForegroundColor Green
+Write-Host "ShutdownAT was removed." -ForegroundColor Green
 if ($backupPath) { Write-Host "Data backup: $backupPath" -ForegroundColor Gray }

@@ -1,10 +1,10 @@
-# SDAT — Windows power scheduling without friction
+# ShutdownAT (SDAT) — Windows power scheduling without friction
 
 [![CI](https://github.com/dummics/sdat-shutdownat/actions/workflows/ci.yml/badge.svg)](https://github.com/dummics/sdat-shutdownat/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/dummics/sdat-shutdownat)](https://github.com/dummics/sdat-shutdownat/releases/latest)
 [![License](https://img.shields.io/github/license/dummics/sdat-shutdownat)](LICENSE)
 
-Schedule a shutdown, restart, or suspend using the fastest surface for the moment: Win+R, a terminal, the interactive TUI, or the Windows 11 companion. SDAT is local, open source, account-free, and telemetry-free.
+Schedule a shutdown, restart, or suspend using the fastest surface for the moment: Win+R, a terminal, the interactive TUI, or the Windows 11 app. ShutdownAT is local, open source, account-free, and telemetry-free; `sdat` remains its short CLI command.
 
 ```text
 sdat 36m
@@ -23,7 +23,7 @@ SDAT supports Windows 10 version 2004 or newer and Windows 11 on x64. The defaul
 irm https://raw.githubusercontent.com/dummics/sdat-shutdownat/main/install.ps1 | iex
 ```
 
-The installer downloads the latest GitHub Release, verifies its SHA256 checksum, installs to `%LOCALAPPDATA%\Programs\SDAT`, adds Start menu shortcuts, and places the dedicated `bin` launcher directory on the user PATH. No PowerShell alias or profile change is required. For the easiest manual install, download `sdat-v*-windows.zip` from the [latest release](https://github.com/dummics/sdat-shutdownat/releases/latest), extract the whole archive, and double-click **Install SDAT.cmd**. Advanced users can run `scripts\install.ps1` directly. A larger `windows-portable` artifact can also be built when an entirely self-contained copy is needed.
+The installer downloads the latest GitHub Release, verifies its SHA256 checksum, installs to `%LOCALAPPDATA%\Programs\SDAT`, adds searchable **ShutdownAT** and **ShutdownAT Terminal** Start menu shortcuts, and places the dedicated `bin` launcher directory on the user PATH. No PowerShell alias or profile change is required. For the easiest manual install, download `sdat-v*-windows.zip` from the [latest release](https://github.com/dummics/sdat-shutdownat/releases/latest), extract the whole archive, and double-click **Install SDAT.cmd**. Advanced users can run `scripts\install.ps1` directly. A larger `windows-portable` artifact can also be built when an entirely self-contained copy is needed.
 
 ## Fast commands
 
@@ -35,12 +35,14 @@ The installer downloads the latest GitHub Release, verifies its SHA256 checksum,
 | `sdat daily 02:00` | Shut down every day at 02:00 |
 | `ssat 45m` | Suspend once in 45 minutes |
 | `sdat 01:30 -Restart` | Restart once at 01:30 |
-| `sdat` or `sdat status` | Show active schedules |
+| `sdat` | Open the TUI in an interactive terminal; when redirected, show status |
+| `sdat status` | Show active schedules without opening the TUI |
 | `sdat cancel` | Abort a Windows countdown and cancel the one-time action |
 | `sdat cancel all` | Cancel one-time and daily actions |
 | `sdat skip` | Skip the next daily occurrence once |
 | `sdat preview 36m` | Parse and preview without changing state |
 | `sdat tui` | Open the interactive terminal UI |
+| `sdat ui` | Open the ShutdownAT Windows app |
 | `sdat logs` | Show recent diagnostic history |
 | `sdat health` | Check SQLite and scheduler health |
 | `sdat reconcile` | Repair Task Scheduler from SQLite |
@@ -55,9 +57,11 @@ By default, a one-time action within two hours of the next daily action skips th
 sdat 45m -k
 ```
 
-## Windows companion
+## Windows app
 
-`SDAT.exe` provides a compact WinUI 3 shell with Overview, Schedule, Notifications, Hotkey & Tray, Advanced diagnostics, and About panels. Static and dynamic UI text is localized in English and Italian using Windows MRT Core resources.
+Search for **ShutdownAT** in Start, run `sdat ui`, or launch `SDAT.exe` directly. The executable keeps its compact technical name while the installed product is presented as ShutdownAT. Its WinUI 3 shell provides Overview, Schedule, Notifications, Hotkey & Tray, Advanced diagnostics, and About panels. Static and dynamic UI text is localized in English and Italian using Windows MRT Core resources.
+
+The richer keyboard-driven terminal interface remains a first-class client of the same C# core. Open it with `sdat`, `sdat tui`, or the **ShutdownAT Terminal** Start shortcut. It includes schedule preview, active-schedule management, daily skip, database health, recent activity, and explicit Task Scheduler repair.
 
 The optional tray companion provides a configurable global hotkey (default `Ctrl+Alt+S`) for the bottom-center quick scheduler. A conflicting hotkey does not take down the tray; SDAT reports the conflict and keeps the previous working combination when possible.
 
@@ -82,7 +86,7 @@ sdat uninstall
 sdat uninstall --keep-data
 ```
 
-Update packages are checksum-verified and promoted transactionally with rollback on failure. Unexpected files found inside the install directory are preserved under `%LOCALAPPDATA%\SDAT\install-backups` before a successful replacement. Uninstall removes only a verified SDAT installation, its shortcuts, and owned tasks. The clickable **Uninstall SDAT** shortcut preserves schedules and settings in a timestamped backup; `sdat uninstall --keep-data` does the same from the CLI.
+Update packages are checksum-verified and promoted transactionally with rollback on failure. Unexpected files found inside the install directory are preserved under `%LOCALAPPDATA%\SDAT\install-backups` before a successful replacement. Uninstall removes only a verified SDAT installation, its shortcuts, and owned tasks. The clickable **Uninstall ShutdownAT** shortcut preserves schedules and settings in a timestamped backup; `sdat uninstall --keep-data` does the same from the CLI.
 
 Shutdown and restart force applications to close. Save work before scheduling them.
 

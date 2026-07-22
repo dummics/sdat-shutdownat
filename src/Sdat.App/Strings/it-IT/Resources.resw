@@ -46,12 +46,12 @@
   <data name="KeepDailyToggle.Header" xml:space="preserve"><value>Mantieni la pianificazione giornaliera quando gli orari si sovrappongono</value></data>
   <data name="ScheduleButton.Content" xml:space="preserve"><value>Pianifica</value></data>
   <data name="NotificationsTitle.Text" xml:space="preserve"><value>Notifiche</value></data>
-  <data name="NotificationsSubtitle.Text" xml:space="preserve"><value>Scegli quando SDAT deve avvisarti prima di un'azione energetica.</value></data>
+  <data name="NotificationsSubtitle.Text" xml:space="preserve"><value>Scegli quando ShutdownAT deve avvisarti prima di un'azione energetica.</value></data>
   <data name="ReminderMinutesLabel.Text" xml:space="preserve"><value>Minuti di preavviso</value></data>
   <data name="ReminderOffsetsInput.PlaceholderText" xml:space="preserve"><value>2 oppure 10, 2</value></data>
   <data name="ReminderMinutesHelp.Text" xml:space="preserve"><value>Fino a cinque valori, da 1 minuto a 24 ore.</value></data>
   <data name="DailyOverlapLabel.Text" xml:space="preserve"><value>Finestra di sovrapposizione giornaliera</value></data>
-  <data name="DailyOverlapHelp.Text" xml:space="preserve"><value>Se un'azione singola dista al massimo questi minuti dalla prossima azione giornaliera, SDAT salta quell'occorrenza. Imposta 0 per disattivare.</value></data>
+  <data name="DailyOverlapHelp.Text" xml:space="preserve"><value>Se un'azione singola dista al massimo questi minuti dalla prossima azione giornaliera, ShutdownAT salta quell'occorrenza. Imposta 0 per disattivare.</value></data>
   <data name="CriticalOverlayToggle.Header" xml:space="preserve"><value>Mostra l'overlay critico in basso al centro</value></data>
   <data name="SaveSettingsButton.Content" xml:space="preserve"><value>Salva impostazioni</value></data>
   <data name="HotkeyTitle.Text" xml:space="preserve"><value>Hotkey e tray</value></data>
@@ -60,7 +60,7 @@
   <data name="PaletteHotkeyInput.PlaceholderText" xml:space="preserve"><value>Ctrl+Alt+S</value></data>
   <data name="PaletteHotkeyHelp.Text" xml:space="preserve"><value>Usa almeno un modificatore più una lettera, un numero oppure F1–F24.</value></data>
   <data name="StartupToggle.Header" xml:space="preserve"><value>Avvia il companion all'accesso</value></data>
-  <data name="TrayHelp.Text" xml:space="preserve"><value>L'icona nella tray mantiene disponibile la hotkey e offre accesso rapido a SDAT.</value></data>
+  <data name="TrayHelp.Text" xml:space="preserve"><value>L'icona nella tray mantiene disponibile la hotkey e offre accesso rapido a ShutdownAT.</value></data>
   <data name="AdvancedTitle.Text" xml:space="preserve"><value>Avanzate</value></data>
   <data name="AdvancedDescription.Text" xml:space="preserve"><value>SQLite è la fonte autorevole. Le attività di Utilità di pianificazione vengono riparate partendo dallo stato locale.</value></data>
   <data name="ReconcileButton.Content" xml:space="preserve"><value>Riconcilia attività</value></data>
@@ -88,17 +88,17 @@
   <data name="ActionShutdown" xml:space="preserve"><value>Spegni</value></data>
   <data name="ActionSuspend" xml:space="preserve"><value>Sospendi</value></data>
   <data name="ActionRestart" xml:space="preserve"><value>Riavvia</value></data>
-  <data name="QuickPaletteTitle" xml:space="preserve"><value>Pianificazione rapida — SDAT</value></data>
-  <data name="PaletteRecoveryWarning" xml:space="preserve"><value>Salvata con un avviso di ripristino. Apri SDAT per i dettagli.</value></data>
-  <data name="ReminderTitle" xml:space="preserve"><value>Promemoria SDAT</value></data>
+  <data name="QuickPaletteTitle" xml:space="preserve"><value>Pianificazione rapida — ShutdownAT</value></data>
+  <data name="PaletteRecoveryWarning" xml:space="preserve"><value>Salvata con un avviso di ripristino. Apri ShutdownAT per i dettagli.</value></data>
+  <data name="ReminderTitle" xml:space="preserve"><value>Promemoria ShutdownAT</value></data>
   <data name="RestartScheduledTitle" xml:space="preserve"><value>Questo PC è pianificato per il riavvio</value></data>
   <data name="ShutdownScheduledTitle" xml:space="preserve"><value>Questo PC è pianificato per lo spegnimento</value></data>
   <data name="DailyActionAt" xml:space="preserve"><value>Azione giornaliera alle {0:HH:mm}.</value></data>
   <data name="SecondsRemaining" xml:space="preserve"><value>{0} secondi rimanenti. Salva subito il lavoro.</value></data>
   <data name="CountdownStarting" xml:space="preserve"><value>Il conto alla rovescia di Windows sta per iniziare.</value></data>
-  <data name="TrayTooltip" xml:space="preserve"><value>Pianificatore energetico SDAT</value></data>
+  <data name="TrayTooltip" xml:space="preserve"><value>Pianificatore energetico ShutdownAT</value></data>
   <data name="TrayQuickSchedule" xml:space="preserve"><value>Pianificazione rapida</value></data>
-  <data name="TrayOpen" xml:space="preserve"><value>Apri SDAT</value></data>
+  <data name="TrayOpen" xml:space="preserve"><value>Apri ShutdownAT</value></data>
   <data name="TrayExit" xml:space="preserve"><value>Esci</value></data>
   <data name="DatabaseHealthTitle.Text" xml:space="preserve"><value>Integrità database</value></data>
   <data name="RecentActivityTitle.Text" xml:space="preserve"><value>Attività recente</value></data>

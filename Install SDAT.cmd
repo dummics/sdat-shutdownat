@@ -1,11 +1,11 @@
 @echo off
 setlocal
-title Install SDAT
+title Install ShutdownAT
 
 echo.
-echo  SDAT installer
-echo  --------------
-echo  This installs SDAT for your Windows account and opens setup when finished.
+echo  ShutdownAT installer
+echo  --------------------
+echo  This installs ShutdownAT for your Windows account and opens setup when finished.
 echo.
 
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\install.ps1" -SourcePath "%~dp0." -Launch

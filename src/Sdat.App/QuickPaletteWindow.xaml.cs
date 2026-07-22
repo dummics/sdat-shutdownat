@@ -18,7 +18,7 @@ public sealed partial class QuickPaletteWindow : Window
     {
         _runtime = runtime;
         InitializeComponent();
-        Title = AppText.Get("QuickPaletteTitle", "Quick schedule — SDAT");
+        Title = AppText.Get("QuickPaletteTitle", "Quick schedule — ShutdownAT");
         SystemBackdrop = new DesktopAcrylicBackdrop();
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(PaletteRoot);
@@ -72,7 +72,7 @@ public sealed partial class QuickPaletteWindow : Window
             {
                 TimeInput.Header = AppText.Get(
                     "PaletteRecoveryWarning",
-                    "Saved with a recovery warning. Open SDAT for details.");
+                    "Saved with a recovery warning. Open ShutdownAT for details.");
             }
         }
         catch (Exception exception)

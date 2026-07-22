@@ -84,8 +84,14 @@ try {
     }
 
     & $packageInstaller -SourcePath $source -InstallDir $tempInstall -NoPath -NoShortcuts -SkipPrerequisites
-    foreach ($required in @("VERSION", "SDAT.exe", "SDAT.pri", "sdat-cli.exe", "bin\sdat.bat", "bin\ssat.bat", ".sdat-package-manifest.json")) {
+    foreach ($required in @("VERSION", "SDAT.exe", "SDAT.pri", "sdat-cli.exe", "sdatui.bat", "Uninstall SDAT.cmd", "bin\sdat.bat", "bin\ssat.bat", ".sdat-package-manifest.json")) {
         if (-not (Test-Path -LiteralPath (Join-Path $tempInstall $required))) { throw "Installed package is missing $required" }
+    }
+    . $packageInstaller -ImportOnly
+    foreach ($definition in Get-SdatShortcutDefinitions -InstallPath $tempInstall) {
+        if (-not (Test-Path -LiteralPath $definition.TargetPath)) {
+            throw "Shortcut target is not present in the installed package: $($definition.TargetPath)"
+        }
     }
     $env:Path = Join-Path $tempInstall "bin"
     $resolvedSdat = Get-Command sdat -CommandType Application -ErrorAction Stop

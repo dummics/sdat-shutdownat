@@ -1,14 +1,17 @@
-SDAT for Windows
-================
+ShutdownAT for Windows
+======================
 
 Install
 -------
 1. Extract the whole ZIP.
 2. Double-click "Install SDAT.cmd".
-3. SDAT installs for your Windows account and opens the setup screen.
+3. ShutdownAT installs for your Windows account and opens the setup screen.
 
-The installer adds SDAT's dedicated CLI bin directory to PATH. PowerShell
+The installer adds ShutdownAT's dedicated CLI bin directory to PATH. PowerShell
 aliases and profile edits are not required.
+
+After installation, search for "ShutdownAT" or "ShutdownAT Terminal" in Start.
+You can also run `sdat ui` or `sdat tui` from a terminal.
 
 The slim package downloads official Microsoft runtimes only when they are
 missing. An internet connection can therefore be required on first install.
@@ -27,4 +30,4 @@ Advanced use
 - Application files are under app\.
 - Installer scripts are under scripts\.
 - Project documentation and licenses are under docs\.
-- The CLI remains available as `sdat`, `ssat`, and `sdat tui` after install.
+- The CLI remains available as `sdat`, `ssat`, `sdat tui`, and `sdat ui` after install.

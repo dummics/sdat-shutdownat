@@ -23,7 +23,7 @@ public sealed partial class MainWindow : Window
     {
         _runtime = runtime;
         InitializeComponent();
-        Title = "SDAT";
+        Title = "ShutdownAT";
         SystemBackdrop = new Microsoft.UI.Xaml.Media.MicaBackdrop();
         AppWindow.Resize(new SizeInt32(1040, 720));
         ExtendsContentIntoTitleBar = true;

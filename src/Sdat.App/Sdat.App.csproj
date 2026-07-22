@@ -2,6 +2,9 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <AssemblyName>SDAT</AssemblyName>
+    <AssemblyTitle>ShutdownAT</AssemblyTitle>
+    <Product>ShutdownAT</Product>
+    <Description>Local Windows power scheduling without friction.</Description>
     <RootNamespace>Sdat.App</RootNamespace>
     <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>

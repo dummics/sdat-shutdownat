@@ -74,6 +74,31 @@ if ($updatedPath -cne "$preferredCliPath;$unrelatedPath") {
     throw "Installer PATH migration did not prioritize the CLI bin directory and remove legacy entries."
 }
 
+$relativeRoot = Join-Path $SandboxRoot "relative-path"
+$relativeChild = Join-Path $relativeRoot "nested\file.txt"
+if ((Get-SdatRelativePath -BasePath $relativeRoot -Path $relativeChild) -cne "nested\file.txt") {
+    throw "Windows PowerShell-compatible relative path handling returned an unexpected result."
+}
+$outsideRelativeRejected = $false
+try { Get-SdatRelativePath -BasePath $relativeRoot -Path (Join-Path $SandboxRoot "outside.txt") | Out-Null } catch {
+    $outsideRelativeRejected = $true
+}
+if (-not $outsideRelativeRejected) {
+    throw "Relative path handling accepted a path outside the expected root."
+}
+
+$shortcutDefinitions = @(Get-SdatShortcutDefinitions -InstallPath (Join-Path $SandboxRoot "shortcut-test"))
+$shortcutNames = @($shortcutDefinitions | ForEach-Object Name)
+foreach ($expectedShortcut in @("ShutdownAT.lnk", "ShutdownAT Terminal.lnk", "Uninstall ShutdownAT.lnk")) {
+    if ($shortcutNames -notcontains $expectedShortcut) {
+        throw "Installer shortcut definitions are missing $expectedShortcut."
+    }
+}
+if (($shortcutDefinitions | Where-Object Name -eq "ShutdownAT.lnk").TargetPath -notmatch 'SDAT\.exe$' -or
+    ($shortcutDefinitions | Where-Object Name -eq "ShutdownAT Terminal.lnk").TargetPath -notmatch 'sdatui\.bat$') {
+    throw "ShutdownAT shortcuts do not target the expected graphical and terminal launchers."
+}
+
 if (Test-DotNetRuntimeList `
         -Runtimes @('Microsoft.NETCore.App 11.0.0 [C:\dotnet\shared\Microsoft.NETCore.App]') `
         -FrameworkName 'Microsoft.NETCore.App' `

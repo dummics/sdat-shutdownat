@@ -4,6 +4,8 @@ All notable user-facing changes to SDAT are documented here.
 
 ## 2.0.0 - Unreleased
 
+- Restored a richer native C# terminal experience with schedule preview, task management, health/history diagnostics, safe repair, and an interactive no-argument entry path that preserves non-interactive status output.
+- Presented the installed Windows utility as ShutdownAT while keeping the compact `sdat` CLI and `SDAT.exe` technical executable names, and added searchable graphical and terminal Start shortcuts.
 - Replaced the PowerShell scheduling backend with a native C#/.NET core while preserving the established CLI commands, aliases, Win+R workflow, and Spectre.Console TUI.
 - Added authoritative SQLite state, cross-process mutation locking, verified backups, health checks, guarded recovery, and forward-schema fail-safe behavior.
 - Added revision-safe Windows Task Scheduler projection and stale-safe task, notification, cancellation, and snooze activations.
@@ -18,6 +20,7 @@ All notable user-facing changes to SDAT are documented here.
 - Added an organized package layout, one-click install/uninstall launchers, prerequisite bootstrap, Start menu shortcuts, and backup-first clickable uninstall.
 - Added a dedicated CLI `bin` PATH surface so `sdat` and `ssat` resolve to the installed launchers without PowerShell aliases or collision with `SDAT.exe`.
 - Added protected-directory guardrails, transactional update rollback, and recoverable backup of non-package files found during replacement.
+- Fixed clickable installer updates under Windows PowerShell 5.1 by removing a PowerShell 7-only path API from the runtime installer.
 - Removed the obsolete v1 PowerShell backend and bundled PwshSpectreConsole runtime from the release tree.
 
 ## 1.0.2 - 2026-07-14

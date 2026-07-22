@@ -36,7 +36,8 @@ internal static class SdatCli
             var executableName = Path.GetFileNameWithoutExtension(Environment.ProcessPath);
             invocation = CliInvocationParser.Parse(
                 args,
-                suspendAlias: string.Equals(executableName, "ssat", StringComparison.OrdinalIgnoreCase));
+                suspendAlias: string.Equals(executableName, "ssat", StringComparison.OrdinalIgnoreCase),
+                interactiveDefault: args.Length == 0 && IsInteractiveTerminal());
         }
         catch (Exception exception) when (exception is CliUsageException or FormatException or OverflowException)
         {
@@ -87,6 +88,29 @@ internal static class SdatCli
             catch (Exception exception) when (exception is not OperationCanceledException)
             {
                 WriteError(exception, invocation.Json, invocation.Command.ToString().ToLowerInvariant());
+                return 10;
+            }
+        }
+
+        if (invocation.Command == CliCommandType.Ui)
+        {
+            try
+            {
+                var process = LaunchGraphicalCompanion();
+                if (invocation.Json)
+                {
+                    WriteMachineSuccess("ui", new { launched = true, processId = process.Id });
+                }
+                else
+                {
+                    Console.WriteLine("Opened ShutdownAT.");
+                }
+
+                return 0;
+            }
+            catch (Exception exception) when (exception is not OperationCanceledException)
+            {
+                WriteError(exception, invocation.Json, "ui");
                 return 10;
             }
         }
@@ -177,6 +201,34 @@ internal static class SdatCli
         return SdatRuntime.CreateAsync(taskHostPath);
     }
 
+    private static bool IsInteractiveTerminal() =>
+        Environment.UserInteractive &&
+        !Console.IsInputRedirected &&
+        !Console.IsOutputRedirected &&
+        AnsiConsole.Profile.Capabilities.Interactive;
+
+    internal static Process LaunchGraphicalCompanion()
+    {
+        var executablePath = Environment.ProcessPath
+            ?? throw new InvalidOperationException("Cannot resolve the SDAT executable path.");
+        var installDirectory = Path.GetDirectoryName(executablePath)
+            ?? throw new InvalidOperationException("Cannot resolve the SDAT installation directory.");
+        var companionPath = Path.Combine(installDirectory, "SDAT.exe");
+        if (!File.Exists(companionPath))
+        {
+            throw new FileNotFoundException(
+                "ShutdownAT is not available beside the CLI executable. Reinstall the complete package.",
+                companionPath);
+        }
+
+        return Process.Start(new ProcessStartInfo
+        {
+            FileName = companionPath,
+            WorkingDirectory = installDirectory,
+            UseShellExecute = true,
+        }) ?? throw new InvalidOperationException("Windows did not start ShutdownAT.");
+    }
+
     private static int RunMaintenance(CliInvocation invocation)
     {
         var executablePath = Environment.ProcessPath
@@ -221,7 +273,7 @@ internal static class SdatCli
 
         if (schedules.Count == 0)
         {
-            Console.WriteLine("No active SDAT schedules.");
+            Console.WriteLine("No active ShutdownAT schedules.");
         }
         else
         {
@@ -333,7 +385,7 @@ internal static class SdatCli
         }
         else
         {
-            Console.WriteLine(invocation.CancelAll ? "Cancelled all SDAT schedules." : "Cancelled the one-time schedule.");
+            Console.WriteLine(invocation.CancelAll ? "Cancelled all ShutdownAT schedules." : "Cancelled the one-time schedule.");
             foreach (var result in results)
             {
                 WriteMutationWarnings(result);
@@ -416,7 +468,7 @@ internal static class SdatCli
             return 0;
         }
 
-        Console.WriteLine($"SDAT data: {dataDirectory}");
+        Console.WriteLine($"ShutdownAT data: {dataDirectory}");
         if (events.Count == 0)
         {
             Console.WriteLine("No diagnostic events recorded yet.");
@@ -444,133 +496,7 @@ internal static class SdatCli
                 json: false);
         }
 
-        while (true)
-        {
-            AnsiConsole.Clear();
-            AnsiConsole.Write(new FigletText("SDAT").Color(Color.CornflowerBlue));
-            await WriteTuiStatusAsync(services.Schedules);
-            var action = AnsiConsole.Prompt(
-                new SelectionPrompt<string>()
-                    .Title("[grey]Choose an action[/]")
-                    .PageSize(7)
-                    .AddChoices(
-                        "Schedule once",
-                        "Schedule daily",
-                        "Cancel one-time",
-                        "Cancel all",
-                        "Refresh",
-                        "Exit"));
-
-            if (action == "Exit")
-            {
-                AnsiConsole.Clear();
-                return 0;
-            }
-
-            if (action == "Refresh")
-            {
-                await services.Coordinator.ReconcileAsync((await services.Settings.LoadAsync()).ReminderOffsetsMinutes);
-                continue;
-            }
-
-            try
-            {
-                if (action.StartsWith("Schedule", StringComparison.Ordinal))
-                {
-                    var powerAction = AnsiConsole.Prompt(
-                        new SelectionPrompt<string>()
-                            .Title("Power action")
-                            .AddChoices("Shutdown", "Suspend", "Restart"));
-                    var expression = AnsiConsole.Ask<string>(
-                        action == "Schedule daily"
-                            ? "Clock time [grey](for example 02:30)[/]:"
-                            : "When [grey](for example 36m or 23:41)[/]:");
-                    var invocation = new CliInvocation(
-                        CliCommandType.Schedule,
-                        expression,
-                        action == "Schedule daily" ? ScheduleKind.Daily : ScheduleKind.OneTime,
-                        Enum.Parse<PowerActionType>(powerAction),
-                        false,
-                        false,
-                        false,
-                        null,
-                        null,
-                        null,
-                        null);
-                    var exitCode = await ScheduleAsync(services.ScheduleCommands, invocation);
-                    ShowTuiResult(exitCode == 0 ? "Schedule saved." : "Schedule saved with warnings.", exitCode == 0);
-                }
-                else
-                {
-                    var cancelAll = action == "Cancel all";
-                    if (AnsiConsole.Confirm(
-                            cancelAll ? "Cancel every active schedule?" : "Cancel the one-time schedule?",
-                            defaultValue: false))
-                    {
-                        TryAbortWindowsCountdown();
-                        var invocation = new CliInvocation(
-                            CliCommandType.Cancel,
-                            null,
-                            ScheduleKind.OneTime,
-                            PowerActionType.Shutdown,
-                            cancelAll,
-                            false,
-                            false,
-                            null,
-                            null,
-                            null,
-                            null);
-                        var offsets = (await services.Settings.LoadAsync()).ReminderOffsetsMinutes;
-                        var exitCode = await CancelAsync(services.Coordinator, services.Schedules, invocation, offsets);
-                        ShowTuiResult(exitCode == 0 ? "Cancellation complete." : "Cancelled with warnings.", exitCode == 0);
-                    }
-                }
-            }
-            catch (Exception exception) when (exception is not OperationCanceledException)
-            {
-                AnsiConsole.MarkupLine($"[red]Could not complete the action:[/] {Markup.Escape(exception.Message)}");
-                AnsiConsole.WriteLine("Press any key to continue.");
-                Console.ReadKey(intercept: true);
-            }
-        }
-    }
-
-    private static async Task WriteTuiStatusAsync(IScheduleRepository repository)
-    {
-        var schedules = await repository.ListAsync();
-        if (schedules.Count == 0)
-        {
-            AnsiConsole.MarkupLine("[grey]No active schedules.[/]");
-            AnsiConsole.WriteLine();
-            return;
-        }
-
-        var table = new Table()
-            .Border(TableBorder.Simple)
-            .AddColumn("Slot")
-            .AddColumn("Action")
-            .AddColumn("When");
-        foreach (var schedule in schedules)
-        {
-            table.AddRow(
-                schedule.Kind == ScheduleKind.OneTime ? "Once" : "Daily",
-                schedule.Action.ToString(),
-                schedule.Kind == ScheduleKind.OneTime
-                    ? schedule.TargetAt!.Value.ToLocalTime().ToString("ddd HH:mm")
-                    : schedule.DailyAt!.Value.ToString("HH:mm"));
-        }
-
-        AnsiConsole.Write(table);
-        AnsiConsole.WriteLine();
-    }
-
-    private static void ShowTuiResult(string message, bool success)
-    {
-        AnsiConsole.MarkupLine(success
-            ? $"[green]{Markup.Escape(message)}[/]"
-            : $"[yellow]{Markup.Escape(message)}[/]");
-        AnsiConsole.WriteLine("Press any key to continue.");
-        Console.ReadKey(intercept: true);
+        return await TerminalApp.RunAsync(services);
     }
 
     private static int WriteReconciliation(ReconciliationReport report, bool json)
@@ -632,7 +558,7 @@ internal static class SdatCli
         }
         else
         {
-            Console.Error.WriteLine($"SDAT error: {exception.Message}");
+            Console.Error.WriteLine($"ShutdownAT error: {exception.Message}");
         }
     }
 
@@ -727,7 +653,7 @@ internal static class SdatCli
         ?? Assembly.GetExecutingAssembly().GetName().Version?.ToString()
         ?? "unknown";
 
-    private static void TryAbortWindowsCountdown()
+    internal static void TryAbortWindowsCountdown()
     {
         try
         {
@@ -749,7 +675,7 @@ internal static class SdatCli
 
     private static void PrintHelp() => Console.WriteLine(
         """
-        SDAT — local Windows power scheduling
+        ShutdownAT (SDAT) — local Windows power scheduling
 
           sdat 36m                 schedule a one-time shutdown
           sdat preview --time 36m preview without changing state
@@ -759,6 +685,7 @@ internal static class SdatCli
           ssat 45m                schedule a one-time suspend
           sdat 01:30 -Restart     schedule a restart
           sdat status             show active schedules
+          sdat                    open the TUI in an interactive terminal; otherwise show status
           sdat cancel [all]       cancel one-time or all schedules
           sdat skip               skip the next daily action once
           sdat logs               show recent diagnostic history
@@ -767,6 +694,7 @@ internal static class SdatCli
           sdat reconcile          repair Task Scheduler from SQLite
           sdat health             check database and scheduler state
           sdat tui                open the interactive terminal UI
+          sdat ui                 open the ShutdownAT Windows app
 
         Options: -p/--daily, -k/--keep-daily, -Suspend, -Restart, --dry-run, --json
         Legacy aliases: -a (cancel one-time), -aa (cancel all), -s (skip daily once)

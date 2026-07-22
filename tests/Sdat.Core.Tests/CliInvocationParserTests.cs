@@ -7,6 +7,28 @@ namespace Sdat.Core.Tests;
 public sealed class CliInvocationParserTests
 {
     [Fact]
+    public void No_arguments_keep_status_as_the_non_interactive_default()
+    {
+        Assert.Equal(CliCommandType.Status, CliInvocationParser.Parse([]).Command);
+    }
+
+    [Fact]
+    public void No_arguments_open_tui_when_the_caller_is_interactive()
+    {
+        Assert.Equal(
+            CliCommandType.Tui,
+            CliInvocationParser.Parse([], interactiveDefault: true).Command);
+    }
+
+    [Fact]
+    public void Json_output_never_uses_the_interactive_default()
+    {
+        Assert.Equal(
+            CliCommandType.Status,
+            CliInvocationParser.Parse(["--json"], interactiveDefault: true).Command);
+    }
+
+    [Fact]
     public void Parses_skip_command()
     {
         Assert.Equal(CliCommandType.Skip, CliInvocationParser.Parse(["skip"]).Command);
@@ -119,5 +141,11 @@ public sealed class CliInvocationParserTests
     public void Tui_aliases_are_preserved(string alias)
     {
         Assert.Equal(CliCommandType.Tui, CliInvocationParser.Parse([alias]).Command);
+    }
+
+    [Fact]
+    public void Parses_graphical_ui_command()
+    {
+        Assert.Equal(CliCommandType.Ui, CliInvocationParser.Parse(["ui"]).Command);
     }
 }

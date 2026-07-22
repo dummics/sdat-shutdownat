@@ -46,12 +46,12 @@
   <data name="KeepDailyToggle.Header" xml:space="preserve"><value>Keep the daily schedule when times overlap</value></data>
   <data name="ScheduleButton.Content" xml:space="preserve"><value>Schedule</value></data>
   <data name="NotificationsTitle.Text" xml:space="preserve"><value>Notifications</value></data>
-  <data name="NotificationsSubtitle.Text" xml:space="preserve"><value>Choose when SDAT warns you before a power action.</value></data>
+  <data name="NotificationsSubtitle.Text" xml:space="preserve"><value>Choose when ShutdownAT warns you before a power action.</value></data>
   <data name="ReminderMinutesLabel.Text" xml:space="preserve"><value>Reminder minutes</value></data>
   <data name="ReminderOffsetsInput.PlaceholderText" xml:space="preserve"><value>2 or 10, 2</value></data>
   <data name="ReminderMinutesHelp.Text" xml:space="preserve"><value>Up to five values, from 1 minute to 24 hours.</value></data>
   <data name="DailyOverlapLabel.Text" xml:space="preserve"><value>Daily overlap window</value></data>
-  <data name="DailyOverlapHelp.Text" xml:space="preserve"><value>When a one-time action is this many minutes from the next daily action, SDAT skips that daily occurrence. Set 0 to disable.</value></data>
+  <data name="DailyOverlapHelp.Text" xml:space="preserve"><value>When a one-time action is this many minutes from the next daily action, ShutdownAT skips that daily occurrence. Set 0 to disable.</value></data>
   <data name="CriticalOverlayToggle.Header" xml:space="preserve"><value>Show the critical bottom-center overlay</value></data>
   <data name="SaveSettingsButton.Content" xml:space="preserve"><value>Save settings</value></data>
   <data name="HotkeyTitle.Text" xml:space="preserve"><value>Hotkey &amp; Tray</value></data>
@@ -60,7 +60,7 @@
   <data name="PaletteHotkeyInput.PlaceholderText" xml:space="preserve"><value>Ctrl+Alt+S</value></data>
   <data name="PaletteHotkeyHelp.Text" xml:space="preserve"><value>Use at least one modifier plus a letter, number, or F1-F24.</value></data>
   <data name="StartupToggle.Header" xml:space="preserve"><value>Start the companion when I sign in</value></data>
-  <data name="TrayHelp.Text" xml:space="preserve"><value>The tray icon keeps the hotkey available and provides quick access to SDAT.</value></data>
+  <data name="TrayHelp.Text" xml:space="preserve"><value>The tray icon keeps the hotkey available and provides quick access to ShutdownAT.</value></data>
   <data name="AdvancedTitle.Text" xml:space="preserve"><value>Advanced</value></data>
   <data name="AdvancedDescription.Text" xml:space="preserve"><value>SQLite is authoritative. Windows Task Scheduler is repaired from this local state.</value></data>
   <data name="ReconcileButton.Content" xml:space="preserve"><value>Reconcile tasks</value></data>
@@ -88,17 +88,17 @@
   <data name="ActionShutdown" xml:space="preserve"><value>Shut down</value></data>
   <data name="ActionSuspend" xml:space="preserve"><value>Suspend</value></data>
   <data name="ActionRestart" xml:space="preserve"><value>Restart</value></data>
-  <data name="QuickPaletteTitle" xml:space="preserve"><value>Quick schedule — SDAT</value></data>
-  <data name="PaletteRecoveryWarning" xml:space="preserve"><value>Saved with a recovery warning. Open SDAT for details.</value></data>
-  <data name="ReminderTitle" xml:space="preserve"><value>SDAT reminder</value></data>
+  <data name="QuickPaletteTitle" xml:space="preserve"><value>Quick schedule — ShutdownAT</value></data>
+  <data name="PaletteRecoveryWarning" xml:space="preserve"><value>Saved with a recovery warning. Open ShutdownAT for details.</value></data>
+  <data name="ReminderTitle" xml:space="preserve"><value>ShutdownAT reminder</value></data>
   <data name="RestartScheduledTitle" xml:space="preserve"><value>This PC is scheduled to restart</value></data>
   <data name="ShutdownScheduledTitle" xml:space="preserve"><value>This PC is scheduled to shut down</value></data>
   <data name="DailyActionAt" xml:space="preserve"><value>Daily action at {0:HH:mm}.</value></data>
   <data name="SecondsRemaining" xml:space="preserve"><value>{0} seconds remaining. Save your work now.</value></data>
   <data name="CountdownStarting" xml:space="preserve"><value>The Windows countdown is about to begin.</value></data>
-  <data name="TrayTooltip" xml:space="preserve"><value>SDAT power scheduler</value></data>
+  <data name="TrayTooltip" xml:space="preserve"><value>ShutdownAT power scheduler</value></data>
   <data name="TrayQuickSchedule" xml:space="preserve"><value>Quick schedule</value></data>
-  <data name="TrayOpen" xml:space="preserve"><value>Open SDAT</value></data>
+  <data name="TrayOpen" xml:space="preserve"><value>Open ShutdownAT</value></data>
   <data name="TrayExit" xml:space="preserve"><value>Exit</value></data>
   <data name="DatabaseHealthTitle.Text" xml:space="preserve"><value>Database health</value></data>
   <data name="RecentActivityTitle.Text" xml:space="preserve"><value>Recent activity</value></data>

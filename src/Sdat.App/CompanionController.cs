@@ -135,7 +135,7 @@ internal sealed class CompanionController : IDisposable
                 Flags = NifMessage | NifIcon | NifTip,
                 CallbackMessage = TrayMessage,
                 Icon = LoadIcon(IntPtr.Zero, DefaultApplicationIcon),
-                Tip = AppText.Get("TrayTooltip", "SDAT power scheduler"),
+                Tip = AppText.Get("TrayTooltip", "ShutdownAT power scheduler"),
                 Info = string.Empty,
                 InfoTitle = string.Empty,
             };
@@ -303,7 +303,7 @@ internal sealed class CompanionController : IDisposable
             try
             {
                 AppendMenu(menu, MfString, CommandPalette, AppText.Get("TrayQuickSchedule", "Quick schedule"));
-                AppendMenu(menu, MfString, CommandOpen, AppText.Get("TrayOpen", "Open SDAT"));
+                AppendMenu(menu, MfString, CommandOpen, AppText.Get("TrayOpen", "Open ShutdownAT"));
                 AppendMenu(menu, MfSeparator, 0, null);
                 AppendMenu(menu, MfString, CommandExit, AppText.Get("TrayExit", "Exit"));
                 GetCursorPos(out var cursor);

@@ -17,6 +17,7 @@ public enum CliCommandType
     Help,
     Version,
     Tui,
+    Ui,
     TaskRun,
 }
 
@@ -38,7 +39,10 @@ public sealed class CliUsageException(string message) : ArgumentException(messag
 
 public static class CliInvocationParser
 {
-    public static CliInvocation Parse(IReadOnlyList<string> args, bool suspendAlias = false)
+    public static CliInvocation Parse(
+        IReadOnlyList<string> args,
+        bool suspendAlias = false,
+        bool interactiveDefault = false)
     {
         var action = suspendAlias ? PowerActionType.Suspend : PowerActionType.Shutdown;
         var kind = ScheduleKind.OneTime;
@@ -146,7 +150,7 @@ public static class CliInvocationParser
         if (positional.Count == 0)
         {
             return explicitTime is null
-                ? Create(CliCommandType.Status)
+                ? Create(interactiveDefault && !json ? CliCommandType.Tui : CliCommandType.Status)
                 : Create(dryRun ? CliCommandType.Preview : CliCommandType.Schedule, explicitTime);
         }
 
@@ -157,6 +161,7 @@ public static class CliInvocationParser
             "help" or "-h" or "--help" => RequireCount(CliCommandType.Help, 1),
             "version" or "--version" => RequireCount(CliCommandType.Version, 1),
             "t" or "tui" => RequireCount(CliCommandType.Tui, 1),
+            "ui" => RequireCount(CliCommandType.Ui, 1),
             "reconcile" => RequireCount(CliCommandType.Reconcile, 1),
             "health" => RequireCount(CliCommandType.Health, 1),
             "skip" => RequireCount(CliCommandType.Skip, 1),

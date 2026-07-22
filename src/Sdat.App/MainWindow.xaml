@@ -7,6 +7,7 @@
             x:Name="ShellNav"
             IsBackButtonVisible="Collapsed"
             IsSettingsVisible="False"
+            PaneTitle="ShutdownAT"
             PaneDisplayMode="LeftCompact"
             SelectionChanged="OnNavigationChanged">
             <NavigationView.MenuItems>
@@ -94,7 +95,7 @@
                     <StackPanel Padding="36,28" Spacing="22" MaxWidth="720" HorizontalAlignment="Left">
                         <StackPanel Spacing="4">
                             <TextBlock x:Uid="NotificationsTitle" Text="Notifications" Style="{ThemeResource TitleTextBlockStyle}" />
-                            <TextBlock x:Uid="NotificationsSubtitle" Text="Choose when SDAT warns you before a power action." Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            <TextBlock x:Uid="NotificationsSubtitle" Text="Choose when ShutdownAT warns you before a power action." Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                         </StackPanel>
                         <StackPanel Spacing="6">
                             <TextBlock x:Uid="ReminderMinutesLabel" Text="Reminder minutes" />
@@ -104,7 +105,7 @@
                         <StackPanel Spacing="6">
                             <TextBlock x:Uid="DailyOverlapLabel" Text="Daily overlap window" />
                             <NumberBox x:Name="DailyOverlapInput" Minimum="0" Maximum="1440" SpinButtonPlacementMode="Compact" />
-                            <TextBlock x:Uid="DailyOverlapHelp" Text="When a one-time action is this many minutes from the next daily action, SDAT skips that daily occurrence. Set 0 to disable." TextWrapping="Wrap" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            <TextBlock x:Uid="DailyOverlapHelp" Text="When a one-time action is this many minutes from the next daily action, ShutdownAT skips that daily occurrence. Set 0 to disable." TextWrapping="Wrap" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                         </StackPanel>
                         <ToggleSwitch x:Uid="CriticalOverlayToggle" x:Name="CriticalOverlayToggle" Header="Show the critical bottom-center overlay" />
                         <Button x:Uid="SaveSettingsButton" Content="Save settings" Style="{ThemeResource AccentButtonStyle}" Click="OnSaveSettings" HorizontalAlignment="Left" />
@@ -123,7 +124,7 @@
                             <TextBlock x:Uid="PaletteHotkeyHelp" Text="Use at least one modifier plus a letter, number, or F1-F24." Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                         </StackPanel>
                         <ToggleSwitch x:Uid="StartupToggle" x:Name="StartupToggle" Header="Start the companion when I sign in" />
-                        <TextBlock x:Uid="TrayHelp" Text="The tray icon keeps the hotkey available and provides quick access to SDAT." TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        <TextBlock x:Uid="TrayHelp" Text="The tray icon keeps the hotkey available and provides quick access to ShutdownAT." TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                         <Button x:Uid="SaveSettingsButton" Content="Save settings" Style="{ThemeResource AccentButtonStyle}" Click="OnSaveSettings" HorizontalAlignment="Left" />
                     </StackPanel>
                 </ScrollViewer>
@@ -171,7 +172,7 @@
 
                 <ScrollViewer x:Name="AboutView" Visibility="Collapsed">
                     <StackPanel Padding="36,28" Spacing="12" MaxWidth="720" HorizontalAlignment="Left">
-                        <TextBlock Text="SDAT" Style="{ThemeResource TitleTextBlockStyle}" />
+                        <TextBlock Text="ShutdownAT" Style="{ThemeResource TitleTextBlockStyle}" />
                         <TextBlock x:Uid="AboutDescription" Text="Local, open-source Windows power scheduling without accounts or telemetry." TextWrapping="Wrap" />
                         <TextBlock x:Uid="AboutCliDescription" Text="CLI and terminal UI remain first-class clients of the same C# core." TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                     </StackPanel>

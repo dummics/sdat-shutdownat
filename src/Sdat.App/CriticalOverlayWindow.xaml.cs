@@ -23,7 +23,7 @@ public sealed partial class CriticalOverlayWindow : Window
         _schedule = schedule;
         _countdownWindowSeconds = Math.Max(1, reminderOffsetMinutes) * 60d;
         InitializeComponent();
-        Title = AppText.Get("ReminderTitle", "SDAT reminder");
+        Title = AppText.Get("ReminderTitle", "ShutdownAT reminder");
         SystemBackdrop = new DesktopAcrylicBackdrop();
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(OverlayRoot);

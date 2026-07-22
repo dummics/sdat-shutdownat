@@ -182,26 +182,68 @@ function Add-SdatToUserPath {
     Send-EnvironmentChanged
 }
 
+function Get-SdatRelativePath {
+    param(
+        [Parameter(Mandatory)][string]$BasePath,
+        [Parameter(Mandatory)][string]$Path
+    )
+
+    $baseFull = [IO.Path]::GetFullPath($BasePath).TrimEnd('\') + '\'
+    $pathFull = [IO.Path]::GetFullPath($Path)
+    if (-not $pathFull.StartsWith($baseFull, [StringComparison]::OrdinalIgnoreCase)) {
+        throw "Path is outside the expected SDAT root: $pathFull"
+    }
+
+    return $pathFull.Substring($baseFull.Length)
+}
+
+function Get-SdatShortcutDefinitions {
+    param([Parameter(Mandatory)][string]$InstallPath)
+
+    return @(
+        [pscustomobject]@{
+            Name = "ShutdownAT.lnk"
+            TargetPath = Join-Path $InstallPath "SDAT.exe"
+            Description = "Open ShutdownAT"
+            IconLocation = Join-Path $InstallPath "SDAT.exe"
+        },
+        [pscustomobject]@{
+            Name = "ShutdownAT Terminal.lnk"
+            TargetPath = Join-Path $InstallPath "sdatui.bat"
+            Description = "Open the ShutdownAT terminal interface"
+            IconLocation = Join-Path $InstallPath "SDAT.exe"
+        },
+        [pscustomobject]@{
+            Name = "Uninstall ShutdownAT.lnk"
+            TargetPath = Join-Path $InstallPath "Uninstall SDAT.cmd"
+            Description = "Remove ShutdownAT and preserve a data backup"
+            IconLocation = Join-Path $InstallPath "SDAT.exe"
+        }
+    )
+}
+
 function Install-SdatShortcuts {
     param([Parameter(Mandatory)][string]$InstallPath)
 
     $programsRoot = [Environment]::GetFolderPath("Programs")
     if ([string]::IsNullOrWhiteSpace($programsRoot)) { return }
-    $shortcutRoot = Join-Path $programsRoot "SDAT"
+    $legacyShortcutRoot = Join-Path $programsRoot "SDAT"
+    if (Test-Path -LiteralPath $legacyShortcutRoot) {
+        Remove-Item -LiteralPath $legacyShortcutRoot -Recurse -Force
+    }
+
+    $shortcutRoot = Join-Path $programsRoot "ShutdownAT"
     New-Item -ItemType Directory -Path $shortcutRoot -Force | Out-Null
     $shell = New-Object -ComObject WScript.Shell
 
-    $appShortcut = $shell.CreateShortcut((Join-Path $shortcutRoot "SDAT.lnk"))
-    $appShortcut.TargetPath = Join-Path $InstallPath "SDAT.exe"
-    $appShortcut.WorkingDirectory = $InstallPath
-    $appShortcut.Description = "Open SDAT"
-    $appShortcut.Save()
-
-    $uninstallShortcut = $shell.CreateShortcut((Join-Path $shortcutRoot "Uninstall SDAT.lnk"))
-    $uninstallShortcut.TargetPath = Join-Path $InstallPath "Uninstall SDAT.cmd"
-    $uninstallShortcut.WorkingDirectory = $InstallPath
-    $uninstallShortcut.Description = "Remove SDAT and preserve a data backup"
-    $uninstallShortcut.Save()
+    foreach ($definition in Get-SdatShortcutDefinitions -InstallPath $InstallPath) {
+        $shortcut = $shell.CreateShortcut((Join-Path $shortcutRoot $definition.Name))
+        $shortcut.TargetPath = $definition.TargetPath
+        $shortcut.WorkingDirectory = $InstallPath
+        $shortcut.Description = $definition.Description
+        $shortcut.IconLocation = $definition.IconLocation
+        $shortcut.Save()
+    }
 }
 
 function Test-DotNetRuntimeList {
@@ -364,7 +406,7 @@ function Backup-SdatUnknownInstallFiles {
     }
 
     $unknownFiles = @(Get-ChildItem -LiteralPath $installFull -File -Recurse -Force | Where-Object {
-        $relative = [IO.Path]::GetRelativePath($installFull, $_.FullName).Replace('/', '\')
+        $relative = (Get-SdatRelativePath -BasePath $installFull -Path $_.FullName).Replace('/', '\')
         -not $owned.Contains($relative)
     })
     if ($unknownFiles.Count -eq 0) { return $null }
@@ -373,7 +415,7 @@ function Backup-SdatUnknownInstallFiles {
     $backupPath = Join-Path $backupRoot ((Get-Date -Format "yyyyMMdd-HHmmss") + "-" + [guid]::NewGuid().ToString("N").Substring(0, 8))
     New-Item -ItemType Directory -Path $backupPath -Force | Out-Null
     foreach ($file in $unknownFiles) {
-        $relative = [IO.Path]::GetRelativePath($installFull, $file.FullName)
+        $relative = Get-SdatRelativePath -BasePath $installFull -Path $file.FullName
         $destination = Join-Path $backupPath $relative
         New-Item -ItemType Directory -Path (Split-Path -Parent $destination) -Force | Out-Null
         Copy-Item -LiteralPath $file.FullName -Destination $destination -Force -ErrorAction Stop
@@ -443,7 +485,7 @@ function Install-SdatPayloadTransaction {
         try {
             Remove-Item -LiteralPath $rollbackPath -Recurse -Force -ErrorAction Stop
         } catch {
-            Write-Warning "SDAT was updated, but the rollback directory could not be removed: $rollbackPath"
+            Write-Warning "ShutdownAT was updated, but the rollback directory could not be removed: $rollbackPath"
         }
     }
     return (Get-Content -LiteralPath (Join-Path $installFull "VERSION") -Raw).Trim()
@@ -506,7 +548,7 @@ try {
     Assert-SafeSdatInstallTarget -Path $installFull
     $sourceFull = Get-SdatPayloadRoot -PackageRoot $packageRoot
     $packageManifest = Get-Content -LiteralPath (Join-Path $sourceFull ".sdat-package-manifest.json") -Raw | ConvertFrom-Json -ErrorAction Stop
-    Write-Host "SDAT installer" -ForegroundColor White
+    Write-Host "ShutdownAT installer" -ForegroundColor White
     if (-not $SkipPrerequisites) {
         Install-SdatPrerequisites -Manifest $packageManifest
     }
@@ -541,10 +583,10 @@ try {
         Write-InstallStep "Added Start menu shortcuts"
     }
 
-    Write-Host "SDAT $installedVersion is ready." -ForegroundColor Green
-    Write-Host "Open Win+R and try: sdat 3h" -ForegroundColor Gray
+    Write-Host "ShutdownAT $installedVersion is ready." -ForegroundColor Green
+    Write-Host "Search for ShutdownAT in Start, or open Win+R and try: sdat 3h" -ForegroundColor Gray
     if ($Launch) {
-        Write-InstallStep "Opening SDAT setup"
+        Write-InstallStep "Opening ShutdownAT setup"
         Start-Process -FilePath (Join-Path $installFull "SDAT.exe") | Out-Null
     }
 } finally {

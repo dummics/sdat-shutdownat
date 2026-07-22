@@ -76,7 +76,7 @@ public sealed class WindowsReminderNotifier : ITaskReminderNotifier
               </visual>
               <actions>
                 <action content="Cancel" arguments="action=cancel&amp;scheduleId={scheduleId}&amp;revision={revision}" activationType="foreground" />
-                <action content="Open SDAT" arguments="action=open&amp;scheduleId={scheduleId}" activationType="foreground" />
+                <action content="Open ShutdownAT" arguments="action=open&amp;scheduleId={scheduleId}" activationType="foreground" />
               </actions>
             </toast>
             """;
