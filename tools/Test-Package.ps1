@@ -106,12 +106,12 @@ try {
         throw "Upgrade did not preserve a non-package file in a recoverable backup"
     }
 
-    # Run the managed entry point directly here: CI intentionally skips shared
-    # prerequisite installation, while the clickable installer validates and
-    # installs both runtimes before exposing the native apphost wrappers.
-    $dotNetPath = Get-Command dotnet.exe -ErrorAction Stop | Select-Object -ExpandProperty Source -First 1
-    $versionOutput = & $dotNetPath (Join-Path $tempInstall "sdat-cli.dll") version 2>&1 | Out-String
-    if ($LASTEXITCODE -ne 0 -or $versionOutput -notmatch '\d+\.\d+\.\d+') { throw "Installed version command failed: $versionOutput" }
+    # This lifecycle deliberately skips shared prerequisite installation. Read
+    # the installed PE metadata instead of loading a framework-dependent apphost
+    # on a clean CI runner that does not have Windows App Runtime installed.
+    $versionInfo = [Diagnostics.FileVersionInfo]::GetVersionInfo((Join-Path $tempInstall "sdat-cli.dll"))
+    $versionOutput = @($versionInfo.ProductVersion, $versionInfo.FileVersion) -join " "
+    if ($versionOutput -notmatch '\d+\.\d+\.\d+') { throw "Installed version metadata is invalid: $versionOutput" }
 
     & (Join-Path $tempInstall "uninstall.ps1") -InstallDir $tempInstall -KeepData -SkipTaskCleanup -NoPath -NoShortcuts
     if (Test-Path -LiteralPath $tempInstall) { throw "Uninstaller left the install directory behind" }
