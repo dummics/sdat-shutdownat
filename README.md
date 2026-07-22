@@ -17,13 +17,13 @@ SDAT is useful when a render, export, download, or long task should finish befor
 
 ## Install
 
-SDAT is a self-contained x64 application for Windows 10 version 2004 or newer and Windows 11. Installation is per-user and does not require an administrator prompt.
+SDAT supports Windows 10 version 2004 or newer and Windows 11 on x64. The default release is a compact framework-dependent package; its one-click installer adds any missing official Microsoft runtimes, installs SDAT for the current user, and opens the setup screen.
 
 ```powershell
 irm https://raw.githubusercontent.com/dummics/sdat-shutdownat/main/install.ps1 | iex
 ```
 
-The installer downloads the latest GitHub Release, verifies its SHA256 checksum, installs to `%LOCALAPPDATA%\Programs\SDAT`, and adds the CLI wrappers to the user PATH. For a manual install, download `sdat-v*-windows.zip` from the [latest release](https://github.com/dummics/sdat-shutdownat/releases/latest), extract it, and run `install.ps1`.
+The installer downloads the latest GitHub Release, verifies its SHA256 checksum, installs to `%LOCALAPPDATA%\Programs\SDAT`, adds Start menu shortcuts, and adds the CLI wrappers to the user PATH. For the easiest manual install, download `sdat-v*-windows.zip` from the [latest release](https://github.com/dummics/sdat-shutdownat/releases/latest), extract the whole archive, and double-click **Install SDAT.cmd**. Advanced users can run `scripts\install.ps1` directly. A larger `windows-portable` artifact can also be built when an entirely self-contained copy is needed.
 
 ## Fast commands
 
@@ -82,7 +82,7 @@ sdat uninstall
 sdat uninstall --keep-data
 ```
 
-Update packages are checksum-verified. Uninstall removes only SDAT-owned files and tasks. `--keep-data` moves the local data directory into a timestamped backup.
+Update packages are checksum-verified and promoted transactionally with rollback on failure. Unexpected files found inside the install directory are preserved under `%LOCALAPPDATA%\SDAT\install-backups` before a successful replacement. Uninstall removes only a verified SDAT installation, its shortcuts, and owned tasks. The clickable **Uninstall SDAT** shortcut preserves schedules and settings in a timestamped backup; `sdat uninstall --keep-data` does the same from the CLI.
 
 Shutdown and restart force applications to close. Save work before scheduling them.
 
@@ -95,6 +95,8 @@ dotnet restore SDAT.slnx
 dotnet test SDAT.slnx -c Release --no-restore
 dotnet build src/Sdat.App/Sdat.App.csproj -c Release --no-restore
 pwsh -NoProfile -File ./tools/Build-Package.ps1
+# Optional larger package with bundled .NET and Windows App SDK runtimes:
+pwsh -NoProfile -File ./tools/Build-Package.ps1 -Flavor Portable
 ```
 
 Automated tests and package verification never trigger a real shutdown, restart, or suspend. Live power-action testing requires separate explicit authorization.
@@ -103,4 +105,4 @@ See [ROADMAP.md](ROADMAP.md) for release gates and intentionally deferred integr
 
 ## License
 
-SDAT source is available under the [MIT License](LICENSE). Self-contained packages include third-party components governed by their own terms; see [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) and the packaged `licenses` directory.
+SDAT source is available under the [MIT License](LICENSE). Release packages include third-party components governed by their own terms; see [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) and the packaged `licenses` directory.

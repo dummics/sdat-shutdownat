@@ -13,7 +13,10 @@ All notable user-facing changes to SDAT are documented here.
 - Added configurable reminder offsets and daily-overlap policy; a one-time action can safely skip one nearby daily occurrence without deleting the daily schedule.
 - Added versioned machine-readable JSON, side-effect-free preview, database health, reconciliation, and structured diagnostic history commands.
 - Added strict v1 state/task migration with preserved rollback evidence and ambiguous-task fail-safe behavior.
-- Rebuilt install, update, uninstall, packaging, checksum, and CI flows around self-contained native executables.
+- Rebuilt install, update, uninstall, packaging, checksum, and CI flows around native executables, with a compact framework-dependent default and an optional self-contained artifact.
+- Removed unused Windows App SDK AI, ML, widgets, and DWrite package dependencies from the shipped runtime graph.
+- Added an organized package layout, one-click install/uninstall launchers, prerequisite bootstrap, Start menu shortcuts, and backup-first clickable uninstall.
+- Added protected-directory guardrails, transactional update rollback, and recoverable backup of non-package files found during replacement.
 - Removed the obsolete v1 PowerShell backend and bundled PwshSpectreConsole runtime from the release tree.
 
 ## 1.0.2 - 2026-07-14

@@ -14,7 +14,7 @@
   <ItemGroup>
     <ProjectReference Include="../Sdat.Core/Sdat.Core.csproj" />
     <ProjectReference Include="../Sdat.Windows/Sdat.Windows.csproj" />
-    <PackageReference Include="Microsoft.WindowsAppSDK" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.WinUI" />
   </ItemGroup>
   <Target Name="CopyAppResourcesToPublishDirectory" AfterTargets="Publish">
     <Copy
