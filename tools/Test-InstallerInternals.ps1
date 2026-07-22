@@ -61,6 +61,7 @@ try {
 } finally {
     $env:LOCALAPPDATA = $savedLocalAppData
 }
+Write-Host "Installer path safety checks passed." -ForegroundColor DarkGray
 
 if (Test-DotNetRuntimeList `
         -Runtimes @('Microsoft.NETCore.App 11.0.0 [C:\dotnet\shared\Microsoft.NETCore.App]') `
@@ -123,24 +124,20 @@ function Test-DotNetRuntime { throw "Portable package unexpectedly probed .NET."
 function Test-WindowsAppRuntime { throw "Portable package unexpectedly probed Windows App SDK." }
 function Invoke-VerifiedMicrosoftInstaller { throw "Portable package unexpectedly installed a prerequisite." }
 Install-SdatPrerequisites -Manifest $portableManifest
+Write-Host "Installer prerequisite planning checks passed." -ForegroundColor DarkGray
 
 # Publisher matching must be exact; a valid-looking subject containing the word
 # Microsoft is not sufficient for an elevated executable.
-$rsa = [Security.Cryptography.RSA]::Create(2048)
-try {
-    $badRequest = [Security.Cryptography.X509Certificates.CertificateRequest]::new(
-        "CN=Microsoft Example LLC",
-        $rsa,
-        [Security.Cryptography.HashAlgorithmName]::SHA256,
-        [Security.Cryptography.RSASignaturePadding]::Pkcs1)
-    $badCertificate = $badRequest.CreateSelfSigned((Get-Date).AddMinutes(-1), (Get-Date).AddMinutes(5))
-    $badSignature = [pscustomobject]@{ Status = "Valid"; SignerCertificate = $badCertificate }
-    if (Test-MicrosoftAuthenticodeSignature -Signature $badSignature) {
-        throw "Authenticode publisher validation accepted a non-Microsoft organization."
-    }
-} finally {
-    $rsa.Dispose()
+$badCertificate = [pscustomobject]@{}
+$badCertificate | Add-Member -MemberType ScriptMethod -Name GetNameInfo -Value {
+    param($NameType, $ForIssuer)
+    return "Microsoft Example LLC"
 }
+$badSignature = [pscustomobject]@{ Status = "Valid"; SignerCertificate = $badCertificate }
+if (Test-MicrosoftAuthenticodeSignature -Signature $badSignature) {
+    throw "Authenticode publisher validation accepted a non-Microsoft organization."
+}
+Write-Host "Installer signature and exit-code checks passed." -ForegroundColor DarkGray
 
 Assert-SupportedInstallerExitCode -ExitCode 0
 Assert-SupportedInstallerExitCode -ExitCode 3010

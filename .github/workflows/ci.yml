@@ -40,6 +40,7 @@ jobs:
         shell: pwsh
         run: pwsh -NoProfile -File ./tools/Build-Package.ps1 -OutputDir ./artifacts
       - name: Verify packaged install and update
+        timeout-minutes: 3
         shell: pwsh
         run: |
           $package = Get-ChildItem ./artifacts/sdat-v*-windows.zip | Select-Object -First 1

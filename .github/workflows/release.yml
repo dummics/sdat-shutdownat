@@ -29,6 +29,7 @@ jobs:
         shell: pwsh
         run: ./tools/Build-Package.ps1 | Format-List
       - name: Verify packaged install and update
+        timeout-minutes: 3
         shell: pwsh
         run: |
           $package = Get-ChildItem ./dist/sdat-v*-windows.zip | Select-Object -First 1
