@@ -32,12 +32,15 @@ namespace Sdat {
 }
 
 function Remove-SdatFromUserPath {
-    param([Parameter(Mandatory)][string]$Path)
-    $normalized = [IO.Path]::GetFullPath($Path).TrimEnd('\')
+    param([Parameter(Mandatory)][string[]]$Path)
+    $normalized = @($Path | ForEach-Object { [IO.Path]::GetFullPath($_).TrimEnd('\') })
     $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
     $remaining = @($userPath -split ';' | Where-Object {
         if ([string]::IsNullOrWhiteSpace($_)) { return $false }
-        try { return ([IO.Path]::GetFullPath([Environment]::ExpandEnvironmentVariables($_.Trim('"'))).TrimEnd('\') -ine $normalized) } catch { return $true }
+        try {
+            $candidate = [IO.Path]::GetFullPath([Environment]::ExpandEnvironmentVariables($_.Trim('"'))).TrimEnd('\')
+            return -not ($normalized -icontains $candidate)
+        } catch { return $true }
     })
     [Environment]::SetEnvironmentVariable("Path", ($remaining -join ';'), "User")
     Send-EnvironmentChanged
@@ -228,7 +231,7 @@ if ($KeepData -and (Test-Path -LiteralPath $dataRoot)) {
     Remove-Item -LiteralPath $dataRoot -Recurse -Force
 }
 
-if (-not $NoPath) { Remove-SdatFromUserPath -Path $installFull }
+if (-not $NoPath) { Remove-SdatFromUserPath -Path @((Join-Path $installFull "bin"), $installFull) }
 if (-not $NoShortcuts) {
     $programsRoot = [Environment]::GetFolderPath("Programs")
     if (-not [string]::IsNullOrWhiteSpace($programsRoot)) {

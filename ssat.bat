@@ -3,6 +3,7 @@
 
 setlocal
 set "SDAT_DIR=%~dp0"
+if not exist "%SDAT_DIR%sdat-cli.exe" set "SDAT_DIR=%SDAT_DIR%..\"
 
 set "SDAT_CANCEL_FAST=0"
 if /I "%~1"=="cancel" set "SDAT_CANCEL_FAST=1"

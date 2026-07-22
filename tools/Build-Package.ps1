@@ -17,6 +17,7 @@ $outputFull = [IO.Path]::GetFullPath($OutputDir)
 $tempRoot = Join-Path ([IO.Path]::GetTempPath()) ("sdat-package-" + [guid]::NewGuid().ToString("N"))
 $packageRoot = Join-Path $tempRoot "SDAT"
 $payloadRoot = Join-Path $tempRoot "payload"
+$payloadBinRoot = Join-Path $payloadRoot "bin"
 $packageAppRoot = Join-Path $packageRoot "app"
 $packageScriptsRoot = Join-Path $packageRoot "scripts"
 $packageDocsRoot = Join-Path $packageRoot "docs"
@@ -60,7 +61,7 @@ function Invoke-SdatPublish {
 }
 
 try {
-    New-Item -ItemType Directory -Path $packageRoot, $payloadRoot, $packageAppRoot, $packageScriptsRoot, $packageDocsRoot -Force | Out-Null
+    New-Item -ItemType Directory -Path $packageRoot, $payloadRoot, $payloadBinRoot, $packageAppRoot, $packageScriptsRoot, $packageDocsRoot -Force | Out-Null
     $appPublish = Join-Path $tempRoot "publish-app"
     $cliPublish = Join-Path $tempRoot "publish-cli"
     Invoke-SdatPublish -Project (Join-Path $root "src\Sdat.App\Sdat.App.csproj") -Destination $appPublish
@@ -71,6 +72,9 @@ try {
 
     foreach ($file in @("VERSION", "LICENSE", "THIRD-PARTY-NOTICES.md", "install.ps1", "uninstall.ps1", "sdat.bat", "ssat.bat", "sdatui.bat")) {
         Copy-Item -LiteralPath (Join-Path $root $file) -Destination $payloadRoot -Force
+    }
+    foreach ($file in @("sdat.bat", "ssat.bat")) {
+        Copy-Item -LiteralPath (Join-Path $root $file) -Destination $payloadBinRoot -Force
     }
     Copy-Item -LiteralPath (Join-Path $root "Uninstall SDAT.cmd") -Destination $payloadRoot -Force
     foreach ($file in @("README.md", "CHANGELOG.md", "ROADMAP.md", "SECURITY.md", "LICENSE", "THIRD-PARTY-NOTICES.md")) {

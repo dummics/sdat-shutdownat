@@ -15,6 +15,7 @@ $source = if (Test-Path -LiteralPath (Join-Path $sourceInput "scripts\install.ps
 $sandbox = Join-Path ([IO.Path]::GetTempPath()) ("sdat-package-test-" + [guid]::NewGuid().ToString("N"))
 $tempInstall = Join-Path $sandbox "install"
 $previousLocalAppData = $env:LOCALAPPDATA
+$previousPath = $env:Path
 $env:LOCALAPPDATA = Join-Path $sandbox "local-app-data"
 
 try {
@@ -83,9 +84,15 @@ try {
     }
 
     & $packageInstaller -SourcePath $source -InstallDir $tempInstall -NoPath -NoShortcuts -SkipPrerequisites
-    foreach ($required in @("VERSION", "SDAT.exe", "SDAT.pri", "sdat-cli.exe", "sdat.bat", ".sdat-package-manifest.json")) {
+    foreach ($required in @("VERSION", "SDAT.exe", "SDAT.pri", "sdat-cli.exe", "bin\sdat.bat", "bin\ssat.bat", ".sdat-package-manifest.json")) {
         if (-not (Test-Path -LiteralPath (Join-Path $tempInstall $required))) { throw "Installed package is missing $required" }
     }
+    $env:Path = Join-Path $tempInstall "bin"
+    $resolvedSdat = Get-Command sdat -CommandType Application -ErrorAction Stop
+    if ([IO.Path]::GetFullPath($resolvedSdat.Path) -ine [IO.Path]::GetFullPath((Join-Path $tempInstall "bin\sdat.bat"))) {
+        throw "The installed PATH surface does not resolve sdat to the CLI launcher."
+    }
+    $env:Path = $previousPath
 
     # Simulate the known v1 footprint and verify the native update preserves migration evidence.
     New-Item -ItemType Directory -Path (Join-Path $tempInstall "data") -Force | Out-Null
@@ -122,5 +129,6 @@ try {
     Write-Host "Package layout, install, upgrade, version, and safe uninstall checks passed." -ForegroundColor Green
 } finally {
     $env:LOCALAPPDATA = $previousLocalAppData
+    $env:Path = $previousPath
     if (Test-Path -LiteralPath $sandbox) { Remove-Item -LiteralPath $sandbox -Recurse -Force -ErrorAction SilentlyContinue }
 }

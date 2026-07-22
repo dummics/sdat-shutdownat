@@ -23,7 +23,7 @@ SDAT supports Windows 10 version 2004 or newer and Windows 11 on x64. The defaul
 irm https://raw.githubusercontent.com/dummics/sdat-shutdownat/main/install.ps1 | iex
 ```
 
-The installer downloads the latest GitHub Release, verifies its SHA256 checksum, installs to `%LOCALAPPDATA%\Programs\SDAT`, adds Start menu shortcuts, and adds the CLI wrappers to the user PATH. For the easiest manual install, download `sdat-v*-windows.zip` from the [latest release](https://github.com/dummics/sdat-shutdownat/releases/latest), extract the whole archive, and double-click **Install SDAT.cmd**. Advanced users can run `scripts\install.ps1` directly. A larger `windows-portable` artifact can also be built when an entirely self-contained copy is needed.
+The installer downloads the latest GitHub Release, verifies its SHA256 checksum, installs to `%LOCALAPPDATA%\Programs\SDAT`, adds Start menu shortcuts, and places the dedicated `bin` launcher directory on the user PATH. No PowerShell alias or profile change is required. For the easiest manual install, download `sdat-v*-windows.zip` from the [latest release](https://github.com/dummics/sdat-shutdownat/releases/latest), extract the whole archive, and double-click **Install SDAT.cmd**. Advanced users can run `scripts\install.ps1` directly. A larger `windows-portable` artifact can also be built when an entirely self-contained copy is needed.
 
 ## Fast commands
 

@@ -7,6 +7,9 @@ Install
 2. Double-click "Install SDAT.cmd".
 3. SDAT installs for your Windows account and opens the setup screen.
 
+The installer adds SDAT's dedicated CLI bin directory to PATH. PowerShell
+aliases and profile edits are not required.
+
 The slim package downloads official Microsoft runtimes only when they are
 missing. An internet connection can therefore be required on first install.
 

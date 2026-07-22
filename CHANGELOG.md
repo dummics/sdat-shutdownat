@@ -16,6 +16,7 @@ All notable user-facing changes to SDAT are documented here.
 - Rebuilt install, update, uninstall, packaging, checksum, and CI flows around native executables, with a compact framework-dependent default and an optional self-contained artifact.
 - Removed unused Windows App SDK AI, ML, widgets, and DWrite package dependencies from the shipped runtime graph.
 - Added an organized package layout, one-click install/uninstall launchers, prerequisite bootstrap, Start menu shortcuts, and backup-first clickable uninstall.
+- Added a dedicated CLI `bin` PATH surface so `sdat` and `ssat` resolve to the installed launchers without PowerShell aliases or collision with `SDAT.exe`.
 - Added protected-directory guardrails, transactional update rollback, and recoverable backup of non-package files found during replacement.
 - Removed the obsolete v1 PowerShell backend and bundled PwshSpectreConsole runtime from the release tree.
 

@@ -63,6 +63,17 @@ try {
 }
 Write-Host "Installer path safety checks passed." -ForegroundColor DarkGray
 
+$preferredCliPath = Join-Path $SandboxRoot "path-test\bin"
+$legacyInstallPath = Split-Path -Parent $preferredCliPath
+$unrelatedPath = Join-Path $SandboxRoot "unrelated-path"
+$updatedPath = Get-SdatUpdatedPathValue `
+    -CurrentValue "$legacyInstallPath;$unrelatedPath;$preferredCliPath" `
+    -PreferredPath $preferredCliPath `
+    -ReplacedPath @($legacyInstallPath)
+if ($updatedPath -cne "$preferredCliPath;$unrelatedPath") {
+    throw "Installer PATH migration did not prioritize the CLI bin directory and remove legacy entries."
+}
+
 if (Test-DotNetRuntimeList `
         -Runtimes @('Microsoft.NETCore.App 11.0.0 [C:\dotnet\shared\Microsoft.NETCore.App]') `
         -FrameworkName 'Microsoft.NETCore.App' `

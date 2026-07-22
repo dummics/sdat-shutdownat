@@ -24,7 +24,7 @@ $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 
 $repository = "dummics/sdat-shutdownat"
-$requiredFiles = @("VERSION", "SDAT.exe", "sdat-cli.exe", "sdat.bat", "ssat.bat", "sdatui.bat", "uninstall.ps1", ".sdat-package-manifest.json")
+$requiredFiles = @("VERSION", "SDAT.exe", "sdat-cli.exe", "bin\sdat.bat", "bin\ssat.bat", "sdatui.bat", "uninstall.ps1", ".sdat-package-manifest.json")
 $tempRoot = $null
 
 function Write-InstallStep {
@@ -146,20 +146,39 @@ namespace Sdat {
     } catch { }
 }
 
-function Add-SdatToUserPath {
-    param([Parameter(Mandatory)][string]$Path)
-    $normalized = [IO.Path]::GetFullPath($Path).TrimEnd('\')
-    $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
-    $parts = @($userPath -split ';' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
-    $matching = @($parts | Where-Object {
-        try { [IO.Path]::GetFullPath([Environment]::ExpandEnvironmentVariables($_.Trim('"'))).TrimEnd('\') -ieq $normalized } catch { $false }
+function Get-SdatUpdatedPathValue {
+    param(
+        [AllowEmptyString()][string]$CurrentValue,
+        [Parameter(Mandatory)][string]$PreferredPath,
+        [string[]]$ReplacedPath = @()
+    )
+
+    $preferred = [IO.Path]::GetFullPath($PreferredPath).TrimEnd('\')
+    $excluded = @($preferred) + @($ReplacedPath |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+        ForEach-Object { [IO.Path]::GetFullPath($_).TrimEnd('\') })
+    $remaining = @($CurrentValue -split ';' | Where-Object {
+        if ([string]::IsNullOrWhiteSpace($_)) { return $false }
+        try {
+            $candidate = [IO.Path]::GetFullPath([Environment]::ExpandEnvironmentVariables($_.Trim('"'))).TrimEnd('\')
+            return -not ($excluded -icontains $candidate)
+        } catch { return $true }
     })
-    if ($matching.Count -eq 0) {
-        [Environment]::SetEnvironmentVariable("Path", (($normalized) + $(if ($parts.Count) { ";" + ($parts -join ';') } else { "" })), "User")
+    return (@($preferred) + $remaining) -join ';'
+}
+
+function Add-SdatToUserPath {
+    param(
+        [Parameter(Mandatory)][string]$Path,
+        [string[]]$ReplacedPath = @()
+    )
+
+    $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
+    $updatedUserPath = Get-SdatUpdatedPathValue -CurrentValue $userPath -PreferredPath $Path -ReplacedPath $ReplacedPath
+    if ($updatedUserPath -cne $userPath) {
+        [Environment]::SetEnvironmentVariable("Path", $updatedUserPath, "User")
     }
-    if (-not (($env:Path -split ';') | Where-Object { $_.TrimEnd('\') -ieq $normalized })) {
-        $env:Path = "$normalized;$env:Path"
-    }
+    $env:Path = Get-SdatUpdatedPathValue -CurrentValue $env:Path -PreferredPath $Path -ReplacedPath $ReplacedPath
     Send-EnvironmentChanged
 }
 
@@ -514,8 +533,8 @@ try {
     $installedVersion = Install-SdatPayloadTransaction -SourcePath $sourceFull -InstallPath $installFull
 
     if (-not $NoPath) {
-        Add-SdatToUserPath -Path $installFull
-        Write-InstallStep "Added SDAT to the current-user PATH"
+        Add-SdatToUserPath -Path (Join-Path $installFull "bin") -ReplacedPath @($installFull)
+        Write-InstallStep "Added the SDAT CLI to the current-user PATH"
     }
     if (-not $NoShortcuts) {
         Install-SdatShortcuts -InstallPath $installFull
