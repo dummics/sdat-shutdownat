@@ -112,6 +112,26 @@ if (-not (Test-DotNetRuntimeList `
     throw ".NET runtime detection rejected a compatible patch version."
 }
 
+$script:testWindowsRuntimePackages = @(
+    [pscustomobject]@{ Name = "Microsoft.WindowsAppRuntime.2"; Architecture = "X64"; Version = [version]"2.3.1.0" },
+    [pscustomobject]@{ Name = "MicrosoftCorporationII.WinAppRuntime.Main.2"; Architecture = "X64"; Version = [version]"2.3.1.0" },
+    [pscustomobject]@{ Name = "Microsoft.WinAppRuntime.DDLM.2.3.1.0-x6"; Architecture = "X64"; Version = [version]"2.3.1.0" },
+    [pscustomobject]@{ Name = "MicrosoftCorporationII.WinAppRuntime.Singleton"; Architecture = "X64"; Version = [version]"8002.3.1.0" }
+)
+function Get-AppxPackage { return $script:testWindowsRuntimePackages }
+try {
+    if (-not (Test-WindowsAppRuntime -MinimumVersion ([version]"2.3.1"))) {
+        throw "Windows App SDK runtime detection rejected a complete compatible runtime."
+    }
+    $script:testWindowsRuntimePackages = @($script:testWindowsRuntimePackages |
+        Where-Object { $_.Name -notlike "Microsoft.WinAppRuntime.DDLM.*" })
+    if (Test-WindowsAppRuntime -MinimumVersion ([version]"2.3.1")) {
+        throw "Windows App SDK runtime detection accepted an incomplete runtime without DDLM."
+    }
+} finally {
+    Remove-Item -LiteralPath Function:\Get-AppxPackage -ErrorAction SilentlyContinue
+}
+
 # A framework-dependent package with both runtimes already installed must be a no-op.
 function Test-DotNetRuntime { param($FrameworkName, $MinimumVersion) return $true }
 function Test-WindowsAppRuntime { param($MinimumVersion) return $true }

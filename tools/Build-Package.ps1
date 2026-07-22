@@ -33,8 +33,7 @@ function Invoke-SdatPublish {
         "publish", $Project,
         "-c", "Release",
         "-r", "win-x64",
-        "-o", $Destination,
-        "-p:SatelliteResourceLanguages=en%3Bit"
+        "-o", $Destination
     )
     if ($Flavor -eq "Slim") {
         $arguments += @("--self-contained", "false", "-p:WindowsAppSDKSelfContained=false")
@@ -68,7 +67,17 @@ try {
     Invoke-SdatPublish -Project (Join-Path $root "src\Sdat.Cli\Sdat.Cli.csproj") -Destination $cliPublish
 
     Copy-Item -Path (Join-Path $appPublish '*') -Destination $payloadRoot -Recurse -Force
-    Copy-Item -Path (Join-Path $cliPublish '*') -Destination $payloadRoot -Recurse -Force
+    # The GUI and CLI target different Windows TFMs. Their publish outputs can
+    # contain different builds of shared projections, so the GUI payload must
+    # remain authoritative and the CLI may only add files that are not present.
+    foreach ($file in Get-ChildItem -LiteralPath $cliPublish -Recurse -File) {
+        $relativePath = [IO.Path]::GetRelativePath($cliPublish, $file.FullName)
+        $destination = Join-Path $payloadRoot $relativePath
+        if (Test-Path -LiteralPath $destination) { continue }
+        $destinationDirectory = Split-Path -Parent $destination
+        New-Item -ItemType Directory -Path $destinationDirectory -Force | Out-Null
+        Copy-Item -LiteralPath $file.FullName -Destination $destination -Force
+    }
 
     foreach ($file in @("VERSION", "LICENSE", "THIRD-PARTY-NOTICES.md", "install.ps1", "uninstall.ps1", "sdat.bat", "ssat.bat", "sdatui.bat")) {
         Copy-Item -LiteralPath (Join-Path $root $file) -Destination $payloadRoot -Force

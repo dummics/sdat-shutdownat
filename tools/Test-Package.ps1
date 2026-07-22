@@ -1,5 +1,8 @@
 [CmdletBinding()]
-param([Parameter(Mandatory)][string]$PackageRoot)
+param(
+    [Parameter(Mandatory)][string]$PackageRoot,
+    [switch]$SmokeTestGuiBootstrap
+)
 
 $ErrorActionPreference = "Stop"
 $sourceInput = (Resolve-Path -LiteralPath $PackageRoot).Path
@@ -86,6 +89,27 @@ try {
     & $packageInstaller -SourcePath $source -InstallDir $tempInstall -NoPath -NoShortcuts -SkipPrerequisites
     foreach ($required in @("VERSION", "SDAT.exe", "SDAT.pri", "sdat-cli.exe", "sdatui.bat", "Uninstall SDAT.cmd", "bin\sdat.bat", "bin\ssat.bat", ".sdat-package-manifest.json")) {
         if (-not (Test-Path -LiteralPath (Join-Path $tempInstall $required))) { throw "Installed package is missing $required" }
+    }
+    if ($SmokeTestGuiBootstrap) {
+        $smokeProcess = Start-Process `
+            -FilePath (Join-Path $tempInstall "SDAT.exe") `
+            -ArgumentList @("--task-run") `
+            -WorkingDirectory $tempInstall `
+            -Wait `
+            -PassThru
+        if ($smokeProcess.ExitCode -ne 0) {
+            throw "Installed GUI bootstrap smoke test failed with exit code $($smokeProcess.ExitCode)."
+        }
+        $cliSmokeProcess = Start-Process `
+            -FilePath (Join-Path $tempInstall "sdat-cli.exe") `
+            -ArgumentList @("--help") `
+            -WorkingDirectory $tempInstall `
+            -WindowStyle Hidden `
+            -Wait `
+            -PassThru
+        if ($cliSmokeProcess.ExitCode -ne 0) {
+            throw "Installed CLI bootstrap smoke test failed with exit code $($cliSmokeProcess.ExitCode)."
+        }
     }
     . $packageInstaller -ImportOnly
     foreach ($definition in Get-SdatShortcutDefinitions -InstallPath $tempInstall) {

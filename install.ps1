@@ -286,9 +286,35 @@ function Test-DotNetRuntime {
 function Test-WindowsAppRuntime {
     param([Parameter(Mandatory)][version]$MinimumVersion)
 
-    $packages = @(Get-AppxPackage -Name "Microsoft.WindowsAppRuntime.2" -ErrorAction SilentlyContinue |
-        Where-Object { $_.Architecture -eq "X64" -and ([version]$_.Version -ge $MinimumVersion) })
-    return $packages.Count -gt 0
+    $packages = @(Get-AppxPackage -ErrorAction SilentlyContinue)
+    $framework = @($packages | Where-Object {
+        $_.Name -eq "Microsoft.WindowsAppRuntime.$($MinimumVersion.Major)" -and
+        $_.Architecture -eq "X64" -and
+        ([version]$_.Version -ge $MinimumVersion)
+    })
+    $main = @($packages | Where-Object {
+        $_.Name -eq "MicrosoftCorporationII.WinAppRuntime.Main.$($MinimumVersion.Major)" -and
+        $_.Architecture -eq "X64" -and
+        ([version]$_.Version -ge $MinimumVersion)
+    })
+    $ddlm = @($packages | Where-Object {
+        $_.Name -like "Microsoft.WinAppRuntime.DDLM.$($MinimumVersion.Major).$($MinimumVersion.Minor)*" -and
+        $_.Architecture -eq "X64" -and
+        ([version]$_.Version -ge $MinimumVersion)
+    })
+    $singleton = @($packages | Where-Object {
+        if ($_.Name -ne "MicrosoftCorporationII.WinAppRuntime.Singleton" -or $_.Architecture -ne "X64") {
+            return $false
+        }
+        $version = [version]$_.Version
+        $runtimeFamily = $version.Major - 8000
+        $runtimeVersion = [version]::new($runtimeFamily, $version.Minor, $version.Build)
+        return $runtimeVersion -ge $MinimumVersion
+    })
+    return $framework.Count -gt 0 -and
+        $main.Count -gt 0 -and
+        $ddlm.Count -gt 0 -and
+        $singleton.Count -gt 0
 }
 
 function Test-MicrosoftAuthenticodeSignature {

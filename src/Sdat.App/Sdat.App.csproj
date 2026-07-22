@@ -17,6 +17,9 @@
   <ItemGroup>
     <ProjectReference Include="../Sdat.Core/Sdat.Core.csproj" />
     <ProjectReference Include="../Sdat.Windows/Sdat.Windows.csproj" />
+    <!-- The executable must own the framework bootstrap dependency. A transitive
+         reference from Sdat.Windows is not sufficient for unpackaged slim publishes. -->
+    <PackageReference Include="Microsoft.WindowsAppSDK.Runtime" />
     <PackageReference Include="Microsoft.WindowsAppSDK.WinUI" />
   </ItemGroup>
   <Target Name="CopyAppResourcesToPublishDirectory" AfterTargets="Publish">
