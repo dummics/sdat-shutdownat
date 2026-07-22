@@ -106,7 +106,11 @@ try {
         throw "Upgrade did not preserve a non-package file in a recoverable backup"
     }
 
-    $versionOutput = & (Join-Path $tempInstall "sdat.bat") version 2>&1 | Out-String
+    # Run the managed entry point directly here: CI intentionally skips shared
+    # prerequisite installation, while the clickable installer validates and
+    # installs both runtimes before exposing the native apphost wrappers.
+    $dotNetPath = Get-Command dotnet.exe -ErrorAction Stop | Select-Object -ExpandProperty Source -First 1
+    $versionOutput = & $dotNetPath (Join-Path $tempInstall "sdat-cli.dll") version 2>&1 | Out-String
     if ($LASTEXITCODE -ne 0 -or $versionOutput -notmatch '\d+\.\d+\.\d+') { throw "Installed version command failed: $versionOutput" }
 
     & (Join-Path $tempInstall "uninstall.ps1") -InstallDir $tempInstall -KeepData -SkipTaskCleanup -NoPath -NoShortcuts
