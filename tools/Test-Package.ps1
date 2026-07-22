@@ -28,8 +28,9 @@ try {
         [version]$packageManifest.DotNetRuntimeVersion -lt [version]"10.0.0") {
         throw "Package deployment metadata is missing or invalid"
     }
-    if ((Get-Content -LiteralPath (Join-Path $source "Install SDAT.cmd") -Raw) -notmatch '\-Launch') {
-        throw "Clickable installer does not request the setup UI"
+    $installLauncher = Get-Content -LiteralPath (Join-Path $source "Install SDAT.cmd") -Raw
+    if ($installLauncher -notmatch '\-SourcePath\s+"%~dp0\."\s+\-Launch') {
+        throw "Clickable installer does not pass a safely terminated package path before requesting the setup UI"
     }
     if ((Get-Content -LiteralPath (Join-Path $source "Uninstall SDAT.cmd") -Raw) -notmatch '\-KeepData') {
         throw "Clickable uninstaller is not backup-first"
