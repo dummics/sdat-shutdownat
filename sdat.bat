@@ -3,6 +3,7 @@
 
 setlocal
 set "SDAT_DIR=%~dp0"
+if not exist "%SDAT_DIR%sdat-cli.exe" set "SDAT_DIR=%SDAT_DIR%..\"
 
 set "SDAT_CANCEL_FAST=0"
 if /I "%~1"=="cancel" set "SDAT_CANCEL_FAST=1"
@@ -20,11 +21,5 @@ if "%SDAT_CANCEL_FAST%"=="1" (
     )
 )
 
-set "PS_EXE=powershell.exe"
-where pwsh.exe >nul 2>nul && set "PS_EXE=pwsh.exe"
-
-:: Let shutdownat.ps1 distinguish a transient Win+R console from a real terminal.
-set "SDAT_WRAPPER_PROCESS=1"
-
-"%PS_EXE%" -NoProfile -ExecutionPolicy Bypass -File "%SDAT_DIR%shutdownat.ps1" %*
+"%SDAT_DIR%sdat-cli.exe" %*
 exit /b %ERRORLEVEL%

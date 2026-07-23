@@ -1,0 +1,79 @@
+<Window
+    x:Class="Sdat.App.QuickPaletteWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Border
+        x:Name="PaletteRoot"
+        Padding="12"
+        CornerRadius="10"
+        Opacity="0"
+        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+        BorderThickness="1"
+        Loaded="OnPaletteLoaded"
+        PreviewKeyDown="OnKeyDown">
+        <Border.Resources>
+            <Storyboard x:Name="FadeInStoryboard">
+                <DoubleAnimation
+                    Storyboard.TargetName="PaletteRoot"
+                    Storyboard.TargetProperty="Opacity"
+                    From="0"
+                    To="1"
+                    Duration="0:0:0.14">
+                    <DoubleAnimation.EasingFunction>
+                        <QuadraticEase EasingMode="EaseOut" />
+                    </DoubleAnimation.EasingFunction>
+                </DoubleAnimation>
+            </Storyboard>
+            <Storyboard x:Name="FadeOutStoryboard" Completed="OnFadeOutCompleted">
+                <DoubleAnimation
+                    Storyboard.TargetName="PaletteRoot"
+                    Storyboard.TargetProperty="Opacity"
+                    From="1"
+                    To="0"
+                    Duration="0:0:0.10">
+                    <DoubleAnimation.EasingFunction>
+                        <QuadraticEase EasingMode="EaseIn" />
+                    </DoubleAnimation.EasingFunction>
+                </DoubleAnimation>
+            </Storyboard>
+        </Border.Resources>
+        <Grid ColumnSpacing="10" RowSpacing="6" VerticalAlignment="Center">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="120" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <ComboBox x:Name="ActionPicker" SelectedIndex="0" VerticalAlignment="Center">
+                <ComboBoxItem x:Uid="ShutdownAction" Content="Shut down" Tag="Shutdown" />
+                <ComboBoxItem x:Uid="SuspendAction" Content="Suspend" Tag="Suspend" />
+                <ComboBoxItem x:Uid="RestartAction" Content="Restart" Tag="Restart" />
+            </ComboBox>
+            <TextBox
+                Grid.Column="1"
+                x:Name="TimeInput"
+                x:Uid="TimeInput"
+                PlaceholderText="36m or 23:41"
+                TextChanged="OnTimeInputChanged"
+                VerticalAlignment="Center" />
+            <Button
+                Grid.Column="2"
+                x:Uid="ScheduleButton"
+                Content="Schedule"
+                Style="{ThemeResource AccentButtonStyle}"
+                Click="OnSchedule"
+                VerticalAlignment="Center" />
+            <TextBlock
+                Grid.Row="1"
+                Grid.ColumnSpan="3"
+                x:Name="ValidationText"
+                Visibility="Collapsed"
+                TextWrapping="Wrap"
+                Foreground="{ThemeResource SystemFillColorCriticalBrush}" />
+        </Grid>
+    </Border>
+</Window>

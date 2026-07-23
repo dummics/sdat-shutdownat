@@ -1,17 +1,21 @@
 # Roadmap
 
-## Public v1
+## SDAT 2.0 release gate
 
-- Human time input from Win+R: `sdat 3h`, `sdat 90m`, or `sdat 23:30`.
-- Readable status and cancellation commands with short aliases preserved.
-- Per-user installer, updater, uninstaller, versioned ZIP, checksums, and Windows CI.
+- Complete native C#/.NET cutover with SQLite as authoritative state.
+- Preserve CLI aliases and the Spectre.Console TUI alongside the WinUI 3 companion.
+- Ship revision-safe Task Scheduler projection, notifications, overlay actions, recovery, and verified v1 migration.
+- Verify the compact per-user package, optional self-contained artifact, update path, backup-first uninstall path, checksums, and CI.
+- Complete a real Windows visual/runtime review of the shell, palette, tray, toast registration, and overlay before release.
+- Merge and publish only after owner approval.
 
-## Next
+## After 2.0
 
-- Optional tray companion using the same state and scheduling engine.
-- WinGet distribution after the public installer format has proven stable.
-- Research an explicit `arm -> done` completion signal for render/export integrations.
+- Evaluate WinGet distribution after the installer format has proven stable.
+- Design an optional local MCP server over the versioned CLI contract, with explicit confirmation and cancellation safety.
+- Research opt-in remote control and Wake-on-LAN without accounts or mandatory cloud infrastructure.
+- Add explicit completion adapters for render/export applications when they expose reliable completion signals.
 
 ## Deliberately not planned
 
-SDAT will not infer job completion from generic CPU or GPU utilization. Those signals vary by application and can produce unsafe false positives. Application support should use explicit completion hooks or separately maintained adapters.
+SDAT will not infer job completion from generic CPU or GPU utilization. Those signals vary by application and can produce unsafe false positives. Integrations should use explicit completion hooks or separately maintained adapters.
