@@ -59,7 +59,7 @@ sdat 45m -k
 
 ## Windows app
 
-Search for **ShutdownAT** in Start, run `sdat ui`, or launch `SDAT.exe` directly. The executable keeps its compact technical name while the installed product is presented as ShutdownAT. Its WinUI 3 shell provides Overview, Schedule, Notifications, Quick access, Help & recovery, About, and Settings panels. Static and dynamic UI text is localized in English and Italian using Windows MRT Core resources. The app follows the Windows language by default, or you can choose Italian or English in Settings and apply the change with a one-click restart.
+Search for **ShutdownAT** in Start, run `sdat ui`, or launch `SDAT.exe` directly. The executable keeps its compact technical name while the installed product is presented as ShutdownAT. Its WinUI 3 shell keeps operational pages in the main navigation—Overview, Schedule, Notifications, and About—and places language, quick access, diagnostics, logging, and developer tools under the single Settings entry. Static and dynamic UI text is localized in English and Italian using Windows MRT Core resources. The app follows the Windows language by default, or you can choose Italian or English in Settings and apply the change with a one-click restart.
 
 The richer keyboard-driven terminal interface remains a first-class client of the same C# core. Open it with `sdat`, `sdat tui`, or the **ShutdownAT Terminal** Start shortcut. It includes schedule preview, active-schedule management, daily skip, database health, recent activity, and explicit Task Scheduler repair.
 
@@ -67,9 +67,9 @@ The configurable global hotkey (default `Ctrl+Alt+S`) toggles the compact bottom
 
 Reminder timing, the critical overlay, startup behavior, overlap policy, and hotkey are local settings. Reminder actions carry the schedule id and revision, so an old notification cannot cancel a newer schedule. Dismiss only closes the reminder; cancelling from the app requires confirmation; Snooze is available for one-time actions.
 
-Help & recovery can open the local rolling log, create a compact diagnostic report, and open the SDAT data folder. Logging defaults to normal local diagnostics and can be reduced to errors or temporarily increased for troubleshooting.
+The Diagnostics section in Settings can open the local rolling log, create a compact diagnostic report, and open the SDAT data folder. Logging defaults to normal local diagnostics and can be reduced to errors or temporarily increased for troubleshooting.
 
-Developer options are intentionally hidden from the normal settings surface. Tap the **ShutdownAT** name five times on the About page to reveal them. Safe test mode blocks new real schedules before they reach SQLite or Task Scheduler, pauses migration and reconciliation, and ignores already-projected task invocations before ledger, notification, finalization, or Windows power-action work. Its notification and countdown previews use synthetic data and cannot cancel, snooze, or promote a test into a real schedule.
+Developer mode is available as a collapsed, clearly labeled section in Settings. Safe test mode blocks new real schedules before they reach SQLite or Task Scheduler, pauses migration and reconciliation, and ignores already-projected task invocations before ledger, notification, finalization, or Windows power-action work. Its notification and countdown previews use synthetic data and cannot cancel, snooze, or promote a test into a real schedule.
 
 Windows notification availability and Focus/Do Not Disturb behavior remain controlled by Windows. SDAT does not claim an unconditional bypass. For shutdown and restart, Windows still owns the final 30-second system countdown.
 

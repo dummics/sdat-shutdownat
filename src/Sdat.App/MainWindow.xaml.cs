@@ -3,7 +3,6 @@ using Microsoft.UI;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Input;
 using Sdat.Core.Diagnostics;
 using Sdat.Core.Scheduling;
 using Sdat.Core.Settings;
@@ -19,7 +18,6 @@ public sealed partial class MainWindow : Window
     private SdatRuntime? _runtime;
     private bool _companionMode;
     private bool _applyingSettings;
-    private int _developerUnlockTapCount;
     private CriticalOverlayWindow? _testOverlay;
 
     internal event Action<AppSettings>? CompanionSettingsApplying;
@@ -68,7 +66,7 @@ public sealed partial class MainWindow : Window
                 ShowStatus(
                     AppText.Get(
                         "SchedulerRepairWarning",
-                        "Your schedules are safe, but the Windows integration needs attention. Open Help & recovery to repair it."),
+                        "Your schedules are safe, but the Windows integration needs attention. Open Diagnostics in Settings to repair it."),
                     InfoBarSeverity.Warning);
             }
         }
@@ -92,8 +90,6 @@ public sealed partial class MainWindow : Window
         OverviewView.Visibility = tag == "overview" ? Visibility.Visible : Visibility.Collapsed;
         ScheduleView.Visibility = tag == "schedule" ? Visibility.Visible : Visibility.Collapsed;
         NotificationsView.Visibility = tag == "notifications" ? Visibility.Visible : Visibility.Collapsed;
-        HotkeyTrayView.Visibility = tag == "hotkey" ? Visibility.Visible : Visibility.Collapsed;
-        AdvancedView.Visibility = tag == "advanced" ? Visibility.Visible : Visibility.Collapsed;
         AboutView.Visibility = tag == "about" ? Visibility.Visible : Visibility.Collapsed;
         SettingsView.Visibility = tag == "settings" ? Visibility.Visible : Visibility.Collapsed;
     }
@@ -229,12 +225,8 @@ public sealed partial class MainWindow : Window
                 DailyOverlapWindowMinutes = checked((int)DailyOverlapInput.Value),
                 PaletteHotkey = PaletteHotkeyInput.Text,
                 LogLevel = Enum.Parse<AppLogLevel>(GetSelectedTag(LogLevelPicker)),
-                DeveloperModeEnabled = DeveloperOptionsPanel.Visibility == Visibility.Visible
-                    ? DeveloperModeToggle.IsOn
-                    : previous.DeveloperModeEnabled,
-                SimulationModeEnabled = DeveloperOptionsPanel.Visibility == Visibility.Visible &&
-                                        DeveloperModeToggle.IsOn &&
-                                        SimulationModeToggle.IsOn,
+                DeveloperModeEnabled = DeveloperModeToggle.IsOn,
+                SimulationModeEnabled = DeveloperModeToggle.IsOn && SimulationModeToggle.IsOn,
             }.Validate();
             try
             {
@@ -360,25 +352,6 @@ public sealed partial class MainWindow : Window
         {
             ShowStatus(exception.Message, InfoBarSeverity.Error);
         }
-    }
-
-    private void OnDeveloperUnlockTapped(object sender, TappedRoutedEventArgs e)
-    {
-        if (DeveloperOptionsPanel.Visibility == Visibility.Visible)
-        {
-            return;
-        }
-
-        _developerUnlockTapCount++;
-        if (_developerUnlockTapCount < 5)
-        {
-            return;
-        }
-
-        DeveloperOptionsPanel.Visibility = Visibility.Visible;
-        ShowStatus(
-            AppText.Get("DeveloperOptionsUnlocked", "Developer options are now available in Settings."),
-            InfoBarSeverity.Informational);
     }
 
     private void OnDeveloperModeToggled(object sender, RoutedEventArgs e)
@@ -627,9 +600,7 @@ public sealed partial class MainWindow : Window
             SelectTag(LogLevelPicker, settings.LogLevel.ToString());
             DeveloperModeToggle.IsOn = settings.DeveloperModeEnabled;
             SimulationModeToggle.IsOn = settings.IsTestMode;
-            DeveloperOptionsPanel.Visibility = settings.DeveloperModeEnabled
-                ? Visibility.Visible
-                : DeveloperOptionsPanel.Visibility;
+            DeveloperOptionsPanel.IsExpanded = settings.DeveloperModeEnabled;
             DeveloperToolsBody.Visibility = settings.DeveloperModeEnabled
                 ? Visibility.Visible
                 : Visibility.Collapsed;
