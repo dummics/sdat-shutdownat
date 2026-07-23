@@ -181,7 +181,7 @@ public sealed partial class TimeExpressionParser
     private static partial Regex HalfHourRegex();
 
     [GeneratedRegex(
-        @"(?<amount>\d+(?:[\.,]\d+)?)\s*(?<unit>h|hr|hrs|hour|hours|ora|ore|m|min|mins|minute|minutes|s|sec|secs|second|seconds|secondi)",
+        @"(?<amount>\d+(?:[\.,]\d+)?)\s*(?<unit>minutes|minute|seconds|secondi|second|hours|hour|mins|secs|hrs|min|sec|ora|ore|hr|h|m|s)",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex DurationPartRegex();
 

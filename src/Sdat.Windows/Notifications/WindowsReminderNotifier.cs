@@ -33,27 +33,7 @@ public sealed class WindowsReminderNotifier : ITaskReminderNotifier
         cancellationToken.ThrowIfCancellationRequested();
         try
         {
-            var manager = AppNotificationManager.Default;
-            manager.NotificationInvoked += OnNotificationInvoked;
-            try
-            {
-                manager.Register();
-                manager.Show(BuildNotification(schedule, offsetMinutes));
-            }
-            finally
-            {
-                try
-                {
-                    manager.Unregister();
-                }
-                catch
-                {
-                    // The original registration/show result remains authoritative.
-                }
-
-                manager.NotificationInvoked -= OnNotificationInvoked;
-            }
-
+            AppNotificationManager.Default.Show(BuildNotification(schedule, offsetMinutes));
             return Task.FromResult(ReminderDeliveryResult.Success);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
@@ -115,12 +95,5 @@ public sealed class WindowsReminderNotifier : ITaskReminderNotifier
           </visual>
         </toast>
         """;
-    }
-
-    private static void OnNotificationInvoked(
-        AppNotificationManager sender,
-        AppNotificationActivatedEventArgs args)
-    {
-        // Foreground activation is handled by the companion composition root.
     }
 }

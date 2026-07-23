@@ -14,6 +14,7 @@ All notable user-facing changes to SDAT are documented here.
 - Made the quick-scheduler hotkey available whenever ShutdownAT is open, turned it into an open/close toggle, and tightened the palette with reduced-motion-aware fade transitions.
 - Added an easy-to-find developer section with a backend-enforced safe test mode, synthetic notification/countdown previews, configurable rolling local logging, log/data shortcuts, and a compact diagnostic report.
 - Made in-app status messages compact, dismissible, and self-closing, and made synthetic Windows test notifications transient.
+- Kept Windows reminder actions registered across scheduled task processes so Cancel and Open ShutdownAT remain actionable.
 - Kept quick-palette validation in a stable second row below the controls, so invalid input can be corrected immediately without overlap or layout jumps.
 - Added English and Italian MRT Core localization for static and dynamic companion UI, with a persistent Windows-language/Italian/English selector and one-click app restart.
 - Rewrote the Windows UI copy and recent-activity labels in plain, user-friendly language with short inline explanations.

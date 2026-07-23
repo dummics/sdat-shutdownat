@@ -6,6 +6,7 @@ using Sdat.Core.Commands;
 using Sdat.Core.Execution;
 using Sdat.Core.Scheduling;
 using Sdat.Windows.Hosting;
+using Sdat.Windows.Notifications;
 
 namespace Sdat.App;
 
@@ -22,19 +23,16 @@ public partial class App : Application
     {
         AppLanguageService.ApplyBeforeResourcesLoad();
         InitializeComponent();
-        if (!Environment.GetCommandLineArgs().Contains("--task-run", StringComparer.OrdinalIgnoreCase))
+        try
         {
-            try
-            {
-                _notificationManager = AppNotificationManager.Default;
-                _notificationManager.NotificationInvoked += OnNotificationInvoked;
-                _notificationManager.Register();
-            }
-            catch (Exception exception)
-            {
-                _notificationManager = null;
-                _notificationInitializationError = exception.Message;
-            }
+            _notificationManager = AppNotificationManager.Default;
+            _notificationManager.NotificationInvoked += OnNotificationInvoked;
+            _notificationManager.Register();
+        }
+        catch (Exception exception)
+        {
+            _notificationManager = null;
+            _notificationInitializationError = exception.Message;
         }
     }
 
@@ -76,8 +74,8 @@ public partial class App : Application
         if (activation?.Kind == ExtendedActivationKind.AppNotification &&
             activation.Data is AppNotificationActivatedEventArgs notificationArgs)
         {
-            var action = ParseArguments(notificationArgs.Argument);
-            if (action.GetValueOrDefault("action") == "cancel")
+            var action = ReminderNotificationActionParser.Parse(notificationArgs.Argument);
+            if (action.Kind == ReminderNotificationActionKind.Cancel)
             {
                 await CancelFromNotificationAsync(action);
                 Exit();
@@ -211,8 +209,8 @@ public partial class App : Application
         AppNotificationManager sender,
         AppNotificationActivatedEventArgs args)
     {
-        var action = ParseArguments(args.Argument);
-        if (action.GetValueOrDefault("action") == "cancel")
+        var action = ReminderNotificationActionParser.Parse(args.Argument);
+        if (action.Kind == ReminderNotificationActionKind.Cancel)
         {
             await CancelFromNotificationAsync(action);
             if (_window is MainWindow mainWindow)
@@ -223,16 +221,52 @@ public partial class App : Application
             return;
         }
 
-        _window?.DispatcherQueue.TryEnqueue(() => _window.Activate());
+        if (action.Kind == ReminderNotificationActionKind.Open)
+        {
+            OpenMainWindowFromNotification();
+        }
     }
 
-    private static async Task CancelFromNotificationAsync(IReadOnlyDictionary<string, string> arguments)
+    private void OpenMainWindowFromNotification()
     {
-        if (!Guid.TryParse(arguments.GetValueOrDefault("scheduleId"), out var scheduleId) ||
-            !long.TryParse(
-                arguments.GetValueOrDefault("revision"),
-                System.Globalization.CultureInfo.InvariantCulture,
-                out var revision))
+        if (_window is MainWindow mainWindow)
+        {
+            mainWindow.DispatcherQueue.TryEnqueue(() =>
+            {
+                if (_companion is not null)
+                {
+                    _companion.ShowMainWindow();
+                    return;
+                }
+
+                mainWindow.AppWindow.Show();
+                mainWindow.Activate();
+            });
+            return;
+        }
+
+        var executablePath = Environment.ProcessPath;
+        if (string.IsNullOrWhiteSpace(executablePath))
+        {
+            return;
+        }
+
+        try
+        {
+            Process.Start(new ProcessStartInfo(executablePath)
+            {
+                UseShellExecute = true,
+            });
+        }
+        catch
+        {
+            // The critical overlay remains available if Windows cannot open the main app.
+        }
+    }
+
+    private static async Task CancelFromNotificationAsync(ReminderNotificationAction action)
+    {
+        if (action.ScheduleId is not { } scheduleId || action.Revision is not { } revision)
         {
             return;
         }
@@ -251,15 +285,6 @@ public partial class App : Application
             // Stale notification actions and unhealthy state are deliberate no-ops.
         }
     }
-
-    private static IReadOnlyDictionary<string, string> ParseArguments(string value) =>
-        value.Split('&', StringSplitOptions.RemoveEmptyEntries)
-            .Select(part => part.Split('=', 2))
-            .Where(part => part.Length == 2)
-            .ToDictionary(
-                part => Uri.UnescapeDataString(part[0]),
-                part => Uri.UnescapeDataString(part[1]),
-                StringComparer.OrdinalIgnoreCase);
 
     private static void WriteBootstrapFailure(Exception exception)
     {
