@@ -14,7 +14,11 @@ internal sealed class CompanionController : IDisposable
     private QuickPaletteWindow? _palette;
     private bool _disposed;
 
-    public CompanionController(SdatRuntime runtime, MainWindow mainWindow, Action exit)
+    public CompanionController(
+        SdatRuntime runtime,
+        MainWindow mainWindow,
+        Action exit,
+        bool showTrayIcon)
     {
         _runtime = runtime;
         _mainWindow = mainWindow;
@@ -23,13 +27,17 @@ internal sealed class CompanionController : IDisposable
             () => Enqueue(ShowPalette),
             () => Enqueue(ShowMainWindow),
             () => Enqueue(exit),
-            HotkeyGesture.Parse(runtime.CurrentSettings.PaletteHotkey));
+            HotkeyGesture.Parse(runtime.CurrentSettings.PaletteHotkey),
+            showTrayIcon);
     }
 
     public string? HotkeyRegistrationError => _nativeWindow.HotkeyRegistrationError;
 
-    public void ApplySettings(AppSettings settings) =>
+    public void ApplySettings(AppSettings settings, bool showTrayIcon)
+    {
         _nativeWindow.UpdateHotkey(HotkeyGesture.Parse(settings.PaletteHotkey));
+        _nativeWindow.UpdateTrayIconVisibility(showTrayIcon);
+    }
 
     public void ShowMainWindow()
     {
@@ -41,7 +49,7 @@ internal sealed class CompanionController : IDisposable
     {
         if (_palette is not null)
         {
-            _palette.Activate();
+            _palette.Close();
             return;
         }
 
@@ -97,12 +105,14 @@ internal sealed class CompanionController : IDisposable
         private IntPtr _window;
         private NotificationIconData _iconData;
         private HotkeyGesture? _registeredHotkey;
+        private bool _trayIconVisible;
 
         public NativeCompanionWindow(
             Action showPalette,
             Action showMain,
             Action exit,
-            HotkeyGesture hotkey)
+            HotkeyGesture hotkey,
+            bool showTrayIcon)
         {
             _showPalette = showPalette;
             _showMain = showMain;
@@ -139,11 +149,7 @@ internal sealed class CompanionController : IDisposable
                 Info = string.Empty,
                 InfoTitle = string.Empty,
             };
-            if (!ShellNotifyIcon(NimAdd, ref _iconData))
-            {
-                Dispose();
-                throw new InvalidOperationException("The SDAT tray icon could not be created.");
-            }
+            UpdateTrayIconVisibility(showTrayIcon);
 
             if (!TryRegisterHotkey(hotkey))
             {
@@ -184,6 +190,28 @@ internal sealed class CompanionController : IDisposable
             throw new InvalidOperationException(HotkeyRegistrationError);
         }
 
+        public void UpdateTrayIconVisibility(bool visible)
+        {
+            if (_trayIconVisible == visible)
+            {
+                return;
+            }
+
+            if (visible)
+            {
+                if (!ShellNotifyIcon(NimAdd, ref _iconData))
+                {
+                    throw new InvalidOperationException("The SDAT tray icon could not be created.");
+                }
+
+                _trayIconVisible = true;
+                return;
+            }
+
+            ShellNotifyIcon(NimDelete, ref _iconData);
+            _trayIconVisible = false;
+        }
+
         private bool TryRegisterHotkey(HotkeyGesture hotkey)
         {
             if (!RegisterHotKey(
@@ -222,7 +250,11 @@ internal sealed class CompanionController : IDisposable
                 return;
             }
 
-            ShellNotifyIcon(NimDelete, ref _iconData);
+            if (_trayIconVisible)
+            {
+                ShellNotifyIcon(NimDelete, ref _iconData);
+                _trayIconVisible = false;
+            }
             if (_registeredHotkey is not null)
             {
                 UnregisterHotKey(_window, HotkeyId);

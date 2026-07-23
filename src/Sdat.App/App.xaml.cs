@@ -93,15 +93,33 @@ public partial class App : Application
                 mainWindow.ShowNotificationInitializationWarning(_notificationInitializationError);
             }
             var background = commandLine.Contains("--background", StringComparer.OrdinalIgnoreCase);
-            if (background || runtime.CurrentSettings.StartCompanionAtLogin)
+            var keepRunningInBackground = background || runtime.CurrentSettings.StartCompanionAtLogin;
+            if (keepRunningInBackground)
             {
                 mainWindow.EnableCompanionMode();
-                _companion = new CompanionController(runtime, mainWindow, ExitCompanion);
-                mainWindow.CompanionSettingsApplying += _companion.ApplySettings;
-                if (_companion.HotkeyRegistrationError is not null)
+            }
+
+            _companion = new CompanionController(
+                runtime,
+                mainWindow,
+                ExitCompanion,
+                keepRunningInBackground);
+            mainWindow.CompanionSettingsApplying += settings =>
+            {
+                var shouldKeepRunning = background || settings.StartCompanionAtLogin;
+                _companion.ApplySettings(settings, shouldKeepRunning);
+                if (shouldKeepRunning)
                 {
-                    mainWindow.ShowHotkeyInitializationWarning(_companion.HotkeyRegistrationError);
+                    mainWindow.EnableCompanionMode();
                 }
+                else
+                {
+                    mainWindow.DisableCompanionMode();
+                }
+            };
+            if (_companion.HotkeyRegistrationError is not null)
+            {
+                mainWindow.ShowHotkeyInitializationWarning(_companion.HotkeyRegistrationError);
             }
 
             if (!background)

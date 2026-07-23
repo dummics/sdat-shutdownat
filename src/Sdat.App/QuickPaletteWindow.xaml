@@ -4,15 +4,43 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <Border
         x:Name="PaletteRoot"
-        Padding="18"
-        CornerRadius="12"
+        Padding="12"
+        CornerRadius="10"
+        Opacity="0"
         Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
         BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
         BorderThickness="1"
-        KeyDown="OnKeyDown">
+        Loaded="OnPaletteLoaded"
+        PreviewKeyDown="OnKeyDown">
+        <Border.Resources>
+            <Storyboard x:Name="FadeInStoryboard">
+                <DoubleAnimation
+                    Storyboard.TargetName="PaletteRoot"
+                    Storyboard.TargetProperty="Opacity"
+                    From="0"
+                    To="1"
+                    Duration="0:0:0.14">
+                    <DoubleAnimation.EasingFunction>
+                        <QuadraticEase EasingMode="EaseOut" />
+                    </DoubleAnimation.EasingFunction>
+                </DoubleAnimation>
+            </Storyboard>
+            <Storyboard x:Name="FadeOutStoryboard" Completed="OnFadeOutCompleted">
+                <DoubleAnimation
+                    Storyboard.TargetName="PaletteRoot"
+                    Storyboard.TargetProperty="Opacity"
+                    From="1"
+                    To="0"
+                    Duration="0:0:0.10">
+                    <DoubleAnimation.EasingFunction>
+                        <QuadraticEase EasingMode="EaseIn" />
+                    </DoubleAnimation.EasingFunction>
+                </DoubleAnimation>
+            </Storyboard>
+        </Border.Resources>
         <Grid ColumnSpacing="10">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="150" />
+                <ColumnDefinition Width="120" />
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>

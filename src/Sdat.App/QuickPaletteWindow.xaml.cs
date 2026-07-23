@@ -3,16 +3,21 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Media.Animation;
 using Sdat.Core.Scheduling;
 using Sdat.Windows.Hosting;
 using Windows.Graphics;
 using Windows.System;
+using Windows.UI.ViewManagement;
 
 namespace Sdat.App;
 
 public sealed partial class QuickPaletteWindow : Window
 {
     private readonly SdatRuntime _runtime;
+    private readonly bool _animationsEnabled = new UISettings().AnimationsEnabled;
+    private bool _allowClose;
+    private bool _isClosing;
 
     public QuickPaletteWindow(SdatRuntime runtime)
     {
@@ -23,13 +28,14 @@ public sealed partial class QuickPaletteWindow : Window
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(PaletteRoot);
         ConfigureWindow();
+        AppWindow.Closing += OnWindowClosing;
         Activated += (_, _) => TimeInput.Focus(FocusState.Programmatic);
     }
 
     private void ConfigureWindow()
     {
-        const int width = 560;
-        const int height = 100;
+        const int width = 480;
+        const int height = 76;
         if (AppWindow.Presenter is OverlappedPresenter presenter)
         {
             presenter.IsResizable = false;
@@ -46,6 +52,39 @@ public sealed partial class QuickPaletteWindow : Window
             workArea.Y + workArea.Height - height - 28,
             width,
             height));
+    }
+
+    private void OnPaletteLoaded(object sender, RoutedEventArgs e)
+    {
+        PaletteRoot.Opacity = 1;
+        if (_animationsEnabled)
+        {
+            FadeInStoryboard.Begin();
+        }
+    }
+
+    private void OnWindowClosing(AppWindow sender, AppWindowClosingEventArgs args)
+    {
+        if (_allowClose || !_animationsEnabled)
+        {
+            return;
+        }
+
+        args.Cancel = true;
+        if (_isClosing)
+        {
+            return;
+        }
+
+        _isClosing = true;
+        PaletteRoot.IsHitTestVisible = false;
+        FadeOutStoryboard.Begin();
+    }
+
+    private void OnFadeOutCompleted(object? sender, object e)
+    {
+        _allowClose = true;
+        Close();
     }
 
     private async void OnSchedule(object sender, RoutedEventArgs e) => await ScheduleAsync();

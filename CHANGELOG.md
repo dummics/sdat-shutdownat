@@ -11,6 +11,7 @@ All notable user-facing changes to SDAT are documented here.
 - Added revision-safe Windows Task Scheduler projection and stale-safe task, notification, cancellation, and snooze activations.
 - Added the WinUI 3 companion with Overview, Schedule, Notifications, Quick access, Help & recovery, About, and Settings panels.
 - Added the configurable quick-scheduler hotkey, native tray menu, critical bottom-center overlay, Windows reminder notifications, and per-user startup registration.
+- Made the quick-scheduler hotkey available whenever ShutdownAT is open, turned it into an open/close toggle, and tightened the palette with reduced-motion-aware fade transitions.
 - Added English and Italian MRT Core localization for static and dynamic companion UI, with a persistent Windows-language/Italian/English selector and one-click app restart.
 - Rewrote the Windows UI copy and recent-activity labels in plain, user-friendly language with short inline explanations.
 - Reduced settings-field width and text density, hid unavailable cancel actions, and added a confirmation step before cancelling a schedule from the Overview.
