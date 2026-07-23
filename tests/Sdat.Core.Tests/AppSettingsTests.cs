@@ -28,6 +28,32 @@ public sealed class AppSettingsTests
         Assert.Equal(120, new AppSettings().Validate().DailyOverlapWindowMinutes);
     }
 
+    [Fact]
+    public void Language_defaults_to_the_Windows_preference()
+    {
+        Assert.Equal(UiLanguagePreference.System, new AppSettings().Validate().PreferredLanguage);
+    }
+
+    [Theory]
+    [InlineData("system", "system")]
+    [InlineData("IT", "it-IT")]
+    [InlineData("it-it", "it-IT")]
+    [InlineData("EN", "en-US")]
+    [InlineData("en-us", "en-US")]
+    public void Supported_language_is_normalized(string input, string expected)
+    {
+        var settings = new AppSettings { PreferredLanguage = input }.Validate();
+
+        Assert.Equal(expected, settings.PreferredLanguage);
+    }
+
+    [Fact]
+    public void Unsupported_language_is_rejected()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new AppSettings { PreferredLanguage = "fr-FR" }.Validate());
+    }
+
     [Theory]
     [InlineData(-1)]
     [InlineData(1441)]

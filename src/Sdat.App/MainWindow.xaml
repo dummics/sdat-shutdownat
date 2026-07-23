@@ -6,7 +6,7 @@
         <NavigationView
             x:Name="ShellNav"
             IsBackButtonVisible="Collapsed"
-            IsSettingsVisible="False"
+            IsSettingsVisible="True"
             PaneTitle="ShutdownAT"
             PaneDisplayMode="LeftCompact"
             SelectionChanged="OnNavigationChanged">
@@ -20,10 +20,10 @@
                 <NavigationViewItem x:Uid="NavNotifications" Content="Notifications" Tag="notifications">
                     <NavigationViewItem.Icon><SymbolIcon Symbol="Message" /></NavigationViewItem.Icon>
                 </NavigationViewItem>
-                <NavigationViewItem x:Uid="NavHotkey" Content="Hotkey &amp; Tray" Tag="hotkey">
+                <NavigationViewItem x:Uid="NavHotkey" Content="Quick access" Tag="hotkey">
                     <NavigationViewItem.Icon><SymbolIcon Symbol="Keyboard" /></NavigationViewItem.Icon>
                 </NavigationViewItem>
-                <NavigationViewItem x:Uid="NavAdvanced" Content="Advanced" Tag="advanced">
+                <NavigationViewItem x:Uid="NavAdvanced" Content="Help &amp; recovery" Tag="advanced">
                     <NavigationViewItem.Icon><SymbolIcon Symbol="Setting" /></NavigationViewItem.Icon>
                 </NavigationViewItem>
                 <NavigationViewItem x:Uid="NavAbout" Content="About" Tag="about">
@@ -67,7 +67,7 @@
                         <Grid ColumnSpacing="12">
                             <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition /></Grid.ColumnDefinitions>
                             <StackPanel Grid.Column="0" Spacing="6">
-                                <TextBlock x:Uid="PowerActionLabel" Text="Power action" />
+                            <TextBlock x:Uid="PowerActionLabel" Text="What should this PC do?" />
                                 <ComboBox x:Name="ActionPicker" SelectedIndex="0" HorizontalAlignment="Stretch">
                                     <ComboBoxItem x:Uid="ShutdownAction" Content="Shut down" Tag="Shutdown" />
                                     <ComboBoxItem x:Uid="SuspendAction" Content="Suspend" Tag="Suspend" />
@@ -75,7 +75,7 @@
                                 </ComboBox>
                             </StackPanel>
                             <StackPanel Grid.Column="1" Spacing="6">
-                                <TextBlock x:Uid="RepeatsLabel" Text="Repeats" />
+                                <TextBlock x:Uid="RepeatsLabel" Text="How often?" />
                                 <ComboBox x:Name="KindPicker" SelectedIndex="0" HorizontalAlignment="Stretch" SelectionChanged="OnKindChanged">
                                     <ComboBoxItem x:Uid="OnceKind" Content="Once" Tag="OneTime" />
                                     <ComboBoxItem x:Uid="DailyKind" Content="Daily" Tag="Daily" />
@@ -83,11 +83,11 @@
                             </StackPanel>
                         </Grid>
                         <StackPanel Spacing="6">
-                            <TextBlock x:Uid="WhenLabel" Text="When" />
+                            <TextBlock x:Uid="WhenLabel" Text="When?" />
                             <TextBox x:Uid="TimeInput" x:Name="TimeInput" PlaceholderText="36m or 23:41" />
                         </StackPanel>
-                        <ToggleSwitch x:Uid="KeepDailyToggle" x:Name="KeepDailyToggle" Header="Keep the daily schedule when times overlap" />
-                        <Button x:Uid="ScheduleButton" Content="Schedule" Style="{ThemeResource AccentButtonStyle}" Click="OnSchedule" HorizontalAlignment="Left" />
+                        <ToggleSwitch x:Uid="KeepDailyToggle" x:Name="KeepDailyToggle" Header="Keep the daily action even when it is close to this one" />
+                        <Button x:Uid="ScheduleButton" Content="Save schedule" Style="{ThemeResource AccentButtonStyle}" Click="OnSchedule" HorizontalAlignment="Left" />
                     </StackPanel>
                 </ScrollViewer>
 
@@ -95,19 +95,19 @@
                     <StackPanel Padding="36,28" Spacing="22" MaxWidth="720" HorizontalAlignment="Left">
                         <StackPanel Spacing="4">
                             <TextBlock x:Uid="NotificationsTitle" Text="Notifications" Style="{ThemeResource TitleTextBlockStyle}" />
-                            <TextBlock x:Uid="NotificationsSubtitle" Text="Choose when ShutdownAT warns you before a power action." Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            <TextBlock x:Uid="NotificationsSubtitle" Text="Choose when ShutdownAT warns you before an action." Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                         </StackPanel>
                         <StackPanel Spacing="6">
-                            <TextBlock x:Uid="ReminderMinutesLabel" Text="Reminder minutes" />
+                            <TextBlock x:Uid="ReminderMinutesLabel" Text="Warn me before an action" />
                             <TextBox x:Uid="ReminderOffsetsInput" x:Name="ReminderOffsetsInput" PlaceholderText="2 or 10, 2" />
-                            <TextBlock x:Uid="ReminderMinutesHelp" Text="Up to five values, from 1 minute to 24 hours." Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            <TextBlock x:Uid="ReminderMinutesHelp" Text="Enter up to five times in minutes, separated by commas. For example: 10, 2." TextWrapping="Wrap" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                         </StackPanel>
                         <StackPanel Spacing="6">
-                            <TextBlock x:Uid="DailyOverlapLabel" Text="Daily overlap window" />
+                            <TextBlock x:Uid="DailyOverlapLabel" Text="Avoid back-to-back actions" />
                             <NumberBox x:Name="DailyOverlapInput" Minimum="0" Maximum="1440" SpinButtonPlacementMode="Compact" />
-                            <TextBlock x:Uid="DailyOverlapHelp" Text="When a one-time action is this many minutes from the next daily action, ShutdownAT skips that daily occurrence. Set 0 to disable." TextWrapping="Wrap" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            <TextBlock x:Uid="DailyOverlapHelp" Text="If a one-time action is this close to the daily one, the daily action is skipped once. Set 0 to keep both." TextWrapping="Wrap" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                         </StackPanel>
-                        <ToggleSwitch x:Uid="CriticalOverlayToggle" x:Name="CriticalOverlayToggle" Header="Show the critical bottom-center overlay" />
+                        <ToggleSwitch x:Uid="CriticalOverlayToggle" x:Name="CriticalOverlayToggle" Header="Show a clear on-screen countdown before shutdown or restart" />
                         <Button x:Uid="SaveSettingsButton" Content="Save settings" Style="{ThemeResource AccentButtonStyle}" Click="OnSaveSettings" HorizontalAlignment="Left" />
                     </StackPanel>
                 </ScrollViewer>
@@ -115,38 +115,38 @@
                 <ScrollViewer x:Name="HotkeyTrayView" Visibility="Collapsed">
                     <StackPanel Padding="36,28" Spacing="22" MaxWidth="720" HorizontalAlignment="Left">
                         <StackPanel Spacing="4">
-                            <TextBlock x:Uid="HotkeyTitle" Text="Hotkey &amp; Tray" Style="{ThemeResource TitleTextBlockStyle}" />
+                            <TextBlock x:Uid="HotkeyTitle" Text="Quick access" Style="{ThemeResource TitleTextBlockStyle}" />
                             <TextBlock x:Uid="HotkeySubtitle" Text="Open the quick scheduler without leaving what you are doing." Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                         </StackPanel>
                         <StackPanel Spacing="6">
-                            <TextBlock x:Uid="PaletteHotkeyLabel" Text="Quick scheduler hotkey" />
+                            <TextBlock x:Uid="PaletteHotkeyLabel" Text="Keyboard shortcut" />
                             <TextBox x:Uid="PaletteHotkeyInput" x:Name="PaletteHotkeyInput" PlaceholderText="Ctrl+Alt+S" />
-                            <TextBlock x:Uid="PaletteHotkeyHelp" Text="Use at least one modifier plus a letter, number, or F1-F24." Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            <TextBlock x:Uid="PaletteHotkeyHelp" Text="Use Ctrl, Alt, Shift, or Win together with a letter, number, or F1–F24 key." Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                         </StackPanel>
-                        <ToggleSwitch x:Uid="StartupToggle" x:Name="StartupToggle" Header="Start the companion when I sign in" />
-                        <TextBlock x:Uid="TrayHelp" Text="The tray icon keeps the hotkey available and provides quick access to ShutdownAT." TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        <ToggleSwitch x:Uid="StartupToggle" x:Name="StartupToggle" Header="Keep ShutdownAT ready after I sign in" />
+                        <TextBlock x:Uid="TrayHelp" Text="When enabled, ShutdownAT stays in the notification area so the shortcut works at any time." TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                         <Button x:Uid="SaveSettingsButton" Content="Save settings" Style="{ThemeResource AccentButtonStyle}" Click="OnSaveSettings" HorizontalAlignment="Left" />
                     </StackPanel>
                 </ScrollViewer>
 
                 <ScrollViewer x:Name="AdvancedView" Visibility="Collapsed">
                     <StackPanel Padding="36,28" Spacing="20" MaxWidth="720" HorizontalAlignment="Left">
-                        <TextBlock x:Uid="AdvancedTitle" Text="Advanced" Style="{ThemeResource TitleTextBlockStyle}" />
-                        <TextBlock x:Uid="AdvancedDescription" Text="SQLite is authoritative. Windows Task Scheduler is repaired from this local state." TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        <TextBlock x:Uid="AdvancedTitle" Text="Help &amp; recovery" Style="{ThemeResource TitleTextBlockStyle}" />
+                        <TextBlock x:Uid="AdvancedDescription" Text="Check that ShutdownAT can safely save and run your schedules. Use these tools only if something is not working as expected." TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                         <Border Padding="16" CornerRadius="8" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
                             <StackPanel Spacing="6">
-                                <TextBlock x:Uid="DatabaseHealthTitle" Text="Database health" Style="{ThemeResource SubtitleTextBlockStyle}" />
+                                <TextBlock x:Uid="DatabaseHealthTitle" Text="Local data" Style="{ThemeResource SubtitleTextBlockStyle}" />
                                 <TextBlock x:Name="DatabaseHealthText" TextWrapping="Wrap" />
                                 <TextBlock x:Name="DatabasePathText" TextWrapping="Wrap" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                             </StackPanel>
                         </Border>
                         <StackPanel Orientation="Horizontal" Spacing="12">
-                            <Button x:Uid="ReconcileButton" Content="Reconcile tasks" Click="OnReconcile" />
+                            <Button x:Uid="ReconcileButton" Content="Repair Windows integration" Click="OnReconcile" />
                             <Button x:Uid="RefreshButton" Content="Refresh status" Click="OnRefresh" />
                         </StackPanel>
                         <StackPanel Spacing="8">
                             <TextBlock x:Uid="RecentActivityTitle" Text="Recent activity" Style="{ThemeResource SubtitleTextBlockStyle}" />
-                            <TextBlock x:Uid="NoDiagnosticsText" x:Name="DiagnosticsEmptyText" Text="No diagnostic events recorded yet." Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            <TextBlock x:Uid="NoDiagnosticsText" x:Name="DiagnosticsEmptyText" Text="Nothing needs your attention." Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                             <ListView x:Name="DiagnosticsList" SelectionMode="None">
                                 <ListView.ItemTemplate>
                                     <DataTemplate>
@@ -174,7 +174,30 @@
                     <StackPanel Padding="36,28" Spacing="12" MaxWidth="720" HorizontalAlignment="Left">
                         <TextBlock Text="ShutdownAT" Style="{ThemeResource TitleTextBlockStyle}" />
                         <TextBlock x:Uid="AboutDescription" Text="Local, open-source Windows power scheduling without accounts or telemetry." TextWrapping="Wrap" />
-                        <TextBlock x:Uid="AboutCliDescription" Text="CLI and terminal UI remain first-class clients of the same C# core." TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        <TextBlock x:Uid="AboutCliDescription" Text="Prefer commands? The command line and terminal interface use the same scheduling system as the app." TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    </StackPanel>
+                </ScrollViewer>
+
+                <ScrollViewer x:Name="SettingsView" Visibility="Collapsed">
+                    <StackPanel Padding="36,28" Spacing="22" MaxWidth="720" HorizontalAlignment="Left">
+                        <StackPanel Spacing="4">
+                            <TextBlock x:Uid="SettingsTitle" Text="Settings" Style="{ThemeResource TitleTextBlockStyle}" />
+                            <TextBlock x:Uid="SettingsSubtitle" Text="Choose how ShutdownAT looks and feels on this PC." TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        </StackPanel>
+                        <StackPanel Spacing="6">
+                            <TextBlock x:Uid="LanguageLabel" Text="App language" />
+                            <ComboBox x:Name="LanguagePicker" HorizontalAlignment="Stretch" MaxWidth="420">
+                                <ComboBoxItem x:Uid="LanguageSystemOption" Content="Use the Windows language" Tag="system" />
+                                <ComboBoxItem x:Uid="LanguageItalianOption" Content="Italiano" Tag="it-IT" />
+                                <ComboBoxItem x:Uid="LanguageEnglishOption" Content="English" Tag="en-US" />
+                            </ComboBox>
+                            <TextBlock x:Uid="LanguageHelp" Text="Windows language is selected automatically the first time. You can choose a different language whenever you want." TextWrapping="Wrap" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <Button x:Uid="ApplyLanguageButton" Content="Apply language" Style="{ThemeResource AccentButtonStyle}" Click="OnApplyLanguage" />
+                            <Button x:Uid="RestartLanguageButton" x:Name="RestartLanguageButton" Content="Restart ShutdownAT" Click="OnRestartForLanguage" Visibility="Collapsed" />
+                        </StackPanel>
+                        <TextBlock x:Uid="LanguageRestartHelp" x:Name="LanguageRestartHelp" Text="Restart ShutdownAT to update every screen." Visibility="Collapsed" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                     </StackPanel>
                 </ScrollViewer>
 

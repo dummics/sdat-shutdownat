@@ -72,7 +72,7 @@ public sealed partial class QuickPaletteWindow : Window
             {
                 TimeInput.Header = AppText.Get(
                     "PaletteRecoveryWarning",
-                    "Saved with a recovery warning. Open ShutdownAT for details.");
+                    "Schedule saved, but the Windows integration needs attention. Open ShutdownAT for details.");
             }
         }
         catch (Exception exception)

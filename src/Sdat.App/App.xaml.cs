@@ -1,6 +1,7 @@
 using Microsoft.UI.Xaml;
 using Microsoft.Windows.AppLifecycle;
 using Microsoft.Windows.AppNotifications;
+using System.Diagnostics;
 using Sdat.Core.Commands;
 using Sdat.Core.Execution;
 using Sdat.Core.Scheduling;
@@ -17,6 +18,7 @@ public partial class App : Application
 
     public App()
     {
+        AppLanguageService.ApplyBeforeResourcesLoad();
         InitializeComponent();
         if (!Environment.GetCommandLineArgs().Contains("--task-run", StringComparer.OrdinalIgnoreCase))
         {
@@ -189,6 +191,24 @@ public partial class App : Application
             mainWindow.Close();
         }
 
+        Exit();
+    }
+
+    internal void RestartForLanguageChange()
+    {
+        var executablePath = Environment.ProcessPath;
+        if (string.IsNullOrWhiteSpace(executablePath))
+        {
+            return;
+        }
+
+        Process.Start(new ProcessStartInfo(executablePath)
+        {
+            UseShellExecute = true,
+        });
+        _companion?.Dispose();
+        _companion = null;
+        _window?.Close();
         Exit();
     }
 

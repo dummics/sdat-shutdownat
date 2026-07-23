@@ -22,6 +22,7 @@ public sealed class SqliteAppSettingsRepositoryTests : IDisposable
         Assert.False(settings.StartCompanionAtLogin);
         Assert.Equal(120, settings.DailyOverlapWindowMinutes);
         Assert.Equal("Ctrl+Alt+S", settings.PaletteHotkey);
+        Assert.Equal(UiLanguagePreference.System, settings.PreferredLanguage);
     }
 
     [Fact]
@@ -38,6 +39,7 @@ public sealed class SqliteAppSettingsRepositoryTests : IDisposable
             StartCompanionAtLogin = true,
             DailyOverlapWindowMinutes = 45,
             PaletteHotkey = "shift+f12",
+            PreferredLanguage = "it",
         });
         var loaded = await repository.LoadAsync();
 
@@ -47,6 +49,28 @@ public sealed class SqliteAppSettingsRepositoryTests : IDisposable
         Assert.Equal(saved.StartCompanionAtLogin, loaded.StartCompanionAtLogin);
         Assert.Equal(45, loaded.DailyOverlapWindowMinutes);
         Assert.Equal("Shift+F12", loaded.PaletteHotkey);
+        Assert.Equal(UiLanguagePreference.Italian, loaded.PreferredLanguage);
+    }
+
+    [Fact]
+    public async Task Early_language_reader_uses_saved_preference_without_changing_the_store()
+    {
+        var options = CreateOptions();
+        await new SqliteScheduleRepository(options).InitializeAsync();
+        var repository = new SqliteAppSettingsRepository(options);
+        await repository.SaveAsync(new AppSettings { PreferredLanguage = UiLanguagePreference.English });
+
+        var preference = SqliteLanguagePreferenceReader.ReadOrSystemDefault(options);
+
+        Assert.Equal(UiLanguagePreference.English, preference);
+    }
+
+    [Fact]
+    public void Early_language_reader_falls_back_to_system_when_the_database_does_not_exist()
+    {
+        var preference = SqliteLanguagePreferenceReader.ReadOrSystemDefault(CreateOptions());
+
+        Assert.Equal(UiLanguagePreference.System, preference);
     }
 
     public void Dispose()

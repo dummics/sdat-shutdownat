@@ -59,7 +59,7 @@ sdat 45m -k
 
 ## Windows app
 
-Search for **ShutdownAT** in Start, run `sdat ui`, or launch `SDAT.exe` directly. The executable keeps its compact technical name while the installed product is presented as ShutdownAT. Its WinUI 3 shell provides Overview, Schedule, Notifications, Hotkey & Tray, Advanced diagnostics, and About panels. Static and dynamic UI text is localized in English and Italian using Windows MRT Core resources.
+Search for **ShutdownAT** in Start, run `sdat ui`, or launch `SDAT.exe` directly. The executable keeps its compact technical name while the installed product is presented as ShutdownAT. Its WinUI 3 shell provides Overview, Schedule, Notifications, Quick access, Help & recovery, About, and Settings panels. Static and dynamic UI text is localized in English and Italian using Windows MRT Core resources. The app follows the Windows language by default, or you can choose Italian or English in Settings and apply the change with a one-click restart.
 
 The richer keyboard-driven terminal interface remains a first-class client of the same C# core. Open it with `sdat`, `sdat tui`, or the **ShutdownAT Terminal** Start shortcut. It includes schedule preview, active-schedule management, daily skip, database health, recent activity, and explicit Task Scheduler repair.
 

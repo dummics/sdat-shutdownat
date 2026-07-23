@@ -41,7 +41,7 @@ public sealed partial class MainWindow : Window
             ApplySettings(_runtime.CurrentSettings);
             DatabasePathText.Text = AppText.Format(
                 "DatabasePath",
-                "Database: {0}",
+                "Saved on this PC: {0}",
                 _runtime.StoreOptions.DatabasePath);
             await RefreshStatusAsync();
             if (_runtime.StartupRecovery is not null)
@@ -49,7 +49,7 @@ public sealed partial class MainWindow : Window
                 ShowStatus(
                     AppText.Get(
                         "DatabaseRecovered",
-                        "The local database was restored from the newest verified backup."),
+                        "Your saved schedules were restored from the latest healthy backup."),
                     InfoBarSeverity.Warning);
             }
             if (_runtime.LegacyMigration.Status == LegacyMigrationStatus.Failed)
@@ -63,7 +63,7 @@ public sealed partial class MainWindow : Window
                 ShowStatus(
                     AppText.Get(
                         "SchedulerRepairWarning",
-                        "The database is healthy, but some Windows tasks could not be repaired."),
+                        "Your schedules are safe, but the Windows integration needs attention. Open Help & recovery to repair it."),
                     InfoBarSeverity.Warning);
             }
         }
@@ -75,13 +75,16 @@ public sealed partial class MainWindow : Window
 
     private void OnNavigationChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
     {
-        var tag = (args.SelectedItemContainer?.Tag as string) ?? "overview";
+        var tag = args.IsSettingsSelected
+            ? "settings"
+            : (args.SelectedItemContainer?.Tag as string) ?? "overview";
         OverviewView.Visibility = tag == "overview" ? Visibility.Visible : Visibility.Collapsed;
         ScheduleView.Visibility = tag == "schedule" ? Visibility.Visible : Visibility.Collapsed;
         NotificationsView.Visibility = tag == "notifications" ? Visibility.Visible : Visibility.Collapsed;
         HotkeyTrayView.Visibility = tag == "hotkey" ? Visibility.Visible : Visibility.Collapsed;
         AdvancedView.Visibility = tag == "advanced" ? Visibility.Visible : Visibility.Collapsed;
         AboutView.Visibility = tag == "about" ? Visibility.Visible : Visibility.Collapsed;
+        SettingsView.Visibility = tag == "settings" ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void OnOpenSchedule(object sender, RoutedEventArgs e) => ShellNav.SelectedItem = ShellNav.MenuItems[1];
@@ -120,7 +123,7 @@ public sealed partial class MainWindow : Window
             ShowStatus(
                 result.IsFullyApplied
                     ? AppText.Get("ScheduleSaved", "Schedule saved.")
-                    : AppText.Get("ScheduleSavedWarnings", "Schedule saved with recovery warnings."),
+                    : AppText.Get("ScheduleSavedWarnings", "Schedule saved, but the Windows integration needs attention."),
                 result.IsFullyApplied ? InfoBarSeverity.Success : InfoBarSeverity.Warning);
         }
         catch (Exception exception)
@@ -175,6 +178,7 @@ public sealed partial class MainWindow : Window
                 .ToArray();
             var candidate = new AppSettings
             {
+                PreferredLanguage = previous.PreferredLanguage,
                 ReminderOffsetsMinutes = offsets,
                 CriticalOverlayEnabled = CriticalOverlayToggle.IsOn,
                 StartCompanionAtLogin = StartupToggle.IsOn,
@@ -230,10 +234,10 @@ public sealed partial class MainWindow : Window
                 report.IsHealthy
                     ? AppText.Format(
                         "ProjectionHealthy",
-                        "Projection healthy. {0} repaired, {1} removed.",
+                        "Windows integration is ready. Fixed: {0}; removed old entries: {1}.",
                         report.CreatedOrUpdatedCount,
                         report.RemovedCount)
-                    : AppText.Get("ReconciliationWarnings", "Reconciliation completed with warnings."),
+                    : AppText.Get("ReconciliationWarnings", "The repair finished, but some items still need attention."),
                 report.IsHealthy ? InfoBarSeverity.Success : InfoBarSeverity.Warning);
         }
         catch (Exception exception)
@@ -241,6 +245,43 @@ public sealed partial class MainWindow : Window
             ShowStatus(exception.Message, InfoBarSeverity.Error);
         }
     }
+
+    private async void OnApplyLanguage(object sender, RoutedEventArgs e)
+    {
+        if (_runtime is null)
+        {
+            return;
+        }
+
+        try
+        {
+            var requestedLanguage = UiLanguagePreference.Normalize(GetSelectedTag(LanguagePicker));
+            var previous = await _runtime.Settings.LoadAsync();
+            var saved = await _runtime.Settings.SaveAsync(previous with
+            {
+                PreferredLanguage = requestedLanguage,
+            });
+            ApplySettings(saved);
+
+            var restartRequired = saved.PreferredLanguage != AppLanguageService.AppliedPreference;
+            RestartLanguageButton.Visibility = restartRequired ? Visibility.Visible : Visibility.Collapsed;
+            LanguageRestartHelp.Visibility = restartRequired ? Visibility.Visible : Visibility.Collapsed;
+            ShowStatus(
+                AppText.Get(
+                    restartRequired ? "LanguageSavedRestartRequired" : "LanguageAlreadyActive",
+                    restartRequired
+                        ? "Language saved. Restart ShutdownAT to update every screen."
+                        : "This language is already active."),
+                InfoBarSeverity.Success);
+        }
+        catch (Exception exception)
+        {
+            ShowStatus(exception.Message, InfoBarSeverity.Error);
+        }
+    }
+
+    private void OnRestartForLanguage(object sender, RoutedEventArgs e) =>
+        (Application.Current as App)?.RestartForLanguageChange();
 
     private async void OnRefresh(object sender, RoutedEventArgs e)
     {
@@ -290,10 +331,10 @@ public sealed partial class MainWindow : Window
 
         var health = await _runtime.Schedules.CheckHealthAsync();
         DatabaseHealthText.Text = health.CanExecutePowerActions
-            ? AppText.Get("DatabaseHealthy", "Healthy — power actions are enabled.")
+            ? AppText.Get("DatabaseHealthy", "Everything is ready. Your schedules can run normally.")
             : AppText.Format(
                 "DatabaseUnhealthy",
-                "Power actions are blocked: {0}",
+                "Schedules cannot run safely right now. Details: {0}",
                 health.Detail);
 
         var events = await _runtime.Diagnostics.ReadRecentAsync(20);
@@ -301,8 +342,8 @@ public sealed partial class MainWindow : Window
             .Select(entry => new DiagnosticViewItem(
                 entry.OccurredAt.ToLocalTime().ToString("g", System.Globalization.CultureInfo.CurrentCulture),
                 AppText.Get($"Severity{entry.Severity}", entry.Severity.ToString()),
-                entry.Source,
-                entry.Message))
+                GetDiagnosticTitle(entry),
+                GetDiagnosticMessage(entry)))
             .ToArray();
         DiagnosticsEmptyText.Visibility = events.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         DiagnosticsList.Visibility = events.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
@@ -320,7 +361,7 @@ public sealed partial class MainWindow : Window
         ShowStatus(
             AppText.Format(
                 "NotificationUnavailable",
-                "Windows notifications are unavailable. Critical overlays remain enabled. {0}",
+                "Windows notifications are unavailable. The on-screen countdown will still appear. Details: {0}",
                 detail),
             InfoBarSeverity.Warning);
 
@@ -328,7 +369,7 @@ public sealed partial class MainWindow : Window
         ShowStatus(
             AppText.Format(
                 "HotkeyUnavailable",
-                "The tray companion is running, but the palette hotkey is unavailable. {0}",
+                "ShutdownAT is running in the notification area, but the keyboard shortcut could not be enabled. Details: {0}",
                 detail),
             InfoBarSeverity.Warning);
 
@@ -347,6 +388,7 @@ public sealed partial class MainWindow : Window
 
     private void ApplySettings(AppSettings settings)
     {
+        SelectTag(LanguagePicker, settings.PreferredLanguage);
         ReminderOffsetsInput.Text = string.Join(", ", settings.ReminderOffsetsMinutes);
         CriticalOverlayToggle.IsOn = settings.CriticalOverlayEnabled;
         StartupToggle.IsOn = settings.StartCompanionAtLogin;
@@ -364,6 +406,45 @@ public sealed partial class MainWindow : Window
     private static string GetSelectedTag(ComboBox comboBox) =>
         ((ComboBoxItem)comboBox.SelectedItem).Tag?.ToString()
         ?? throw new InvalidOperationException("Select a value.");
+
+    private static void SelectTag(ComboBox comboBox, string tag)
+    {
+        comboBox.SelectedItem = comboBox.Items
+            .OfType<ComboBoxItem>()
+            .First(item => string.Equals(item.Tag?.ToString(), tag, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static string GetDiagnosticTitle(DiagnosticEvent entry) => entry.Source switch
+    {
+        "CreateSchedule" => AppText.Get("DiagnosticScheduleCreated", "Schedule created"),
+        "UpdateSchedule" => AppText.Get("DiagnosticScheduleUpdated", "Schedule updated"),
+        "CancelSchedule" => AppText.Get("DiagnosticScheduleCancelled", "Schedule cancelled"),
+        "RequestDailySkip" => AppText.Get("DiagnosticDailySkipped", "Daily action skipped"),
+        "ClaimOccurrence" or "Occurrence" =>
+            AppText.Get("DiagnosticScheduledAction", "Scheduled action"),
+        _ => AppText.Get("DiagnosticGenericTitle", "ShutdownAT activity"),
+    };
+
+    private static string GetDiagnosticMessage(DiagnosticEvent entry)
+    {
+        var separator = entry.Message.LastIndexOf(": ", StringComparison.Ordinal);
+        var outcome = separator >= 0 ? entry.Message[(separator + 2)..] : entry.Message;
+        return outcome switch
+        {
+            "Success" or "Completed" or "Executed" or "Claimed" =>
+                AppText.Get("DiagnosticCompleted", "Completed successfully."),
+            "ReminderShown" => AppText.Get("DiagnosticReminderShown", "The reminder was shown."),
+            "Skipped" or "SkippedByRequest" =>
+                AppText.Get("DiagnosticSkippedAsRequested", "Skipped as requested."),
+            "Stale" or "AlreadyHandled" or "IgnoredStale" or "IgnoredDuplicate" or "IgnoredEarly" =>
+                AppText.Get("DiagnosticNoActionNeeded", "No action was needed."),
+            "ReminderDegraded" =>
+                AppText.Get("DiagnosticFallbackUsed", "The on-screen reminder was used instead."),
+            _ when entry.Severity == DiagnosticSeverity.Error =>
+                AppText.Format("DiagnosticFailed", "Something went wrong. Details: {0}", entry.Message),
+            _ => entry.Message,
+        };
+    }
 
     private sealed record DiagnosticViewItem(
         string OccurredAt,

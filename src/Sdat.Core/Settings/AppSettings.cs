@@ -2,6 +2,8 @@ namespace Sdat.Core.Settings;
 
 public sealed record AppSettings
 {
+    public string PreferredLanguage { get; init; } = UiLanguagePreference.System;
+
     public IReadOnlyList<int> ReminderOffsetsMinutes { get; init; } = [2];
 
     public bool CriticalOverlayEnabled { get; init; } = true;
@@ -32,10 +34,29 @@ public sealed record AppSettings
         var hotkey = HotkeyGesture.Parse(PaletteHotkey);
         return this with
         {
+            PreferredLanguage = UiLanguagePreference.Normalize(PreferredLanguage),
             ReminderOffsetsMinutes = offsets,
             PaletteHotkey = hotkey.ToString(),
         };
     }
+}
+
+public static class UiLanguagePreference
+{
+    public const string System = "system";
+    public const string Italian = "it-IT";
+    public const string English = "en-US";
+
+    public static string Normalize(string? value) => value?.Trim().ToLowerInvariant() switch
+    {
+        null or "" or System => System,
+        "it" or "it-it" => Italian,
+        "en" or "en-us" => English,
+        _ => throw new ArgumentOutOfRangeException(
+            nameof(value),
+            value,
+            "Choose the Windows language, Italian, or English."),
+    };
 }
 
 [Flags]

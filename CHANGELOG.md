@@ -9,9 +9,10 @@ All notable user-facing changes to SDAT are documented here.
 - Replaced the PowerShell scheduling backend with a native C#/.NET core while preserving the established CLI commands, aliases, Win+R workflow, and Spectre.Console TUI.
 - Added authoritative SQLite state, cross-process mutation locking, verified backups, health checks, guarded recovery, and forward-schema fail-safe behavior.
 - Added revision-safe Windows Task Scheduler projection and stale-safe task, notification, cancellation, and snooze activations.
-- Added the WinUI 3 companion with Overview, Schedule, Notifications, Hotkey & Tray, Advanced diagnostics, and About panels.
+- Added the WinUI 3 companion with Overview, Schedule, Notifications, Quick access, Help & recovery, About, and Settings panels.
 - Added the configurable quick-scheduler hotkey, native tray menu, critical bottom-center overlay, Windows reminder notifications, and per-user startup registration.
-- Added English and Italian MRT Core localization for static and dynamic companion UI.
+- Added English and Italian MRT Core localization for static and dynamic companion UI, with a persistent Windows-language/Italian/English selector and one-click app restart.
+- Rewrote the Windows UI copy and recent-activity labels in plain, user-friendly language with short inline explanations.
 - Added configurable reminder offsets and daily-overlap policy; a one-time action can safely skip one nearby daily occurrence without deleting the daily schedule.
 - Added versioned machine-readable JSON, side-effect-free preview, database health, reconciliation, and structured diagnostic history commands.
 - Added strict v1 state/task migration with preserved rollback evidence and ambiguous-task fail-safe behavior.
