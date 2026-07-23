@@ -13,6 +13,7 @@ All notable user-facing changes to SDAT are documented here.
 - Added the configurable quick-scheduler hotkey, native tray menu, critical bottom-center overlay, Windows reminder notifications, and per-user startup registration.
 - Added English and Italian MRT Core localization for static and dynamic companion UI, with a persistent Windows-language/Italian/English selector and one-click app restart.
 - Rewrote the Windows UI copy and recent-activity labels in plain, user-friendly language with short inline explanations.
+- Reduced settings-field width and text density, hid unavailable cancel actions, and added a confirmation step before cancelling a schedule from the Overview.
 - Added configurable reminder offsets and daily-overlap policy; a one-time action can safely skip one nearby daily occurrence without deleting the daily schedule.
 - Added versioned machine-readable JSON, side-effect-free preview, database health, reconciliation, and structured diagnostic history commands.
 - Added strict v1 state/task migration with preserved rollback evidence and ambiguous-task fail-safe behavior.

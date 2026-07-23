@@ -132,9 +132,42 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private async void OnCancelOneTime(object sender, RoutedEventArgs e) => await CancelAsync(ScheduleKind.OneTime);
+    private async void OnCancelOneTime(object sender, RoutedEventArgs e)
+    {
+        if (await ConfirmCancellationAsync(ScheduleKind.OneTime))
+        {
+            await CancelAsync(ScheduleKind.OneTime);
+        }
+    }
 
-    private async void OnCancelDaily(object sender, RoutedEventArgs e) => await CancelAsync(ScheduleKind.Daily);
+    private async void OnCancelDaily(object sender, RoutedEventArgs e)
+    {
+        if (await ConfirmCancellationAsync(ScheduleKind.Daily))
+        {
+            await CancelAsync(ScheduleKind.Daily);
+        }
+    }
+
+    private async Task<bool> ConfirmCancellationAsync(ScheduleKind kind)
+    {
+        var dialog = new ContentDialog
+        {
+            Title = AppText.Get("CancelConfirmationTitle", "Cancel this schedule?"),
+            Content = kind == ScheduleKind.Daily
+                ? AppText.Get(
+                    "CancelDailyConfirmationBody",
+                    "The daily schedule will stop until you create it again.")
+                : AppText.Get(
+                    "CancelOneTimeConfirmationBody",
+                    "The next one-time action will be removed."),
+            PrimaryButtonText = AppText.Get("ConfirmCancelButton", "Cancel schedule"),
+            CloseButtonText = AppText.Get("KeepScheduleButton", "Keep it"),
+            DefaultButton = ContentDialogButton.Close,
+            XamlRoot = RootGrid.XamlRoot,
+        };
+
+        return await dialog.ShowAsync() == ContentDialogResult.Primary;
+    }
 
     private async Task CancelAsync(ScheduleKind kind)
     {
@@ -305,6 +338,8 @@ public sealed partial class MainWindow : Window
         var schedules = await _runtime.Schedules.ListAsync();
         var oneTime = schedules.SingleOrDefault(schedule => schedule.Kind == ScheduleKind.OneTime);
         var daily = schedules.SingleOrDefault(schedule => schedule.Kind == ScheduleKind.Daily);
+        OneTimeCancelButton.Visibility = oneTime is null ? Visibility.Collapsed : Visibility.Visible;
+        DailyCancelButton.Visibility = daily is null ? Visibility.Collapsed : Visibility.Visible;
         OneTimeStatusText.Text = oneTime is null
             ? AppText.Get("NoOneTimeSchedule", "No one-time action scheduled.")
             : AppText.Format(

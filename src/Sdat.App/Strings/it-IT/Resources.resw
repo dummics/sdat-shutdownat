@@ -46,13 +46,13 @@
   <data name="KeepDailyToggle.Header" xml:space="preserve"><value>Mantieni l'azione giornaliera anche se è vicina a questa</value></data>
   <data name="ScheduleButton.Content" xml:space="preserve"><value>Salva pianificazione</value></data>
   <data name="NotificationsTitle.Text" xml:space="preserve"><value>Notifiche</value></data>
-  <data name="NotificationsSubtitle.Text" xml:space="preserve"><value>Scegli quando ShutdownAT deve avvisarti prima di un'azione.</value></data>
-  <data name="ReminderMinutesLabel.Text" xml:space="preserve"><value>Avvisami prima di un'azione</value></data>
+  <data name="NotificationsSubtitle.Text" xml:space="preserve"><value>Scegli con quanto anticipo essere avvisato.</value></data>
+  <data name="ReminderMinutesLabel.Text" xml:space="preserve"><value>Tempi di preavviso</value></data>
   <data name="ReminderOffsetsInput.PlaceholderText" xml:space="preserve"><value>2 oppure 10, 2</value></data>
-  <data name="ReminderMinutesHelp.Text" xml:space="preserve"><value>Inserisci fino a cinque anticipi in minuti, separati da virgole. Per esempio: 10, 2.</value></data>
-  <data name="DailyOverlapLabel.Text" xml:space="preserve"><value>Evita azioni troppo ravvicinate</value></data>
-  <data name="DailyOverlapHelp.Text" xml:space="preserve"><value>Se un'azione singola è così vicina a quella giornaliera, l'azione giornaliera viene saltata una sola volta. Imposta 0 per mantenerle entrambe.</value></data>
-  <data name="CriticalOverlayToggle.Header" xml:space="preserve"><value>Mostra un conto alla rovescia chiaro prima di spegnere o riavviare</value></data>
+  <data name="ReminderMinutesHelp.Text" xml:space="preserve"><value>Minuti separati da virgole, per esempio 10, 2.</value></data>
+  <data name="DailyOverlapLabel.Text" xml:space="preserve"><value>Evita azioni ravvicinate</value></data>
+  <data name="DailyOverlapHelp.Text" xml:space="preserve"><value>Entro questi minuti, l'azione giornaliera viene saltata una volta. 0 le mantiene entrambe.</value></data>
+  <data name="CriticalOverlayToggle.Header" xml:space="preserve"><value>Mostra il conto alla rovescia sullo schermo</value></data>
   <data name="SaveSettingsButton.Content" xml:space="preserve"><value>Salva impostazioni</value></data>
   <data name="HotkeyTitle.Text" xml:space="preserve"><value>Accesso rapido</value></data>
   <data name="HotkeySubtitle.Text" xml:space="preserve"><value>Apri la pianificazione rapida senza interrompere quello che stai facendo.</value></data>
@@ -84,6 +84,11 @@
   <data name="ScheduleSaved" xml:space="preserve"><value>Pianificazione salvata.</value></data>
   <data name="ScheduleSavedWarnings" xml:space="preserve"><value>Pianificazione salvata, ma l'integrazione con Windows richiede attenzione.</value></data>
   <data name="ScheduleCancelled" xml:space="preserve"><value>Pianificazione annullata.</value></data>
+  <data name="CancelConfirmationTitle" xml:space="preserve"><value>Annullare questa pianificazione?</value></data>
+  <data name="CancelOneTimeConfirmationBody" xml:space="preserve"><value>La prossima azione singola verrà rimossa.</value></data>
+  <data name="CancelDailyConfirmationBody" xml:space="preserve"><value>La pianificazione giornaliera resterà ferma finché non ne creerai una nuova.</value></data>
+  <data name="ConfirmCancelButton" xml:space="preserve"><value>Annulla pianificazione</value></data>
+  <data name="KeepScheduleButton" xml:space="preserve"><value>Mantieni</value></data>
   <data name="NoScheduleInSlot" xml:space="preserve"><value>Non esiste una pianificazione attiva in questa posizione.</value></data>
   <data name="SettingsSaved" xml:space="preserve"><value>Impostazioni salvate.</value></data>
   <data name="LanguageSavedRestartRequired" xml:space="preserve"><value>Lingua salvata. Riavvia ShutdownAT per aggiornare tutte le schermate.</value></data>

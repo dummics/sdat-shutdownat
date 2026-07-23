@@ -46,13 +46,13 @@
   <data name="KeepDailyToggle.Header" xml:space="preserve"><value>Keep the daily action even when it is close to this one</value></data>
   <data name="ScheduleButton.Content" xml:space="preserve"><value>Save schedule</value></data>
   <data name="NotificationsTitle.Text" xml:space="preserve"><value>Notifications</value></data>
-  <data name="NotificationsSubtitle.Text" xml:space="preserve"><value>Choose when ShutdownAT warns you before an action.</value></data>
-  <data name="ReminderMinutesLabel.Text" xml:space="preserve"><value>Warn me before an action</value></data>
+  <data name="NotificationsSubtitle.Text" xml:space="preserve"><value>Choose how early ShutdownAT should warn you.</value></data>
+  <data name="ReminderMinutesLabel.Text" xml:space="preserve"><value>Warning times</value></data>
   <data name="ReminderOffsetsInput.PlaceholderText" xml:space="preserve"><value>2 or 10, 2</value></data>
-  <data name="ReminderMinutesHelp.Text" xml:space="preserve"><value>Enter up to five times in minutes, separated by commas. For example: 10, 2.</value></data>
-  <data name="DailyOverlapLabel.Text" xml:space="preserve"><value>Avoid back-to-back actions</value></data>
-  <data name="DailyOverlapHelp.Text" xml:space="preserve"><value>If a one-time action is this close to the daily one, the daily action is skipped once. Set 0 to keep both.</value></data>
-  <data name="CriticalOverlayToggle.Header" xml:space="preserve"><value>Show a clear on-screen countdown before shutdown or restart</value></data>
+  <data name="ReminderMinutesHelp.Text" xml:space="preserve"><value>Minutes separated by commas, for example 10, 2.</value></data>
+  <data name="DailyOverlapLabel.Text" xml:space="preserve"><value>Avoid nearby actions</value></data>
+  <data name="DailyOverlapHelp.Text" xml:space="preserve"><value>Within this many minutes, the daily action is skipped once. Set 0 to keep both.</value></data>
+  <data name="CriticalOverlayToggle.Header" xml:space="preserve"><value>Show the on-screen countdown</value></data>
   <data name="SaveSettingsButton.Content" xml:space="preserve"><value>Save settings</value></data>
   <data name="HotkeyTitle.Text" xml:space="preserve"><value>Quick access</value></data>
   <data name="HotkeySubtitle.Text" xml:space="preserve"><value>Open the quick scheduler without leaving what you are doing.</value></data>
@@ -84,6 +84,11 @@
   <data name="ScheduleSaved" xml:space="preserve"><value>Schedule saved.</value></data>
   <data name="ScheduleSavedWarnings" xml:space="preserve"><value>Schedule saved, but the Windows integration needs attention.</value></data>
   <data name="ScheduleCancelled" xml:space="preserve"><value>Schedule cancelled.</value></data>
+  <data name="CancelConfirmationTitle" xml:space="preserve"><value>Cancel this schedule?</value></data>
+  <data name="CancelOneTimeConfirmationBody" xml:space="preserve"><value>The next one-time action will be removed.</value></data>
+  <data name="CancelDailyConfirmationBody" xml:space="preserve"><value>The daily schedule will stop until you create it again.</value></data>
+  <data name="ConfirmCancelButton" xml:space="preserve"><value>Cancel schedule</value></data>
+  <data name="KeepScheduleButton" xml:space="preserve"><value>Keep it</value></data>
   <data name="NoScheduleInSlot" xml:space="preserve"><value>There is no active schedule in that slot.</value></data>
   <data name="SettingsSaved" xml:space="preserve"><value>Settings saved.</value></data>
   <data name="LanguageSavedRestartRequired" xml:space="preserve"><value>Language saved. Restart ShutdownAT to update every screen.</value></data>

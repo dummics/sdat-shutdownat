@@ -43,14 +43,14 @@
                                 <StackPanel Spacing="8">
                                     <TextBlock x:Uid="OneTimeTitle" Text="One-time" Style="{ThemeResource SubtitleTextBlockStyle}" />
                                     <TextBlock x:Uid="LoadingStatus" x:Name="OneTimeStatusText" Text="Loading…" TextWrapping="Wrap" />
-                                    <Button x:Uid="CancelButton" Content="Cancel" Click="OnCancelOneTime" HorizontalAlignment="Left" />
+                                    <Button x:Uid="CancelButton" x:Name="OneTimeCancelButton" Content="Cancel" Click="OnCancelOneTime" HorizontalAlignment="Left" Visibility="Collapsed" />
                                 </StackPanel>
                             </Border>
                             <Border Grid.Column="1" Padding="20" CornerRadius="8" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
                                 <StackPanel Spacing="8">
                                     <TextBlock x:Uid="DailyTitle" Text="Daily" Style="{ThemeResource SubtitleTextBlockStyle}" />
                                     <TextBlock x:Uid="LoadingStatus" x:Name="DailyStatusText" Text="Loading…" TextWrapping="Wrap" />
-                                    <Button x:Uid="CancelButton" Content="Cancel" Click="OnCancelDaily" HorizontalAlignment="Left" />
+                                    <Button x:Uid="CancelButton" x:Name="DailyCancelButton" Content="Cancel" Click="OnCancelDaily" HorizontalAlignment="Left" Visibility="Collapsed" />
                                 </StackPanel>
                             </Border>
                         </Grid>
@@ -95,19 +95,19 @@
                     <StackPanel Padding="36,28" Spacing="22" MaxWidth="720" HorizontalAlignment="Left">
                         <StackPanel Spacing="4">
                             <TextBlock x:Uid="NotificationsTitle" Text="Notifications" Style="{ThemeResource TitleTextBlockStyle}" />
-                            <TextBlock x:Uid="NotificationsSubtitle" Text="Choose when ShutdownAT warns you before an action." Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            <TextBlock x:Uid="NotificationsSubtitle" Text="Choose how early ShutdownAT should warn you." Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                         </StackPanel>
                         <StackPanel Spacing="6">
-                            <TextBlock x:Uid="ReminderMinutesLabel" Text="Warn me before an action" />
-                            <TextBox x:Uid="ReminderOffsetsInput" x:Name="ReminderOffsetsInput" PlaceholderText="2 or 10, 2" />
-                            <TextBlock x:Uid="ReminderMinutesHelp" Text="Enter up to five times in minutes, separated by commas. For example: 10, 2." TextWrapping="Wrap" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            <TextBlock x:Uid="ReminderMinutesLabel" Text="Warning times" />
+                            <TextBox x:Uid="ReminderOffsetsInput" x:Name="ReminderOffsetsInput" PlaceholderText="2 or 10, 2" Width="360" HorizontalAlignment="Left" />
+                            <TextBlock x:Uid="ReminderMinutesHelp" Text="Minutes separated by commas, for example 10, 2." TextWrapping="Wrap" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                         </StackPanel>
                         <StackPanel Spacing="6">
-                            <TextBlock x:Uid="DailyOverlapLabel" Text="Avoid back-to-back actions" />
-                            <NumberBox x:Name="DailyOverlapInput" Minimum="0" Maximum="1440" SpinButtonPlacementMode="Compact" />
-                            <TextBlock x:Uid="DailyOverlapHelp" Text="If a one-time action is this close to the daily one, the daily action is skipped once. Set 0 to keep both." TextWrapping="Wrap" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            <TextBlock x:Uid="DailyOverlapLabel" Text="Avoid nearby actions" />
+                            <NumberBox x:Name="DailyOverlapInput" Minimum="0" Maximum="1440" Width="180" HorizontalAlignment="Left" SpinButtonPlacementMode="Compact" />
+                            <TextBlock x:Uid="DailyOverlapHelp" Text="Within this many minutes, the daily action is skipped once. Set 0 to keep both." TextWrapping="Wrap" MaxWidth="520" HorizontalAlignment="Left" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                         </StackPanel>
-                        <ToggleSwitch x:Uid="CriticalOverlayToggle" x:Name="CriticalOverlayToggle" Header="Show a clear on-screen countdown before shutdown or restart" />
+                        <ToggleSwitch x:Uid="CriticalOverlayToggle" x:Name="CriticalOverlayToggle" Header="Show the on-screen countdown" />
                         <Button x:Uid="SaveSettingsButton" Content="Save settings" Style="{ThemeResource AccentButtonStyle}" Click="OnSaveSettings" HorizontalAlignment="Left" />
                     </StackPanel>
                 </ScrollViewer>
@@ -120,7 +120,7 @@
                         </StackPanel>
                         <StackPanel Spacing="6">
                             <TextBlock x:Uid="PaletteHotkeyLabel" Text="Keyboard shortcut" />
-                            <TextBox x:Uid="PaletteHotkeyInput" x:Name="PaletteHotkeyInput" PlaceholderText="Ctrl+Alt+S" />
+                            <TextBox x:Uid="PaletteHotkeyInput" x:Name="PaletteHotkeyInput" PlaceholderText="Ctrl+Alt+S" Width="360" HorizontalAlignment="Left" />
                             <TextBlock x:Uid="PaletteHotkeyHelp" Text="Use Ctrl, Alt, Shift, or Win together with a letter, number, or F1–F24 key." Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                         </StackPanel>
                         <ToggleSwitch x:Uid="StartupToggle" x:Name="StartupToggle" Header="Keep ShutdownAT ready after I sign in" />
@@ -186,7 +186,7 @@
                         </StackPanel>
                         <StackPanel Spacing="6">
                             <TextBlock x:Uid="LanguageLabel" Text="App language" />
-                            <ComboBox x:Name="LanguagePicker" HorizontalAlignment="Stretch" MaxWidth="420">
+                            <ComboBox x:Name="LanguagePicker" HorizontalAlignment="Left" Width="360">
                                 <ComboBoxItem x:Uid="LanguageSystemOption" Content="Use the Windows language" Tag="system" />
                                 <ComboBoxItem x:Uid="LanguageItalianOption" Content="Italiano" Tag="it-IT" />
                                 <ComboBoxItem x:Uid="LanguageEnglishOption" Content="English" Tag="en-US" />

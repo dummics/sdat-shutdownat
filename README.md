@@ -65,7 +65,7 @@ The richer keyboard-driven terminal interface remains a first-class client of th
 
 The optional tray companion provides a configurable global hotkey (default `Ctrl+Alt+S`) for the bottom-center quick scheduler. A conflicting hotkey does not take down the tray; SDAT reports the conflict and keeps the previous working combination when possible.
 
-Reminder timing, the critical overlay, startup behavior, overlap policy, and hotkey are local settings. Reminder actions carry the schedule id and revision, so an old notification cannot cancel a newer schedule. Dismiss only closes the reminder; Cancel changes schedule state; Snooze is available for one-time actions.
+Reminder timing, the critical overlay, startup behavior, overlap policy, and hotkey are local settings. Reminder actions carry the schedule id and revision, so an old notification cannot cancel a newer schedule. Dismiss only closes the reminder; cancelling from the app requires confirmation; Snooze is available for one-time actions.
 
 Windows notification availability and Focus/Do Not Disturb behavior remain controlled by Windows. SDAT does not claim an unconditional bypass. For shutdown and restart, Windows still owns the final 30-second system countdown.
 
