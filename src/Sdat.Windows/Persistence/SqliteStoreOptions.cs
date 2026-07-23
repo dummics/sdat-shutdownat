@@ -6,6 +6,12 @@ public sealed record SqliteStoreOptions
 
     public required string BackupDirectory { get; init; }
 
+    public string DataDirectory => Path.GetDirectoryName(DatabasePath)!;
+
+    public string LogPath => Path.Combine(DataDirectory, "sdat.log");
+
+    public string DiagnosticReportPath => Path.Combine(DataDirectory, "diagnostics.txt");
+
     public string OperationLockPath => Path.Combine(Path.GetDirectoryName(DatabasePath)!, "operation.lock");
 
     public int BackupRetentionCount { get; init; } = 5;

@@ -34,6 +34,25 @@ public sealed class AppSettingsTests
         Assert.Equal(UiLanguagePreference.System, new AppSettings().Validate().PreferredLanguage);
     }
 
+    [Fact]
+    public void Test_mode_requires_developer_mode()
+    {
+        var settings = new AppSettings
+        {
+            DeveloperModeEnabled = false,
+            SimulationModeEnabled = true,
+        }.Validate();
+
+        Assert.False(settings.SimulationModeEnabled);
+        Assert.False(settings.IsTestMode);
+    }
+
+    [Fact]
+    public void Logging_defaults_to_information()
+    {
+        Assert.Equal(AppLogLevel.Information, new AppSettings().Validate().LogLevel);
+    }
+
     [Theory]
     [InlineData("system", "system")]
     [InlineData("IT", "it-IT")]

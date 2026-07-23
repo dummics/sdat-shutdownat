@@ -11,6 +11,10 @@ public sealed record ScheduleCommandResult(
         Mutation.IsFullyApplied && (AutomaticDailySkip?.IsFullyPersisted ?? true);
 }
 
+public sealed class TestModeScheduleBlockedException()
+    : InvalidOperationException(
+        "Safe test mode is active. Turn it off before creating a real Windows schedule.");
+
 public sealed class ScheduleCommandService(
     ScheduleCoordinator coordinator,
     IScheduleRepository schedules,
@@ -27,6 +31,11 @@ public sealed class ScheduleCommandService(
     {
         ArgumentNullException.ThrowIfNull(draft);
         var settings = await settingsRepository.LoadAsync(cancellationToken).ConfigureAwait(false);
+        if (settings.IsTestMode)
+        {
+            throw new TestModeScheduleBlockedException();
+        }
+
         await using var lease = await operationLock.AcquireAsync(cancellationToken).ConfigureAwait(false);
         var mutation = await coordinator
             .SetUnderAcquiredLockAsync(draft, settings.ReminderOffsetsMinutes, cancellationToken)

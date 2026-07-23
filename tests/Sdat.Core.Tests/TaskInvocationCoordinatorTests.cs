@@ -1,6 +1,7 @@
 using Sdat.Core.Execution;
 using Sdat.Core.Operations;
 using Sdat.Core.Scheduling;
+using Sdat.Core.Settings;
 using Sdat.Core.Storage;
 using Xunit;
 
@@ -109,6 +110,39 @@ public sealed class TaskInvocationCoordinatorTests
     }
 
     [Fact]
+    public async Task Simulated_power_action_is_completed_without_reporting_real_execution()
+    {
+        var schedule = CreateSchedule(Now);
+        var fixture = new Fixture(schedule);
+        fixture.Executor.Simulate = true;
+
+        var result = await fixture.Coordinator.RunAsync(
+            new TaskInvocation(schedule.Id, schedule.Revision, SchedulerTaskRole.Execute, null));
+
+        Assert.Equal(TaskInvocationOutcome.Simulated, result.Outcome);
+        Assert.Contains("suppressed", result.Detail, StringComparison.OrdinalIgnoreCase);
+        Assert.Single(fixture.Ledger.Completed);
+        Assert.Null(fixture.Ledger.Failure);
+    }
+
+    [Fact]
+    public async Task Test_mode_short_circuits_before_claim_finalization_notification_and_execution()
+    {
+        var schedule = CreateSchedule(Now);
+        var fixture = new Fixture(schedule, safetyPolicy: new FixedSafetyPolicy(true));
+
+        var result = await fixture.Coordinator.RunAsync(
+            new TaskInvocation(schedule.Id, schedule.Revision, SchedulerTaskRole.Execute, null));
+
+        Assert.Equal(TaskInvocationOutcome.Simulated, result.Outcome);
+        Assert.Empty(fixture.Ledger.Claims);
+        Assert.Empty(fixture.Ledger.Completed);
+        Assert.Equal(0, fixture.Executor.CallCount);
+        Assert.Equal(0, fixture.Notifier.CallCount);
+        Assert.Equal(0, fixture.Finalizer.CallCount);
+    }
+
+    [Fact]
     public async Task Daily_reminder_claim_keeps_exact_execution_due_across_dst_change()
     {
         var reminderDue = new DateTimeOffset(2026, 3, 29, 0, 30, 0, TimeSpan.Zero);
@@ -149,7 +183,10 @@ public sealed class TaskInvocationCoordinatorTests
 
     private sealed class Fixture
     {
-        public Fixture(ScheduleSnapshot schedule, DateTimeOffset? now = null)
+        public Fixture(
+            ScheduleSnapshot schedule,
+            DateTimeOffset? now = null,
+            IRuntimeSafetyPolicy? safetyPolicy = null)
         {
             Repository = new FakeRepository(schedule);
             Coordinator = new TaskInvocationCoordinator(
@@ -157,9 +194,10 @@ public sealed class TaskInvocationCoordinatorTests
                 Ledger,
                 Executor,
                 Notifier,
-                new NoOpFinalizer(),
+                Finalizer,
                 new NoOpLock(),
-                new FixedTimeProvider(now ?? Now));
+                new FixedTimeProvider(now ?? Now),
+                safetyPolicy: safetyPolicy);
         }
 
         public FakeRepository Repository { get; }
@@ -169,6 +207,8 @@ public sealed class TaskInvocationCoordinatorTests
         public FakeExecutor Executor { get; } = new();
 
         public FakeNotifier Notifier { get; } = new();
+
+        public TrackingFinalizer Finalizer { get; } = new();
 
         public TaskInvocationCoordinator Coordinator { get; }
     }
@@ -180,6 +220,8 @@ public sealed class TaskInvocationCoordinatorTests
         public List<OccurrenceClaim> Claims { get; } = [];
 
         public (Guid OccurrenceId, string ErrorCode, string ErrorDetail)? Failure { get; private set; }
+
+        public List<Guid> Completed { get; } = [];
 
         public OccurrenceClaimResult NextClaimResult { get; set; } = OccurrenceClaimResult.Claimed;
 
@@ -196,7 +238,11 @@ public sealed class TaskInvocationCoordinatorTests
             return Task.FromResult(NextClaimResult);
         }
 
-        public Task CompleteAsync(Guid occurrenceId, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task CompleteAsync(Guid occurrenceId, CancellationToken cancellationToken = default)
+        {
+            Completed.Add(occurrenceId);
+            return Task.CompletedTask;
+        }
 
         public Task FailAsync(
             Guid occurrenceId,
@@ -213,9 +259,16 @@ public sealed class TaskInvocationCoordinatorTests
     {
         public int CallCount { get; private set; }
 
+        public bool Simulate { get; set; }
+
         public Task ExecuteAsync(PowerActionType action, CancellationToken cancellationToken = default)
         {
             CallCount++;
+            if (Simulate)
+            {
+                throw new PowerActionSimulatedException(action);
+            }
+
             return Task.CompletedTask;
         }
     }
@@ -277,10 +330,21 @@ public sealed class TaskInvocationCoordinatorTests
         }
     }
 
-    private sealed class NoOpFinalizer : IOneTimeExecutionFinalizer
+    public sealed class TrackingFinalizer : IOneTimeExecutionFinalizer
     {
-        public Task<string?> FinalizeAsync(CancellationToken cancellationToken = default) =>
-            Task.FromResult<string?>(null);
+        public int CallCount { get; private set; }
+
+        public Task<string?> FinalizeAsync(CancellationToken cancellationToken = default)
+        {
+            CallCount++;
+            return Task.FromResult<string?>(null);
+        }
+    }
+
+    private sealed class FixedSafetyPolicy(bool isTestMode) : IRuntimeSafetyPolicy
+    {
+        public Task<bool> IsTestModeAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult(isTestMode);
     }
 
     private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider

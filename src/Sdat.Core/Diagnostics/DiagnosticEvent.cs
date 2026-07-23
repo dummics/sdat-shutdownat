@@ -1,4 +1,15 @@
+using Sdat.Core.Settings;
+
 namespace Sdat.Core.Diagnostics;
+
+public interface IAppLogger
+{
+    Task WriteAsync(
+        AppLogLevel level,
+        string source,
+        string message,
+        CancellationToken cancellationToken = default);
+}
 
 public enum DiagnosticSeverity
 {

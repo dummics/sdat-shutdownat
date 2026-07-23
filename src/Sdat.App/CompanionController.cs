@@ -434,7 +434,7 @@ internal sealed class CompanionController : IDisposable
         [DllImport("user32.dll")]
         private static extern IntPtr LoadIcon(IntPtr instance, IntPtr iconName);
 
-        [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
+        [DllImport("shell32.dll", EntryPoint = "Shell_NotifyIconW", CharSet = CharSet.Unicode)]
         private static extern bool ShellNotifyIcon(uint message, ref NotificationIconData data);
 
         [DllImport("user32.dll")]

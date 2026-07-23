@@ -23,7 +23,7 @@
             <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right">
                 <Button x:Uid="DismissButton" Content="Dismiss" Click="OnDismiss" />
                 <Button x:Uid="SnoozeButton" x:Name="SnoozeButton" Content="Snooze 10 min" Click="OnSnooze" />
-                <Button x:Uid="CancelButton" Content="Cancel" Style="{ThemeResource AccentButtonStyle}" Click="OnCancel" />
+                <Button x:Uid="CancelButton" x:Name="CancelButton" Content="Cancel" Style="{ThemeResource AccentButtonStyle}" Click="OnCancel" />
             </StackPanel>
         </Grid>
     </Border>

@@ -11,9 +11,11 @@ namespace Sdat.App;
 
 public partial class App : Application
 {
+    private const string CompanionInstanceKey = "ShutdownAT.UserCompanion";
     private Window? _window;
     private AppNotificationManager? _notificationManager;
     private CompanionController? _companion;
+    private AppInstance? _mainInstance;
     private string? _notificationInitializationError;
 
     public App()
@@ -83,6 +85,12 @@ public partial class App : Application
             }
         }
 
+        if (await RedirectToExistingCompanionAsync())
+        {
+            Exit();
+            return;
+        }
+
         try
         {
             var runtime = await SdatRuntime.CreateAsync(Environment.ProcessPath!);
@@ -126,9 +134,20 @@ public partial class App : Application
             {
                 mainWindow.Activate();
             }
+            else
+            {
+                // An unpackaged WinUI process exits if no top-level window has
+                // ever been initialized. Create its HWND once, then keep only
+                // the per-user companion/tray surface alive.
+                mainWindow.Activate();
+                mainWindow.DispatcherQueue.TryEnqueue(
+                    Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
+                    () => mainWindow.AppWindow.Hide());
+            }
         }
-        catch
+        catch (Exception exception)
         {
+            WriteBootstrapFailure(exception);
             Exit();
         }
     }
@@ -143,6 +162,49 @@ public partial class App : Application
         {
             return null;
         }
+    }
+
+    private async Task<bool> RedirectToExistingCompanionAsync()
+    {
+        try
+        {
+            var current = AppInstance.GetCurrent();
+            var registered = AppInstance.FindOrRegisterForKey(CompanionInstanceKey);
+            if (!registered.IsCurrent)
+            {
+                await registered.RedirectActivationToAsync(current.GetActivatedEventArgs());
+                return true;
+            }
+
+            _mainInstance = registered;
+            _mainInstance.Activated += OnCompanionActivated;
+        }
+        catch
+        {
+            // App Lifecycle is a convenience for unpackaged single-instancing.
+            // The companion remains usable if a Windows build cannot provide it.
+        }
+
+        return false;
+    }
+
+    private void OnCompanionActivated(object? sender, AppActivationArguments args)
+    {
+        _window?.DispatcherQueue.TryEnqueue(() =>
+        {
+            if (_companion is not null)
+            {
+                _companion.ShowMainWindow();
+                return;
+            }
+
+            if (_window is MainWindow mainWindow)
+            {
+                mainWindow.AppWindow.Show();
+            }
+
+            _window?.Activate();
+        });
     }
 
     private async void OnNotificationInvoked(
@@ -199,8 +261,27 @@ public partial class App : Application
                 part => Uri.UnescapeDataString(part[1]),
                 StringComparer.OrdinalIgnoreCase);
 
+    private static void WriteBootstrapFailure(Exception exception)
+    {
+        try
+        {
+            var root = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "SDAT");
+            Directory.CreateDirectory(root);
+            File.AppendAllText(
+                Path.Combine(root, "bootstrap-errors.log"),
+                $"{DateTimeOffset.UtcNow:O} {exception.GetType().Name}: {exception.Message}{Environment.NewLine}");
+        }
+        catch
+        {
+            // Startup diagnostics must never replace the original failure.
+        }
+    }
+
     private void ExitCompanion()
     {
+        ReleaseMainInstance();
         _companion?.Dispose();
         _companion = null;
         if (_window is MainWindow mainWindow)
@@ -220,14 +301,35 @@ public partial class App : Application
             return;
         }
 
+        ReleaseMainInstance();
+        _companion?.Dispose();
+        _companion = null;
+        _window?.Close();
         Process.Start(new ProcessStartInfo(executablePath)
         {
             UseShellExecute = true,
         });
-        _companion?.Dispose();
-        _companion = null;
-        _window?.Close();
         Exit();
+    }
+
+    private void ReleaseMainInstance()
+    {
+        if (_mainInstance is null)
+        {
+            return;
+        }
+
+        _mainInstance.Activated -= OnCompanionActivated;
+        try
+        {
+            _mainInstance.UnregisterKey();
+        }
+        catch
+        {
+            // Process shutdown still releases the registration.
+        }
+
+        _mainInstance = null;
     }
 
     private static async Task<Window?> RunScheduledInvocationAsync(string[] commandLine)

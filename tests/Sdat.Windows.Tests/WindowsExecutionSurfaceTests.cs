@@ -48,6 +48,18 @@ public sealed class WindowsExecutionSurfaceTests
         Assert.Contains(schedule.Id.ToString("D"), payload, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public void Test_notification_has_no_schedule_mutation_actions()
+    {
+        var payload = WindowsReminderNotifier.BuildTestPayload(
+            "[TEST] ShutdownAT notification",
+            "No schedule was created.");
+
+        Assert.Contains("[TEST]", payload, StringComparison.Ordinal);
+        Assert.DoesNotContain("action=cancel", payload, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("scheduleId", payload, StringComparison.OrdinalIgnoreCase);
+    }
+
     [Theory]
     [InlineData("SDAT_Volatile", "C:\\Windows\\System32\\wscript.exe", "//B //NoLogo \"C:\\SDAT\\lib\\RunHidden.vbs\" \"C:\\SDAT\\shutdownat.ps1\" -RunVolatile", true)]
     [InlineData("SDAT_Permanent", "wscript.exe", "//B //NoLogo \"C:\\SDAT\\lib\\RunHidden.vbs\" \"C:\\SDAT\\shutdownat.ps1\" -RunPermanent -Profile media -Suspend -DryRun", true)]

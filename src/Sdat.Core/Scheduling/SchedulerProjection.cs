@@ -49,9 +49,13 @@ public sealed record ReconciliationReport(
     int DesiredCount,
     int CreatedOrUpdatedCount,
     int RemovedCount,
-    IReadOnlyList<ReconciliationFailure> Failures)
+    IReadOnlyList<ReconciliationFailure> Failures,
+    bool SuppressedByTestMode = false)
 {
     public bool IsHealthy => Failures.Count == 0;
+
+    public static ReconciliationReport TestModeSuppressed { get; } =
+        new(0, 0, 0, [], true);
 }
 
 public sealed class ScheduleTaskPlanner

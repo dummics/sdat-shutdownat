@@ -51,6 +51,12 @@ public interface IPowerActionExecutor
     Task ExecuteAsync(PowerActionType action, CancellationToken cancellationToken = default);
 }
 
+public sealed class PowerActionSimulatedException(PowerActionType action)
+    : InvalidOperationException($"Safe test mode suppressed the {action} power action.")
+{
+    public PowerActionType Action { get; } = action;
+}
+
 public interface ITaskReminderNotifier
 {
     Task<ReminderDeliveryResult> ShowAsync(
@@ -78,6 +84,7 @@ public interface IOneTimeExecutionFinalizer
 public enum TaskInvocationOutcome
 {
     Executed,
+    Simulated,
     ReminderShown,
     ReminderDegraded,
     SkippedByRequest,

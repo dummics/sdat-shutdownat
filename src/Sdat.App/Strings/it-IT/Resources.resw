@@ -138,4 +138,33 @@
   <data name="DiagnosticNoActionNeeded" xml:space="preserve"><value>Non era necessaria alcuna azione.</value></data>
   <data name="DiagnosticFallbackUsed" xml:space="preserve"><value>È stato usato il promemoria sullo schermo.</value></data>
   <data name="DiagnosticFailed" xml:space="preserve"><value>Qualcosa non ha funzionato. Dettagli: {0}</value></data>
+  <data name="TestModeBanner.Title" xml:space="preserve"><value>Modalità test sicura</value></data>
+  <data name="TestModeBanner.Message" xml:space="preserve"><value>Le pianificazioni e le azioni energetiche reali sono bloccate.</value></data>
+  <data name="OpenLogButton.Content" xml:space="preserve"><value>Apri log</value></data>
+  <data name="CreateDiagnosticReportButton.Content" xml:space="preserve"><value>Crea report diagnostico</value></data>
+  <data name="OpenDataFolderButton.Content" xml:space="preserve"><value>Apri cartella dati</value></data>
+  <data name="LoggingTitle.Text" xml:space="preserve"><value>Registrazione eventi</value></data>
+  <data name="LogErrorsOption.Content" xml:space="preserve"><value>Solo errori</value></data>
+  <data name="LogNormalOption.Content" xml:space="preserve"><value>Normale</value></data>
+  <data name="LogDetailedOption.Content" xml:space="preserve"><value>Dettagliata</value></data>
+  <data name="LoggingHelp.Text" xml:space="preserve"><value>La registrazione dettagliata è utile per riprodurre un problema e può creare un file locale più grande.</value></data>
+  <data name="SaveLoggingButton.Content" xml:space="preserve"><value>Salva livello log</value></data>
+  <data name="DeveloperOptionsTitle.Text" xml:space="preserve"><value>Opzioni sviluppatore</value></data>
+  <data name="DeveloperModeToggle.Header" xml:space="preserve"><value>Abilita strumenti sviluppatore</value></data>
+  <data name="DeveloperWarning.Title" xml:space="preserve"><value>Modalità sviluppatore</value></data>
+  <data name="DeveloperWarning.Message" xml:space="preserve"><value>Questi controlli servono per test e risoluzione dei problemi.</value></data>
+  <data name="SimulationModeToggle.Header" xml:space="preserve"><value>Modalità test sicura: blocca pianificazioni e azioni energetiche reali</value></data>
+  <data name="TestNotificationButton.Content" xml:space="preserve"><value>Prova notifica</value></data>
+  <data name="TestOverlayButton.Content" xml:space="preserve"><value>Prova conto alla rovescia</value></data>
+  <data name="SaveDeveloperSettingsButton.Content" xml:space="preserve"><value>Salva opzioni sviluppatore</value></data>
+  <data name="DeveloperOptionsUnlocked" xml:space="preserve"><value>Le opzioni sviluppatore sono ora disponibili nelle Impostazioni.</value></data>
+  <data name="TestModeScheduleBlocked" xml:space="preserve"><value>La modalità test sicura è attiva. Disattivala prima di creare una pianificazione reale.</value></data>
+  <data name="TestModeRepairSuppressed" xml:space="preserve"><value>La modalità test sicura è attiva. L'integrazione con Windows non è stata modificata.</value></data>
+  <data name="DiagnosticReportCreated" xml:space="preserve"><value>Report diagnostico creato.</value></data>
+  <data name="TestNotificationShown" xml:space="preserve"><value>Notifica di prova inviata. Non è stata creata alcuna pianificazione.</value></data>
+  <data name="TestNotificationFailed" xml:space="preserve"><value>Impossibile mostrare la notifica di prova. Dettagli: {0}</value></data>
+  <data name="TestNotificationTitle" xml:space="preserve"><value>[TEST] Notifica ShutdownAT</value></data>
+  <data name="TestNotificationBody" xml:space="preserve"><value>Questa è un'anteprima sicura. Non sono state create pianificazioni o azioni energetiche.</value></data>
+  <data name="TestOverlayTitle" xml:space="preserve"><value>Conto alla rovescia di prova — nessuna azione verrà eseguita</value></data>
+  <data name="TestOverlayCountdown" xml:space="preserve"><value>Anteprima sicura. Chiusura tra {0} secondi.</value></data>
 </root>

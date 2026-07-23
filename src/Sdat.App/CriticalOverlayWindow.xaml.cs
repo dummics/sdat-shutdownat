@@ -12,15 +12,18 @@ public sealed partial class CriticalOverlayWindow : Window
     private readonly SdatRuntime _runtime;
     private readonly ScheduleSnapshot _schedule;
     private readonly double _countdownWindowSeconds;
+    private readonly bool _isTest;
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromSeconds(1) };
 
     public CriticalOverlayWindow(
         SdatRuntime runtime,
         ScheduleSnapshot schedule,
-        int reminderOffsetMinutes)
+        int reminderOffsetMinutes,
+        bool isTest = false)
     {
         _runtime = runtime;
         _schedule = schedule;
+        _isTest = isTest;
         _countdownWindowSeconds = Math.Max(1, reminderOffsetMinutes) * 60d;
         InitializeComponent();
         Title = AppText.Get("ReminderTitle", "ShutdownAT reminder");
@@ -30,7 +33,15 @@ public sealed partial class CriticalOverlayWindow : Window
         SnoozeButton.Visibility = schedule.Kind == ScheduleKind.OneTime
             ? Visibility.Visible
             : Visibility.Collapsed;
-        TitleText.Text = schedule.Action == PowerActionType.Restart
+        if (isTest)
+        {
+            SnoozeButton.Visibility = Visibility.Collapsed;
+            CancelButton.Visibility = Visibility.Collapsed;
+        }
+
+        TitleText.Text = isTest
+            ? AppText.Get("TestOverlayTitle", "Test countdown — no action will run")
+            : schedule.Action == PowerActionType.Restart
             ? AppText.Get("RestartScheduledTitle", "This PC is scheduled to restart")
             : AppText.Get("ShutdownScheduledTitle", "This PC is scheduled to shut down");
         ConfigureWindow();
@@ -78,6 +89,24 @@ public sealed partial class CriticalOverlayWindow : Window
         }
 
         var remaining = target.Value - DateTimeOffset.Now;
+        if (_isTest)
+        {
+            CountdownText.Text = AppText.Format(
+                "TestOverlayCountdown",
+                "Safe preview. Closing in {0} seconds.",
+                Math.Max(0, (int)Math.Ceiling(remaining.TotalSeconds)));
+            CountdownProgress.Value = Math.Clamp(
+                remaining.TotalSeconds / _countdownWindowSeconds * 100d,
+                0d,
+                100d);
+            if (remaining <= TimeSpan.Zero)
+            {
+                Close();
+            }
+
+            return;
+        }
+
         CountdownText.Text = remaining > TimeSpan.Zero
             ? AppText.Format(
                 "SecondsRemaining",

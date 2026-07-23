@@ -1,7 +1,9 @@
+using System.Diagnostics;
 using Microsoft.UI;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 using Sdat.Core.Diagnostics;
 using Sdat.Core.Scheduling;
 using Sdat.Core.Settings;
@@ -16,6 +18,9 @@ public sealed partial class MainWindow : Window
 {
     private SdatRuntime? _runtime;
     private bool _companionMode;
+    private bool _applyingSettings;
+    private int _developerUnlockTapCount;
+    private CriticalOverlayWindow? _testOverlay;
 
     internal event Action<AppSettings>? CompanionSettingsApplying;
 
@@ -69,7 +74,13 @@ public sealed partial class MainWindow : Window
         }
         catch (Exception exception)
         {
-            ShowStatus(exception.Message, InfoBarSeverity.Error);
+            ShowStatus(
+                exception is TestModeScheduleBlockedException
+                    ? AppText.Get(
+                        "TestModeScheduleBlocked",
+                        "Safe test mode is active. Turn it off before creating a real schedule.")
+                    : exception.Message,
+                InfoBarSeverity.Error);
         }
     }
 
@@ -217,13 +228,26 @@ public sealed partial class MainWindow : Window
                 StartCompanionAtLogin = StartupToggle.IsOn,
                 DailyOverlapWindowMinutes = checked((int)DailyOverlapInput.Value),
                 PaletteHotkey = PaletteHotkeyInput.Text,
+                LogLevel = Enum.Parse<AppLogLevel>(GetSelectedTag(LogLevelPicker)),
+                DeveloperModeEnabled = DeveloperOptionsPanel.Visibility == Visibility.Visible
+                    ? DeveloperModeToggle.IsOn
+                    : previous.DeveloperModeEnabled,
+                SimulationModeEnabled = DeveloperOptionsPanel.Visibility == Visibility.Visible &&
+                                        DeveloperModeToggle.IsOn &&
+                                        SimulationModeToggle.IsOn,
             }.Validate();
             try
             {
                 CompanionSettingsApplying?.Invoke(candidate);
                 new StartupRegistrationService(Environment.ProcessPath!).SetEnabled(candidate.StartCompanionAtLogin);
                 var settings = await _runtime.Settings.SaveAsync(candidate);
-                await _runtime.Coordinator.ReconcileAsync(settings.ReminderOffsetsMinutes);
+                var projectionSettingsChanged =
+                    !previous.ReminderOffsetsMinutes.SequenceEqual(settings.ReminderOffsetsMinutes) ||
+                    previous.IsTestMode;
+                if (!settings.IsTestMode && projectionSettingsChanged)
+                {
+                    await _runtime.Coordinator.ReconcileAsync(settings.ReminderOffsetsMinutes);
+                }
                 ApplySettings(settings);
             }
             catch (Exception applyException)
@@ -263,6 +287,16 @@ public sealed partial class MainWindow : Window
             var settings = await _runtime.Settings.LoadAsync();
             var report = await _runtime.Coordinator.ReconcileAsync(settings.ReminderOffsetsMinutes);
             await RefreshDiagnosticsAsync();
+            if (report.SuppressedByTestMode)
+            {
+                ShowStatus(
+                    AppText.Get(
+                        "TestModeRepairSuppressed",
+                        "Safe test mode is active. Windows integration was not changed."),
+                    InfoBarSeverity.Informational);
+                return;
+            }
+
             ShowStatus(
                 report.IsHealthy
                     ? AppText.Format(
@@ -326,6 +360,164 @@ public sealed partial class MainWindow : Window
         {
             ShowStatus(exception.Message, InfoBarSeverity.Error);
         }
+    }
+
+    private void OnDeveloperUnlockTapped(object sender, TappedRoutedEventArgs e)
+    {
+        if (DeveloperOptionsPanel.Visibility == Visibility.Visible)
+        {
+            return;
+        }
+
+        _developerUnlockTapCount++;
+        if (_developerUnlockTapCount < 5)
+        {
+            return;
+        }
+
+        DeveloperOptionsPanel.Visibility = Visibility.Visible;
+        ShowStatus(
+            AppText.Get("DeveloperOptionsUnlocked", "Developer options are now available in Settings."),
+            InfoBarSeverity.Informational);
+    }
+
+    private void OnDeveloperModeToggled(object sender, RoutedEventArgs e)
+    {
+        DeveloperToolsBody.Visibility = DeveloperModeToggle.IsOn
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        if (!_applyingSettings && DeveloperModeToggle.IsOn)
+        {
+            SimulationModeToggle.IsOn = true;
+        }
+    }
+
+    private async void OnOpenLog(object sender, RoutedEventArgs e)
+    {
+        if (_runtime is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await _runtime.Logger.EnsureFileExistsAsync();
+            await _runtime.Logger.WriteAsync(
+                AppLogLevel.Information,
+                nameof(MainWindow),
+                "Log opened from Settings.");
+            OpenPath(_runtime.StoreOptions.LogPath);
+        }
+        catch (Exception exception)
+        {
+            ShowStatus(exception.Message, InfoBarSeverity.Error);
+        }
+    }
+
+    private void OnOpenDataFolder(object sender, RoutedEventArgs e)
+    {
+        if (_runtime is null)
+        {
+            return;
+        }
+
+        try
+        {
+            Directory.CreateDirectory(_runtime.StoreOptions.DataDirectory);
+            OpenPath(_runtime.StoreOptions.DataDirectory);
+        }
+        catch (Exception exception)
+        {
+            ShowStatus(exception.Message, InfoBarSeverity.Error);
+        }
+    }
+
+    private async void OnCreateDiagnosticReport(object sender, RoutedEventArgs e)
+    {
+        if (_runtime is null)
+        {
+            return;
+        }
+
+        try
+        {
+            var reportPath = await _runtime.DiagnosticReports.WriteAsync(
+                typeof(App).Assembly.GetName().Version?.ToString() ?? "unknown");
+            OpenPath(reportPath);
+            ShowStatus(
+                AppText.Get("DiagnosticReportCreated", "Diagnostic report created."),
+                InfoBarSeverity.Success);
+        }
+        catch (Exception exception)
+        {
+            ShowStatus(exception.Message, InfoBarSeverity.Error);
+        }
+    }
+
+    private async void OnTestNotification(object sender, RoutedEventArgs e)
+    {
+        if (_runtime is null || !DeveloperModeToggle.IsOn)
+        {
+            return;
+        }
+
+        try
+        {
+            var result = await _runtime.ReminderNotifications.ShowTestAsync(
+                AppText.Get("TestNotificationTitle", "[TEST] ShutdownAT notification"),
+                AppText.Get(
+                    "TestNotificationBody",
+                    "This is a safe preview. No schedule or power action was created."));
+            await _runtime.Logger.WriteAsync(
+                result.Delivered ? AppLogLevel.Information : AppLogLevel.Error,
+                nameof(MainWindow),
+                result.Delivered
+                    ? "Displayed a synthetic test notification."
+                    : $"Test notification failed: {result.ErrorCode}: {result.ErrorDetail}");
+            ShowStatus(
+                result.Delivered
+                    ? AppText.Get("TestNotificationShown", "Test notification sent. No schedule was created.")
+                    : AppText.Format(
+                        "TestNotificationFailed",
+                        "The test notification could not be shown. Details: {0}",
+                        result.ErrorDetail ?? result.ErrorCode ?? "Unknown error"),
+                result.Delivered ? InfoBarSeverity.Success : InfoBarSeverity.Error);
+        }
+        catch (Exception exception)
+        {
+            ShowStatus(exception.Message, InfoBarSeverity.Error);
+        }
+    }
+
+    private void OnTestOverlay(object sender, RoutedEventArgs e)
+    {
+        if (_runtime is null || !DeveloperModeToggle.IsOn)
+        {
+            return;
+        }
+
+        if (_testOverlay is not null)
+        {
+            _testOverlay.Activate();
+            return;
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        var schedule = new ScheduleSnapshot(
+            Guid.NewGuid(),
+            1,
+            ScheduleKind.OneTime,
+            PowerActionType.Shutdown,
+            now.AddSeconds(15),
+            null,
+            TimeZoneInfo.Local.Id,
+            false,
+            ScheduleStatus.Active,
+            now,
+            now);
+        _testOverlay = new CriticalOverlayWindow(_runtime, schedule, 1, isTest: true);
+        _testOverlay.Closed += (_, _) => _testOverlay = null;
+        _testOverlay.Activate();
     }
 
     private async Task RefreshStatusAsync()
@@ -423,12 +615,35 @@ public sealed partial class MainWindow : Window
 
     private void ApplySettings(AppSettings settings)
     {
-        SelectTag(LanguagePicker, settings.PreferredLanguage);
-        ReminderOffsetsInput.Text = string.Join(", ", settings.ReminderOffsetsMinutes);
-        CriticalOverlayToggle.IsOn = settings.CriticalOverlayEnabled;
-        StartupToggle.IsOn = settings.StartCompanionAtLogin;
-        DailyOverlapInput.Value = settings.DailyOverlapWindowMinutes;
-        PaletteHotkeyInput.Text = settings.PaletteHotkey;
+        _applyingSettings = true;
+        try
+        {
+            SelectTag(LanguagePicker, settings.PreferredLanguage);
+            ReminderOffsetsInput.Text = string.Join(", ", settings.ReminderOffsetsMinutes);
+            CriticalOverlayToggle.IsOn = settings.CriticalOverlayEnabled;
+            StartupToggle.IsOn = settings.StartCompanionAtLogin;
+            DailyOverlapInput.Value = settings.DailyOverlapWindowMinutes;
+            PaletteHotkeyInput.Text = settings.PaletteHotkey;
+            SelectTag(LogLevelPicker, settings.LogLevel.ToString());
+            DeveloperModeToggle.IsOn = settings.DeveloperModeEnabled;
+            SimulationModeToggle.IsOn = settings.IsTestMode;
+            DeveloperOptionsPanel.Visibility = settings.DeveloperModeEnabled
+                ? Visibility.Visible
+                : DeveloperOptionsPanel.Visibility;
+            DeveloperToolsBody.Visibility = settings.DeveloperModeEnabled
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+            OverviewTestModeBanner.Visibility = settings.IsTestMode
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+            ScheduleTestModeBanner.Visibility = settings.IsTestMode
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+        }
+        finally
+        {
+            _applyingSettings = false;
+        }
     }
 
     private void ShowStatus(string message, InfoBarSeverity severity)
@@ -436,7 +651,31 @@ public sealed partial class MainWindow : Window
         StatusBar.Message = message;
         StatusBar.Severity = severity;
         StatusBar.IsOpen = true;
+        _ = LogStatusAsync(message, severity);
     }
+
+    private async Task LogStatusAsync(string message, InfoBarSeverity severity)
+    {
+        if (_runtime is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await _runtime.Logger.WriteAsync(
+                severity == InfoBarSeverity.Error ? AppLogLevel.Error : AppLogLevel.Information,
+                nameof(MainWindow),
+                message);
+        }
+        catch
+        {
+            // A diagnostic write must never interrupt the UI flow it describes.
+        }
+    }
+
+    private static void OpenPath(string path) =>
+        Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
 
     private static string GetSelectedTag(ComboBox comboBox) =>
         ((ComboBoxItem)comboBox.SelectedItem).Tag?.ToString()

@@ -52,6 +52,23 @@ public sealed class ScheduleCommandServiceTests
         Assert.Null(result.AutomaticDailySkip);
     }
 
+    [Fact]
+    public async Task Safe_test_mode_blocks_scheduling_before_state_or_tasks_are_changed()
+    {
+        var fixture = new Fixture(new AppSettings
+        {
+            DeveloperModeEnabled = true,
+            SimulationModeEnabled = true,
+        });
+
+        await Assert.ThrowsAsync<TestModeScheduleBlockedException>(() =>
+            fixture.Service.SetAsync(
+                ScheduleDraft.OneTime(PowerActionType.Shutdown, Now.AddHours(1), "UTC")));
+
+        Assert.Empty(await fixture.Repository.ListAsync());
+        Assert.Equal(0, fixture.OperationLock.AcquisitionCount);
+    }
+
     private sealed class Fixture
     {
         public Fixture(AppSettings settings)

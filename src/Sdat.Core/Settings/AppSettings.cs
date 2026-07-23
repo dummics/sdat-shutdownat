@@ -1,4 +1,13 @@
+using System.Text.Json.Serialization;
+
 namespace Sdat.Core.Settings;
+
+public enum AppLogLevel
+{
+    Error,
+    Information,
+    Debug,
+}
 
 public sealed record AppSettings
 {
@@ -13,6 +22,15 @@ public sealed record AppSettings
     public int DailyOverlapWindowMinutes { get; init; } = 120;
 
     public string PaletteHotkey { get; init; } = "Ctrl+Alt+S";
+
+    public AppLogLevel LogLevel { get; init; } = AppLogLevel.Information;
+
+    public bool DeveloperModeEnabled { get; init; }
+
+    public bool SimulationModeEnabled { get; init; }
+
+    [JsonIgnore]
+    public bool IsTestMode => DeveloperModeEnabled && SimulationModeEnabled;
 
     public AppSettings Validate()
     {
@@ -32,11 +50,17 @@ public sealed record AppSettings
         }
 
         var hotkey = HotkeyGesture.Parse(PaletteHotkey);
+        if (!Enum.IsDefined(LogLevel))
+        {
+            throw new ArgumentOutOfRangeException(nameof(LogLevel), "Choose a supported logging level.");
+        }
+
         return this with
         {
             PreferredLanguage = UiLanguagePreference.Normalize(PreferredLanguage),
             ReminderOffsetsMinutes = offsets,
             PaletteHotkey = hotkey.ToString(),
+            SimulationModeEnabled = DeveloperModeEnabled && SimulationModeEnabled,
         };
     }
 }
@@ -151,4 +175,27 @@ public interface IAppSettingsRepository
     Task<AppSettings> LoadAsync(CancellationToken cancellationToken = default);
 
     Task<AppSettings> SaveAsync(AppSettings settings, CancellationToken cancellationToken = default);
+}
+
+public interface IRuntimeSafetyPolicy
+{
+    Task<bool> IsTestModeAsync(CancellationToken cancellationToken = default);
+}
+
+public sealed class SettingsRuntimeSafetyPolicy(IAppSettingsRepository settings) : IRuntimeSafetyPolicy
+{
+    public async Task<bool> IsTestModeAsync(CancellationToken cancellationToken = default) =>
+        (await settings.LoadAsync(cancellationToken).ConfigureAwait(false)).IsTestMode;
+}
+
+public sealed class NormalRuntimeSafetyPolicy : IRuntimeSafetyPolicy
+{
+    public static NormalRuntimeSafetyPolicy Instance { get; } = new();
+
+    private NormalRuntimeSafetyPolicy()
+    {
+    }
+
+    public Task<bool> IsTestModeAsync(CancellationToken cancellationToken = default) =>
+        Task.FromResult(false);
 }

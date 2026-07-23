@@ -14,10 +14,13 @@ namespace Sdat.App;
 
 public sealed partial class QuickPaletteWindow : Window
 {
+    private const int CompactWidth = 480;
+    private const int ValidationHeight = 116;
     private readonly SdatRuntime _runtime;
     private readonly bool _animationsEnabled = new UISettings().AnimationsEnabled;
     private bool _allowClose;
     private bool _isClosing;
+    private string? _validationInputText;
 
     public QuickPaletteWindow(SdatRuntime runtime)
     {
@@ -34,8 +37,6 @@ public sealed partial class QuickPaletteWindow : Window
 
     private void ConfigureWindow()
     {
-        const int width = 480;
-        const int height = 76;
         if (AppWindow.Presenter is OverlappedPresenter presenter)
         {
             presenter.IsResizable = false;
@@ -45,12 +46,17 @@ public sealed partial class QuickPaletteWindow : Window
             presenter.SetBorderAndTitleBar(hasBorder: false, hasTitleBar: false);
         }
 
+        ResizePalette(ValidationHeight);
+    }
+
+    private void ResizePalette(int height)
+    {
         var display = DisplayArea.GetFromWindowId(AppWindow.Id, DisplayAreaFallback.Primary);
         var workArea = display.WorkArea;
         AppWindow.MoveAndResize(new RectInt32(
-            workArea.X + (workArea.Width - width) / 2,
+            workArea.X + (workArea.Width - CompactWidth) / 2,
             workArea.Y + workArea.Height - height - 28,
-            width,
+            CompactWidth,
             height));
     }
 
@@ -93,6 +99,7 @@ public sealed partial class QuickPaletteWindow : Window
     {
         try
         {
+            ClearValidation();
             var action = Enum.Parse<PowerActionType>(
                 ((ComboBoxItem)ActionPicker.SelectedItem).Tag!.ToString()!);
             var prepared = new ScheduleInputService().Prepare(
@@ -109,16 +116,48 @@ public sealed partial class QuickPaletteWindow : Window
             }
             else
             {
-                TimeInput.Header = AppText.Get(
+                ShowValidation(AppText.Get(
                     "PaletteRecoveryWarning",
-                    "Schedule saved, but the Windows integration needs attention. Open ShutdownAT for details.");
+                    "Schedule saved, but the Windows integration needs attention. Open ShutdownAT for details."));
             }
+        }
+        catch (TestModeScheduleBlockedException)
+        {
+            ShowValidation(AppText.Get(
+                "TestModeScheduleBlocked",
+                "Safe test mode is active. Turn it off before creating a real schedule."));
+            TimeInput.Focus(FocusState.Programmatic);
+            TimeInput.SelectAll();
         }
         catch (Exception exception)
         {
-            TimeInput.Header = exception.Message;
+            ShowValidation(exception.Message);
+            TimeInput.Focus(FocusState.Programmatic);
             TimeInput.SelectAll();
         }
+    }
+
+    private void OnTimeInputChanged(object sender, TextChangedEventArgs e)
+    {
+        if (ValidationText.Visibility == Visibility.Visible &&
+            !string.Equals(TimeInput.Text, _validationInputText, StringComparison.Ordinal))
+        {
+            ClearValidation();
+        }
+    }
+
+    private void ShowValidation(string message)
+    {
+        _validationInputText = TimeInput.Text;
+        ValidationText.Text = message;
+        ValidationText.Visibility = Visibility.Visible;
+    }
+
+    private void ClearValidation()
+    {
+        _validationInputText = null;
+        ValidationText.Visibility = Visibility.Collapsed;
+        ValidationText.Text = string.Empty;
     }
 
     private async void OnKeyDown(object sender, KeyRoutedEventArgs e)

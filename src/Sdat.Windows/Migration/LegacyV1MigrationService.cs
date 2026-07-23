@@ -10,6 +10,7 @@ public enum LegacyMigrationStatus
     AlreadyCompleted,
     Imported,
     ImportedWithWarnings,
+    SuppressedByTestMode,
     Failed,
 }
 

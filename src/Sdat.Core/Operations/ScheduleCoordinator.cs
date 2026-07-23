@@ -1,4 +1,5 @@
 using Sdat.Core.Scheduling;
+using Sdat.Core.Settings;
 
 namespace Sdat.Core.Operations;
 
@@ -7,9 +8,12 @@ public sealed class ScheduleCoordinator(
     IStateBackup backup,
     SchedulerReconciler reconciler,
     IOperationLock operationLock,
-    TimeProvider? timeProvider = null)
+    TimeProvider? timeProvider = null,
+    IRuntimeSafetyPolicy? safetyPolicy = null)
 {
     private readonly TimeProvider _timeProvider = timeProvider ?? TimeProvider.System;
+    private readonly IRuntimeSafetyPolicy _safetyPolicy =
+        safetyPolicy ?? NormalRuntimeSafetyPolicy.Instance;
 
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {
@@ -45,6 +49,7 @@ public sealed class ScheduleCoordinator(
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(draft);
+        await EnsureRealSchedulingAllowedAsync(cancellationToken).ConfigureAwait(false);
         await EnsureHealthyAsync(cancellationToken).ConfigureAwait(false);
 
         var existing = (await repository.ListAsync(cancellationToken: cancellationToken).ConfigureAwait(false))
@@ -97,6 +102,7 @@ public sealed class ScheduleCoordinator(
     {
         ArgumentNullException.ThrowIfNull(draft);
         await using var lease = await operationLock.AcquireAsync(cancellationToken).ConfigureAwait(false);
+        await EnsureRealSchedulingAllowedAsync(cancellationToken).ConfigureAwait(false);
         await EnsureHealthyAsync(cancellationToken).ConfigureAwait(false);
         var schedule = await repository
             .UpdateAsync(scheduleId, expectedRevision, draft, cancellationToken)
@@ -148,6 +154,11 @@ public sealed class ScheduleCoordinator(
         IReadOnlyList<int> reminderOffsetsMinutes,
         CancellationToken cancellationToken)
     {
+        if (await _safetyPolicy.IsTestModeAsync(cancellationToken).ConfigureAwait(false))
+        {
+            return ReconciliationReport.TestModeSuppressed;
+        }
+
         try
         {
             return await reconciler
@@ -161,6 +172,14 @@ public sealed class ScheduleCoordinator(
                 0,
                 0,
                 [new ReconciliationFailure("SDAT_*", "Reconcile", exception.Message)]);
+        }
+    }
+
+    private async Task EnsureRealSchedulingAllowedAsync(CancellationToken cancellationToken)
+    {
+        if (await _safetyPolicy.IsTestModeAsync(cancellationToken).ConfigureAwait(false))
+        {
+            throw new TestModeScheduleBlockedException();
         }
     }
 }

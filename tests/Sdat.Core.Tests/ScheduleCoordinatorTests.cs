@@ -1,5 +1,6 @@
 using Sdat.Core.Operations;
 using Sdat.Core.Scheduling;
+using Sdat.Core.Settings;
 using Sdat.Core.Storage;
 using Xunit;
 
@@ -108,16 +109,56 @@ public sealed class ScheduleCoordinatorTests
                 [2]));
     }
 
+    [Fact]
+    public async Task Test_mode_blocks_schedule_creation_and_suppresses_projection_reconciliation()
+    {
+        var fixture = new Fixture(new FixedSafetyPolicy(true));
+
+        await Assert.ThrowsAsync<TestModeScheduleBlockedException>(() =>
+            fixture.Coordinator.SetAsync(
+                ScheduleDraft.OneTime(PowerActionType.Shutdown, Now.AddMinutes(10), "UTC"),
+                [2]));
+        var reconciliation = await fixture.Coordinator.ReconcileAsync([2]);
+
+        Assert.True(reconciliation.SuppressedByTestMode);
+        Assert.Empty(await fixture.Repository.ListAsync());
+        Assert.Empty(fixture.Projection.Tasks);
+    }
+
+    [Fact]
+    public async Task Test_mode_blocks_update_and_does_not_change_existing_projection()
+    {
+        var safety = new FixedSafetyPolicy(false);
+        var fixture = new Fixture(safety);
+        var existing = await fixture.Coordinator.SetAsync(
+            ScheduleDraft.OneTime(PowerActionType.Shutdown, Now.AddMinutes(10), "UTC"),
+            [2]);
+        var projectedBefore = fixture.Projection.Tasks.ToDictionary(entry => entry.Key, entry => entry.Value);
+        safety.IsTestMode = true;
+
+        await Assert.ThrowsAsync<TestModeScheduleBlockedException>(() =>
+            fixture.Coordinator.UpdateExactAsync(
+                existing.Schedule.Id,
+                existing.Schedule.Revision,
+                ScheduleDraft.OneTime(PowerActionType.Restart, Now.AddMinutes(20), "UTC"),
+                [2]));
+        var reconciliation = await fixture.Coordinator.ReconcileAsync([2]);
+
+        Assert.True(reconciliation.SuppressedByTestMode);
+        Assert.Equal(projectedBefore, fixture.Projection.Tasks);
+    }
+
     private sealed class Fixture
     {
-        public Fixture()
+        public Fixture(IRuntimeSafetyPolicy? safetyPolicy = null)
         {
             Coordinator = new ScheduleCoordinator(
                 Repository,
                 Backup,
                 new SchedulerReconciler(Repository, Projection, new ScheduleTaskPlanner()),
                 new NoOpLock(),
-                new FixedTimeProvider(Now));
+                new FixedTimeProvider(Now),
+                safetyPolicy);
         }
 
         public FakeRepository Repository { get; } = new();
@@ -127,6 +168,14 @@ public sealed class ScheduleCoordinatorTests
         public FakeProjection Projection { get; } = new();
 
         public ScheduleCoordinator Coordinator { get; }
+    }
+
+    private sealed class FixedSafetyPolicy(bool isTestMode) : IRuntimeSafetyPolicy
+    {
+        public bool IsTestMode { get; set; } = isTestMode;
+
+        public Task<bool> IsTestModeAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult(IsTestMode);
     }
 
     private sealed class FakeRepository : IScheduleRepository

@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using Sdat.Core.Operations;
 using Sdat.Core.Scheduling;
+using Sdat.Core.Settings;
 
 namespace Sdat.Core.Execution;
 
@@ -14,11 +15,14 @@ public sealed class TaskInvocationCoordinator(
     IOperationLock operationLock,
     TimeProvider? timeProvider = null,
     TimeSpan? earlyTolerance = null,
-    TimeSpan? lateTolerance = null)
+    TimeSpan? lateTolerance = null,
+    IRuntimeSafetyPolicy? safetyPolicy = null)
 {
     private readonly TimeProvider _timeProvider = timeProvider ?? TimeProvider.System;
     private readonly TimeSpan _earlyTolerance = earlyTolerance ?? TimeSpan.FromMinutes(1);
     private readonly TimeSpan _lateTolerance = lateTolerance ?? TimeSpan.FromMinutes(15);
+    private readonly IRuntimeSafetyPolicy _safetyPolicy =
+        safetyPolicy ?? NormalRuntimeSafetyPolicy.Instance;
 
     public async Task<TaskInvocationResult> RunAsync(
         TaskInvocation invocation,
@@ -52,6 +56,13 @@ public sealed class TaskInvocationCoordinator(
         }
 
         var isLate = now > dueAt + _lateTolerance;
+        if (await _safetyPolicy.IsTestModeAsync(cancellationToken).ConfigureAwait(false))
+        {
+            return new TaskInvocationResult(
+                TaskInvocationOutcome.Simulated,
+                "Safe test mode ignored the scheduled Windows task without changing schedule state.");
+        }
+
         var occurrenceId = CreateOccurrenceId(invocation, dueAt);
         var claim = new OccurrenceClaim(
             occurrenceId,
@@ -142,6 +153,14 @@ public sealed class TaskInvocationCoordinator(
             return new TaskInvocationResult(
                 TaskInvocationOutcome.Executed,
                 AppendWarning("Power action accepted by Windows.", finalizationWarning),
+                occurrenceId);
+        }
+        catch (PowerActionSimulatedException exception)
+        {
+            await ledger.CompleteAsync(occurrenceId, cancellationToken).ConfigureAwait(false);
+            return new TaskInvocationResult(
+                TaskInvocationOutcome.Simulated,
+                AppendWarning(exception.Message, finalizationWarning),
                 occurrenceId);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)

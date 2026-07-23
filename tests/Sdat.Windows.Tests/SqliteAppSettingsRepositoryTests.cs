@@ -23,6 +23,9 @@ public sealed class SqliteAppSettingsRepositoryTests : IDisposable
         Assert.Equal(120, settings.DailyOverlapWindowMinutes);
         Assert.Equal("Ctrl+Alt+S", settings.PaletteHotkey);
         Assert.Equal(UiLanguagePreference.System, settings.PreferredLanguage);
+        Assert.Equal(AppLogLevel.Information, settings.LogLevel);
+        Assert.False(settings.DeveloperModeEnabled);
+        Assert.False(settings.IsTestMode);
     }
 
     [Fact]
@@ -40,6 +43,9 @@ public sealed class SqliteAppSettingsRepositoryTests : IDisposable
             DailyOverlapWindowMinutes = 45,
             PaletteHotkey = "shift+f12",
             PreferredLanguage = "it",
+            LogLevel = AppLogLevel.Debug,
+            DeveloperModeEnabled = true,
+            SimulationModeEnabled = true,
         });
         var loaded = await repository.LoadAsync();
 
@@ -50,6 +56,9 @@ public sealed class SqliteAppSettingsRepositoryTests : IDisposable
         Assert.Equal(45, loaded.DailyOverlapWindowMinutes);
         Assert.Equal("Shift+F12", loaded.PaletteHotkey);
         Assert.Equal(UiLanguagePreference.Italian, loaded.PreferredLanguage);
+        Assert.Equal(AppLogLevel.Debug, loaded.LogLevel);
+        Assert.True(loaded.DeveloperModeEnabled);
+        Assert.True(loaded.IsTestMode);
     }
 
     [Fact]

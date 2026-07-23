@@ -138,4 +138,33 @@
   <data name="DiagnosticNoActionNeeded" xml:space="preserve"><value>No action was needed.</value></data>
   <data name="DiagnosticFallbackUsed" xml:space="preserve"><value>The on-screen reminder was used instead.</value></data>
   <data name="DiagnosticFailed" xml:space="preserve"><value>Something went wrong. Details: {0}</value></data>
+  <data name="TestModeBanner.Title" xml:space="preserve"><value>Safe test mode</value></data>
+  <data name="TestModeBanner.Message" xml:space="preserve"><value>Real schedules and power actions are blocked.</value></data>
+  <data name="OpenLogButton.Content" xml:space="preserve"><value>Open log</value></data>
+  <data name="CreateDiagnosticReportButton.Content" xml:space="preserve"><value>Create diagnostic report</value></data>
+  <data name="OpenDataFolderButton.Content" xml:space="preserve"><value>Open data folder</value></data>
+  <data name="LoggingTitle.Text" xml:space="preserve"><value>Logging</value></data>
+  <data name="LogErrorsOption.Content" xml:space="preserve"><value>Errors only</value></data>
+  <data name="LogNormalOption.Content" xml:space="preserve"><value>Normal</value></data>
+  <data name="LogDetailedOption.Content" xml:space="preserve"><value>Detailed</value></data>
+  <data name="LoggingHelp.Text" xml:space="preserve"><value>Detailed logging is useful while reproducing a problem and may create a larger local file.</value></data>
+  <data name="SaveLoggingButton.Content" xml:space="preserve"><value>Save logging setting</value></data>
+  <data name="DeveloperOptionsTitle.Text" xml:space="preserve"><value>Developer options</value></data>
+  <data name="DeveloperModeToggle.Header" xml:space="preserve"><value>Enable developer tools</value></data>
+  <data name="DeveloperWarning.Title" xml:space="preserve"><value>Developer mode</value></data>
+  <data name="DeveloperWarning.Message" xml:space="preserve"><value>These controls are intended for testing and troubleshooting.</value></data>
+  <data name="SimulationModeToggle.Header" xml:space="preserve"><value>Safe test mode: block real schedules and power actions</value></data>
+  <data name="TestNotificationButton.Content" xml:space="preserve"><value>Test notification</value></data>
+  <data name="TestOverlayButton.Content" xml:space="preserve"><value>Test countdown</value></data>
+  <data name="SaveDeveloperSettingsButton.Content" xml:space="preserve"><value>Save developer settings</value></data>
+  <data name="DeveloperOptionsUnlocked" xml:space="preserve"><value>Developer options are now available in Settings.</value></data>
+  <data name="TestModeScheduleBlocked" xml:space="preserve"><value>Safe test mode is active. Turn it off before creating a real schedule.</value></data>
+  <data name="TestModeRepairSuppressed" xml:space="preserve"><value>Safe test mode is active. Windows integration was not changed.</value></data>
+  <data name="DiagnosticReportCreated" xml:space="preserve"><value>Diagnostic report created.</value></data>
+  <data name="TestNotificationShown" xml:space="preserve"><value>Test notification sent. No schedule was created.</value></data>
+  <data name="TestNotificationFailed" xml:space="preserve"><value>The test notification could not be shown. Details: {0}</value></data>
+  <data name="TestNotificationTitle" xml:space="preserve"><value>[TEST] ShutdownAT notification</value></data>
+  <data name="TestNotificationBody" xml:space="preserve"><value>This is a safe preview. No schedule or power action was created.</value></data>
+  <data name="TestOverlayTitle" xml:space="preserve"><value>Test countdown — no action will run</value></data>
+  <data name="TestOverlayCountdown" xml:space="preserve"><value>Safe preview. Closing in {0} seconds.</value></data>
 </root>

@@ -38,7 +38,11 @@
                 </DoubleAnimation>
             </Storyboard>
         </Border.Resources>
-        <Grid ColumnSpacing="10">
+        <Grid ColumnSpacing="10" RowSpacing="6" VerticalAlignment="Center">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="120" />
                 <ColumnDefinition Width="*" />
@@ -54,6 +58,7 @@
                 x:Name="TimeInput"
                 x:Uid="TimeInput"
                 PlaceholderText="36m or 23:41"
+                TextChanged="OnTimeInputChanged"
                 VerticalAlignment="Center" />
             <Button
                 Grid.Column="2"
@@ -62,6 +67,13 @@
                 Style="{ThemeResource AccentButtonStyle}"
                 Click="OnSchedule"
                 VerticalAlignment="Center" />
+            <TextBlock
+                Grid.Row="1"
+                Grid.ColumnSpan="3"
+                x:Name="ValidationText"
+                Visibility="Collapsed"
+                TextWrapping="Wrap"
+                Foreground="{ThemeResource SystemFillColorCriticalBrush}" />
         </Grid>
     </Border>
 </Window>

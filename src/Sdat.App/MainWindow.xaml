@@ -37,6 +37,15 @@
                             <TextBlock x:Uid="OverviewTitle" Text="Overview" Style="{ThemeResource TitleTextBlockStyle}" />
                             <TextBlock x:Uid="OverviewSubtitle" Text="Your active power schedules at a glance." Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                         </StackPanel>
+                        <InfoBar
+                            x:Uid="TestModeBanner"
+                            x:Name="OverviewTestModeBanner"
+                            IsOpen="True"
+                            IsClosable="False"
+                            Severity="Warning"
+                            Visibility="Collapsed"
+                            Title="Safe test mode"
+                            Message="Real schedules and power actions are blocked." />
                         <Grid ColumnSpacing="16">
                             <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition /></Grid.ColumnDefinitions>
                             <Border Grid.Column="0" Padding="20" CornerRadius="8" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
@@ -64,6 +73,15 @@
                             <TextBlock x:Uid="ScheduleTitle" Text="Schedule" Style="{ThemeResource TitleTextBlockStyle}" />
                             <TextBlock x:Uid="ScheduleSubtitle" Text="Use a duration such as 36m, or a clock time such as 23:41." Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                         </StackPanel>
+                        <InfoBar
+                            x:Uid="TestModeBanner"
+                            x:Name="ScheduleTestModeBanner"
+                            IsOpen="True"
+                            IsClosable="False"
+                            Severity="Warning"
+                            Visibility="Collapsed"
+                            Title="Safe test mode"
+                            Message="Real schedules and power actions are blocked." />
                         <Grid ColumnSpacing="12">
                             <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition /></Grid.ColumnDefinitions>
                             <StackPanel Grid.Column="0" Spacing="6">
@@ -144,6 +162,11 @@
                             <Button x:Uid="ReconcileButton" Content="Repair Windows integration" Click="OnReconcile" />
                             <Button x:Uid="RefreshButton" Content="Refresh status" Click="OnRefresh" />
                         </StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <Button x:Uid="OpenLogButton" Content="Open log" Click="OnOpenLog" />
+                            <Button x:Uid="CreateDiagnosticReportButton" Content="Create diagnostic report" Click="OnCreateDiagnosticReport" />
+                            <Button x:Uid="OpenDataFolderButton" Content="Open data folder" Click="OnOpenDataFolder" />
+                        </StackPanel>
                         <StackPanel Spacing="8">
                             <TextBlock x:Uid="RecentActivityTitle" Text="Recent activity" Style="{ThemeResource SubtitleTextBlockStyle}" />
                             <TextBlock x:Uid="NoDiagnosticsText" x:Name="DiagnosticsEmptyText" Text="Nothing needs your attention." Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
@@ -172,7 +195,7 @@
 
                 <ScrollViewer x:Name="AboutView" Visibility="Collapsed">
                     <StackPanel Padding="36,28" Spacing="12" MaxWidth="720" HorizontalAlignment="Left">
-                        <TextBlock Text="ShutdownAT" Style="{ThemeResource TitleTextBlockStyle}" />
+                        <TextBlock Text="ShutdownAT" Style="{ThemeResource TitleTextBlockStyle}" Tapped="OnDeveloperUnlockTapped" />
                         <TextBlock x:Uid="AboutDescription" Text="Local, open-source Windows power scheduling without accounts or telemetry." TextWrapping="Wrap" />
                         <TextBlock x:Uid="AboutCliDescription" Text="Prefer commands? The command line and terminal interface use the same scheduling system as the app." TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                     </StackPanel>
@@ -198,6 +221,47 @@
                             <Button x:Uid="RestartLanguageButton" x:Name="RestartLanguageButton" Content="Restart ShutdownAT" Click="OnRestartForLanguage" Visibility="Collapsed" />
                         </StackPanel>
                         <TextBlock x:Uid="LanguageRestartHelp" x:Name="LanguageRestartHelp" Text="Restart ShutdownAT to update every screen." Visibility="Collapsed" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        <Rectangle Height="1" Fill="{ThemeResource DividerStrokeColorDefaultBrush}" />
+                        <StackPanel Spacing="6">
+                            <TextBlock x:Uid="LoggingTitle" Text="Logging" Style="{ThemeResource SubtitleTextBlockStyle}" />
+                            <ComboBox x:Name="LogLevelPicker" HorizontalAlignment="Left" Width="260">
+                                <ComboBoxItem x:Uid="LogErrorsOption" Content="Errors only" Tag="Error" />
+                                <ComboBoxItem x:Uid="LogNormalOption" Content="Normal" Tag="Information" />
+                                <ComboBoxItem x:Uid="LogDetailedOption" Content="Detailed" Tag="Debug" />
+                            </ComboBox>
+                            <TextBlock x:Uid="LoggingHelp" Text="Detailed logging is useful while reproducing a problem and may create a larger local file." TextWrapping="Wrap" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            <Button x:Uid="SaveLoggingButton" Content="Save logging setting" Click="OnSaveSettings" HorizontalAlignment="Left" />
+                        </StackPanel>
+                        <StackPanel
+                            x:Name="DeveloperOptionsPanel"
+                            Spacing="12"
+                            Visibility="Collapsed">
+                            <Rectangle Height="1" Fill="{ThemeResource DividerStrokeColorDefaultBrush}" />
+                            <TextBlock x:Uid="DeveloperOptionsTitle" Text="Developer options" Style="{ThemeResource SubtitleTextBlockStyle}" />
+                            <ToggleSwitch
+                                x:Uid="DeveloperModeToggle"
+                                x:Name="DeveloperModeToggle"
+                                Header="Enable developer tools"
+                                Toggled="OnDeveloperModeToggled" />
+                            <StackPanel x:Name="DeveloperToolsBody" Spacing="12" Visibility="Collapsed">
+                                <InfoBar
+                                    x:Uid="DeveloperWarning"
+                                    IsOpen="True"
+                                    IsClosable="False"
+                                    Severity="Warning"
+                                    Title="Developer mode"
+                                    Message="These controls are intended for testing and troubleshooting." />
+                                <ToggleSwitch
+                                    x:Uid="SimulationModeToggle"
+                                    x:Name="SimulationModeToggle"
+                                    Header="Safe test mode: block real schedules and power actions" />
+                                <StackPanel Orientation="Horizontal" Spacing="12">
+                                    <Button x:Uid="TestNotificationButton" Content="Test notification" Click="OnTestNotification" />
+                                    <Button x:Uid="TestOverlayButton" Content="Test countdown" Click="OnTestOverlay" />
+                                </StackPanel>
+                                <Button x:Uid="SaveDeveloperSettingsButton" Content="Save developer settings" Style="{ThemeResource AccentButtonStyle}" Click="OnSaveSettings" HorizontalAlignment="Left" />
+                            </StackPanel>
+                        </StackPanel>
                     </StackPanel>
                 </ScrollViewer>
 

@@ -6,6 +6,25 @@ namespace Sdat.Windows.Notifications;
 
 public sealed class WindowsReminderNotifier : ITaskReminderNotifier
 {
+    public Task<ReminderDeliveryResult> ShowTestAsync(
+        string title,
+        string detail,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        try
+        {
+            AppNotificationManager.Default.Show(new AppNotification(BuildTestPayload(title, detail)));
+            return Task.FromResult(ReminderDeliveryResult.Success);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            return Task.FromResult(ReminderDeliveryResult.Failed(
+                exception.GetType().Name,
+                exception.Message));
+        }
+    }
+
     public Task<ReminderDeliveryResult> ShowAsync(
         ScheduleSnapshot schedule,
         int offsetMinutes,
@@ -80,6 +99,22 @@ public sealed class WindowsReminderNotifier : ITaskReminderNotifier
               </actions>
             </toast>
             """;
+    }
+
+    internal static string BuildTestPayload(string title, string detail)
+    {
+        title = System.Security.SecurityElement.Escape(title);
+        detail = System.Security.SecurityElement.Escape(detail);
+        return $"""
+        <toast scenario="reminder">
+          <visual>
+            <binding template="ToastGeneric">
+              <text>{title}</text>
+              <text>{detail}</text>
+            </binding>
+          </visual>
+        </toast>
+        """;
     }
 
     private static void OnNotificationInvoked(
