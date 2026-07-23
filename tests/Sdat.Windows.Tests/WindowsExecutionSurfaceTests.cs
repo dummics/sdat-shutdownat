@@ -56,6 +56,8 @@ public sealed class WindowsExecutionSurfaceTests
             "No schedule was created.");
 
         Assert.Contains("[TEST]", payload, StringComparison.Ordinal);
+        Assert.Contains("duration=\"short\"", payload, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("scenario=\"reminder\"", payload, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("action=cancel", payload, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("scheduleId", payload, StringComparison.OrdinalIgnoreCase);
     }

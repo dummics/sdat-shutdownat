@@ -55,6 +55,16 @@
   <data name="CriticalOverlayToggle.Header" xml:space="preserve"><value>Mostra il conto alla rovescia sullo schermo</value></data>
   <data name="CriticalOverlayToggle.OnContent" xml:space="preserve"><value>Attivato</value></data>
   <data name="CriticalOverlayToggle.OffContent" xml:space="preserve"><value>Disattivato</value></data>
+  <data name="OverlayPlacementPicker.Header" xml:space="preserve"><value>Posizione del conto alla rovescia</value></data>
+  <data name="OverlayPlacementHelp.Text" xml:space="preserve"><value>In alto è la posizione predefinita. A sinistra e destra il layout è verticale.</value></data>
+  <data name="OverlayTopCenterOption.Content" xml:space="preserve"><value>In alto al centro</value></data>
+  <data name="OverlayBottomCenterOption.Content" xml:space="preserve"><value>In basso al centro</value></data>
+  <data name="OverlayLeftCenterOption.Content" xml:space="preserve"><value>A sinistra</value></data>
+  <data name="OverlayRightCenterOption.Content" xml:space="preserve"><value>A destra</value></data>
+  <data name="OverlayTopLeftOption.Content" xml:space="preserve"><value>In alto a sinistra</value></data>
+  <data name="OverlayTopRightOption.Content" xml:space="preserve"><value>In alto a destra</value></data>
+  <data name="OverlayBottomLeftOption.Content" xml:space="preserve"><value>In basso a sinistra</value></data>
+  <data name="OverlayBottomRightOption.Content" xml:space="preserve"><value>In basso a destra</value></data>
   <data name="SaveSettingsButton.Content" xml:space="preserve"><value>Salva impostazioni</value></data>
   <data name="HotkeyTitle.Text" xml:space="preserve"><value>Accesso rapido</value></data>
   <data name="HotkeySubtitle.Text" xml:space="preserve"><value>Imposta la scorciatoia e l'avvio in background.</value></data>
@@ -114,10 +124,10 @@
   <data name="QuickPaletteTitle" xml:space="preserve"><value>Pianificazione rapida — ShutdownAT</value></data>
   <data name="PaletteRecoveryWarning" xml:space="preserve"><value>Pianificazione salvata, ma l'integrazione con Windows richiede attenzione. Apri ShutdownAT per i dettagli.</value></data>
   <data name="ReminderTitle" xml:space="preserve"><value>Promemoria ShutdownAT</value></data>
-  <data name="RestartScheduledTitle" xml:space="preserve"><value>Questo PC è pianificato per il riavvio</value></data>
-  <data name="ShutdownScheduledTitle" xml:space="preserve"><value>Questo PC è pianificato per lo spegnimento</value></data>
+  <data name="RestartScheduledTitle" xml:space="preserve"><value>Riavvio a breve</value></data>
+  <data name="ShutdownScheduledTitle" xml:space="preserve"><value>Spegnimento a breve</value></data>
   <data name="DailyActionAt" xml:space="preserve"><value>Azione giornaliera alle {0:HH:mm}.</value></data>
-  <data name="SecondsRemaining" xml:space="preserve"><value>{0} secondi rimanenti. Salva subito il lavoro.</value></data>
+  <data name="SecondsRemaining" xml:space="preserve"><value>Mancano {0}s. Salva il lavoro.</value></data>
   <data name="CountdownStarting" xml:space="preserve"><value>Il conto alla rovescia di Windows sta per iniziare.</value></data>
   <data name="TrayTooltip" xml:space="preserve"><value>ShutdownAT</value></data>
   <data name="TrayQuickSchedule" xml:space="preserve"><value>Pianificazione rapida</value></data>
@@ -176,6 +186,6 @@
   <data name="TestNotificationFailed" xml:space="preserve"><value>Impossibile mostrare la notifica di prova. Dettagli: {0}</value></data>
   <data name="TestNotificationTitle" xml:space="preserve"><value>[TEST] Notifica ShutdownAT</value></data>
   <data name="TestNotificationBody" xml:space="preserve"><value>Questa è un'anteprima sicura. Non sono state create pianificazioni o azioni energetiche.</value></data>
-  <data name="TestOverlayTitle" xml:space="preserve"><value>Conto alla rovescia di prova — nessuna azione verrà eseguita</value></data>
-  <data name="TestOverlayCountdown" xml:space="preserve"><value>Anteprima sicura. Chiusura tra {0} secondi.</value></data>
+  <data name="TestOverlayTitle" xml:space="preserve"><value>Conto alla rovescia di prova</value></data>
+  <data name="TestOverlayCountdown" xml:space="preserve"><value>Chiusura tra {0}s. Nessuna azione verrà eseguita.</value></data>
 </root>

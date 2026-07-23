@@ -19,6 +19,7 @@ public sealed class SqliteAppSettingsRepositoryTests : IDisposable
 
         Assert.Equal([2], settings.ReminderOffsetsMinutes);
         Assert.True(settings.CriticalOverlayEnabled);
+        Assert.Equal(OverlayPlacement.TopCenter, settings.CriticalOverlayPlacement);
         Assert.False(settings.StartCompanionAtLogin);
         Assert.Equal(120, settings.DailyOverlapWindowMinutes);
         Assert.Equal("Ctrl+Alt+S", settings.PaletteHotkey);
@@ -39,6 +40,7 @@ public sealed class SqliteAppSettingsRepositoryTests : IDisposable
         {
             ReminderOffsetsMinutes = [2, 10, 2],
             CriticalOverlayEnabled = false,
+            CriticalOverlayPlacement = OverlayPlacement.RightCenter,
             StartCompanionAtLogin = true,
             DailyOverlapWindowMinutes = 45,
             PaletteHotkey = "shift+f12",
@@ -52,6 +54,7 @@ public sealed class SqliteAppSettingsRepositoryTests : IDisposable
         Assert.Equal([10, 2], saved.ReminderOffsetsMinutes);
         Assert.Equal(saved.ReminderOffsetsMinutes, loaded.ReminderOffsetsMinutes);
         Assert.Equal(saved.CriticalOverlayEnabled, loaded.CriticalOverlayEnabled);
+        Assert.Equal(OverlayPlacement.RightCenter, loaded.CriticalOverlayPlacement);
         Assert.Equal(saved.StartCompanionAtLogin, loaded.StartCompanionAtLogin);
         Assert.Equal(45, loaded.DailyOverlapWindowMinutes);
         Assert.Equal("Shift+F12", loaded.PaletteHotkey);

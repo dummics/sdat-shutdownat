@@ -106,7 +106,7 @@ public sealed class WindowsReminderNotifier : ITaskReminderNotifier
         title = System.Security.SecurityElement.Escape(title);
         detail = System.Security.SecurityElement.Escape(detail);
         return $"""
-        <toast scenario="reminder">
+        <toast duration="short">
           <visual>
             <binding template="ToastGeneric">
               <text>{title}</text>

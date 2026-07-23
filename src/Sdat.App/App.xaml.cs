@@ -353,7 +353,8 @@ public partial class App : Application
                 ? new CriticalOverlayWindow(
                     runtime,
                     schedule,
-                    invocation.ReminderOffsetMinutes ?? 2)
+                    invocation.ReminderOffsetMinutes ?? 2,
+                    settings.CriticalOverlayPlacement)
                 : null;
         }
         catch

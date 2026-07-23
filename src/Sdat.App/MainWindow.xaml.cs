@@ -19,6 +19,7 @@ public sealed partial class MainWindow : Window
     private bool _companionMode;
     private bool _applyingSettings;
     private CriticalOverlayWindow? _testOverlay;
+    private readonly DispatcherTimer _statusDismissTimer = new();
 
     internal event Action<AppSettings>? CompanionSettingsApplying;
 
@@ -26,6 +27,7 @@ public sealed partial class MainWindow : Window
     {
         _runtime = runtime;
         InitializeComponent();
+        _statusDismissTimer.Tick += OnStatusDismissTimerTick;
         Title = "ShutdownAT";
         SystemBackdrop = new Microsoft.UI.Xaml.Media.MicaBackdrop();
         AppWindow.Resize(new SizeInt32(1040, 720));
@@ -221,6 +223,8 @@ public sealed partial class MainWindow : Window
                 PreferredLanguage = previous.PreferredLanguage,
                 ReminderOffsetsMinutes = offsets,
                 CriticalOverlayEnabled = CriticalOverlayToggle.IsOn,
+                CriticalOverlayPlacement =
+                    Enum.Parse<OverlayPlacement>(GetSelectedTag(OverlayPlacementPicker)),
                 StartCompanionAtLogin = StartupToggle.IsOn,
                 DailyOverlapWindowMinutes = checked((int)DailyOverlapInput.Value),
                 PaletteHotkey = PaletteHotkeyInput.Text,
@@ -488,7 +492,12 @@ public sealed partial class MainWindow : Window
             ScheduleStatus.Active,
             now,
             now);
-        _testOverlay = new CriticalOverlayWindow(_runtime, schedule, 1, isTest: true);
+        _testOverlay = new CriticalOverlayWindow(
+            _runtime,
+            schedule,
+            1,
+            Enum.Parse<OverlayPlacement>(GetSelectedTag(OverlayPlacementPicker)),
+            isTest: true);
         _testOverlay.Closed += (_, _) => _testOverlay = null;
         _testOverlay.Activate();
     }
@@ -594,6 +603,7 @@ public sealed partial class MainWindow : Window
             SelectTag(LanguagePicker, settings.PreferredLanguage);
             ReminderOffsetsInput.Text = string.Join(", ", settings.ReminderOffsetsMinutes);
             CriticalOverlayToggle.IsOn = settings.CriticalOverlayEnabled;
+            SelectTag(OverlayPlacementPicker, settings.CriticalOverlayPlacement.ToString());
             StartupToggle.IsOn = settings.StartCompanionAtLogin;
             DailyOverlapInput.Value = settings.DailyOverlapWindowMinutes;
             PaletteHotkeyInput.Text = settings.PaletteHotkey;
@@ -619,10 +629,21 @@ public sealed partial class MainWindow : Window
 
     private void ShowStatus(string message, InfoBarSeverity severity)
     {
+        _statusDismissTimer.Stop();
         StatusBar.Message = message;
         StatusBar.Severity = severity;
         StatusBar.IsOpen = true;
+        _statusDismissTimer.Interval = severity is InfoBarSeverity.Error or InfoBarSeverity.Warning
+            ? TimeSpan.FromSeconds(10)
+            : TimeSpan.FromSeconds(5);
+        _statusDismissTimer.Start();
         _ = LogStatusAsync(message, severity);
+    }
+
+    private void OnStatusDismissTimerTick(object? sender, object e)
+    {
+        _statusDismissTimer.Stop();
+        StatusBar.IsOpen = false;
     }
 
     private async Task LogStatusAsync(string message, InfoBarSeverity severity)

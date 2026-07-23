@@ -120,6 +120,29 @@
                             <TextBlock x:Uid="DailyOverlapHelp" Text="Within this many minutes, the daily action is skipped once. Set 0 to keep both." TextWrapping="Wrap" MaxWidth="520" HorizontalAlignment="Left" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                         </StackPanel>
                         <ToggleSwitch x:Uid="CriticalOverlayToggle" x:Name="CriticalOverlayToggle" Header="Show the on-screen countdown" />
+                        <StackPanel Spacing="6">
+                            <ComboBox
+                                x:Uid="OverlayPlacementPicker"
+                                x:Name="OverlayPlacementPicker"
+                                Header="Countdown position"
+                                Width="280"
+                                HorizontalAlignment="Left">
+                                <ComboBoxItem x:Uid="OverlayTopCenterOption" Content="Top center" Tag="TopCenter" />
+                                <ComboBoxItem x:Uid="OverlayBottomCenterOption" Content="Bottom center" Tag="BottomCenter" />
+                                <ComboBoxItem x:Uid="OverlayLeftCenterOption" Content="Left" Tag="LeftCenter" />
+                                <ComboBoxItem x:Uid="OverlayRightCenterOption" Content="Right" Tag="RightCenter" />
+                                <ComboBoxItem x:Uid="OverlayTopLeftOption" Content="Top left" Tag="TopLeft" />
+                                <ComboBoxItem x:Uid="OverlayTopRightOption" Content="Top right" Tag="TopRight" />
+                                <ComboBoxItem x:Uid="OverlayBottomLeftOption" Content="Bottom left" Tag="BottomLeft" />
+                                <ComboBoxItem x:Uid="OverlayBottomRightOption" Content="Bottom right" Tag="BottomRight" />
+                            </ComboBox>
+                            <TextBlock
+                                x:Uid="OverlayPlacementHelp"
+                                Text="Top is the default. Left and right use a vertical layout."
+                                TextWrapping="Wrap"
+                                Style="{ThemeResource CaptionTextBlockStyle}"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        </StackPanel>
                         <Button x:Uid="SaveSettingsButton" Content="Save settings" Style="{ThemeResource AccentButtonStyle}" Click="OnSaveSettings" HorizontalAlignment="Left" />
                     </StackPanel>
                 </ScrollViewer>
@@ -274,7 +297,15 @@
                     </StackPanel>
                 </ScrollViewer>
 
-                <InfoBar x:Name="StatusBar" IsOpen="False" IsClosable="True" VerticalAlignment="Bottom" Margin="24" />
+                <InfoBar
+                    x:Name="StatusBar"
+                    IsOpen="False"
+                    IsClosable="True"
+                    Width="540"
+                    MaxWidth="540"
+                    HorizontalAlignment="Left"
+                    VerticalAlignment="Top"
+                    Margin="36,16,24,0" />
             </Grid>
         </NavigationView>
     </Grid>

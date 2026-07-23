@@ -9,6 +9,18 @@ public enum AppLogLevel
     Debug,
 }
 
+public enum OverlayPlacement
+{
+    TopCenter,
+    BottomCenter,
+    LeftCenter,
+    RightCenter,
+    TopLeft,
+    TopRight,
+    BottomLeft,
+    BottomRight,
+}
+
 public sealed record AppSettings
 {
     public string PreferredLanguage { get; init; } = UiLanguagePreference.System;
@@ -16,6 +28,8 @@ public sealed record AppSettings
     public IReadOnlyList<int> ReminderOffsetsMinutes { get; init; } = [2];
 
     public bool CriticalOverlayEnabled { get; init; } = true;
+
+    public OverlayPlacement CriticalOverlayPlacement { get; init; } = OverlayPlacement.TopCenter;
 
     public bool StartCompanionAtLogin { get; init; }
 
@@ -53,6 +67,13 @@ public sealed record AppSettings
         if (!Enum.IsDefined(LogLevel))
         {
             throw new ArgumentOutOfRangeException(nameof(LogLevel), "Choose a supported logging level.");
+        }
+
+        if (!Enum.IsDefined(CriticalOverlayPlacement))
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(CriticalOverlayPlacement),
+                "Choose a supported countdown position.");
         }
 
         return this with

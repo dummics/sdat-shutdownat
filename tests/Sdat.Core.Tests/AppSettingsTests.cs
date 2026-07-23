@@ -29,6 +29,19 @@ public sealed class AppSettingsTests
     }
 
     [Fact]
+    public void Countdown_defaults_to_the_top_center()
+    {
+        Assert.Equal(OverlayPlacement.TopCenter, new AppSettings().Validate().CriticalOverlayPlacement);
+    }
+
+    [Fact]
+    public void Invalid_countdown_position_is_rejected()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new AppSettings { CriticalOverlayPlacement = (OverlayPlacement)999 }.Validate());
+    }
+
+    [Fact]
     public void Language_defaults_to_the_Windows_preference()
     {
         Assert.Equal(UiLanguagePreference.System, new AppSettings().Validate().PreferredLanguage);

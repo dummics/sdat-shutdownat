@@ -55,6 +55,16 @@
   <data name="CriticalOverlayToggle.Header" xml:space="preserve"><value>Show the on-screen countdown</value></data>
   <data name="CriticalOverlayToggle.OnContent" xml:space="preserve"><value>On</value></data>
   <data name="CriticalOverlayToggle.OffContent" xml:space="preserve"><value>Off</value></data>
+  <data name="OverlayPlacementPicker.Header" xml:space="preserve"><value>Countdown position</value></data>
+  <data name="OverlayPlacementHelp.Text" xml:space="preserve"><value>Top is the default. Left and right use a vertical layout.</value></data>
+  <data name="OverlayTopCenterOption.Content" xml:space="preserve"><value>Top center</value></data>
+  <data name="OverlayBottomCenterOption.Content" xml:space="preserve"><value>Bottom center</value></data>
+  <data name="OverlayLeftCenterOption.Content" xml:space="preserve"><value>Left</value></data>
+  <data name="OverlayRightCenterOption.Content" xml:space="preserve"><value>Right</value></data>
+  <data name="OverlayTopLeftOption.Content" xml:space="preserve"><value>Top left</value></data>
+  <data name="OverlayTopRightOption.Content" xml:space="preserve"><value>Top right</value></data>
+  <data name="OverlayBottomLeftOption.Content" xml:space="preserve"><value>Bottom left</value></data>
+  <data name="OverlayBottomRightOption.Content" xml:space="preserve"><value>Bottom right</value></data>
   <data name="SaveSettingsButton.Content" xml:space="preserve"><value>Save settings</value></data>
   <data name="HotkeyTitle.Text" xml:space="preserve"><value>Quick access</value></data>
   <data name="HotkeySubtitle.Text" xml:space="preserve"><value>Set the shortcut and background companion.</value></data>
@@ -114,10 +124,10 @@
   <data name="QuickPaletteTitle" xml:space="preserve"><value>Quick schedule — ShutdownAT</value></data>
   <data name="PaletteRecoveryWarning" xml:space="preserve"><value>Schedule saved, but the Windows integration needs attention. Open ShutdownAT for details.</value></data>
   <data name="ReminderTitle" xml:space="preserve"><value>ShutdownAT reminder</value></data>
-  <data name="RestartScheduledTitle" xml:space="preserve"><value>This PC is scheduled to restart</value></data>
-  <data name="ShutdownScheduledTitle" xml:space="preserve"><value>This PC is scheduled to shut down</value></data>
+  <data name="RestartScheduledTitle" xml:space="preserve"><value>Restarting soon</value></data>
+  <data name="ShutdownScheduledTitle" xml:space="preserve"><value>Shutting down soon</value></data>
   <data name="DailyActionAt" xml:space="preserve"><value>Daily action at {0:HH:mm}.</value></data>
-  <data name="SecondsRemaining" xml:space="preserve"><value>{0} seconds remaining. Save your work now.</value></data>
+  <data name="SecondsRemaining" xml:space="preserve"><value>{0}s remaining. Save your work.</value></data>
   <data name="CountdownStarting" xml:space="preserve"><value>The Windows countdown is about to begin.</value></data>
   <data name="TrayTooltip" xml:space="preserve"><value>ShutdownAT</value></data>
   <data name="TrayQuickSchedule" xml:space="preserve"><value>Quick schedule</value></data>
@@ -176,6 +186,6 @@
   <data name="TestNotificationFailed" xml:space="preserve"><value>The test notification could not be shown. Details: {0}</value></data>
   <data name="TestNotificationTitle" xml:space="preserve"><value>[TEST] ShutdownAT notification</value></data>
   <data name="TestNotificationBody" xml:space="preserve"><value>This is a safe preview. No schedule or power action was created.</value></data>
-  <data name="TestOverlayTitle" xml:space="preserve"><value>Test countdown — no action will run</value></data>
-  <data name="TestOverlayCountdown" xml:space="preserve"><value>Safe preview. Closing in {0} seconds.</value></data>
+  <data name="TestOverlayTitle" xml:space="preserve"><value>Test countdown</value></data>
+  <data name="TestOverlayCountdown" xml:space="preserve"><value>Closing in {0}s. No action will run.</value></data>
 </root>
