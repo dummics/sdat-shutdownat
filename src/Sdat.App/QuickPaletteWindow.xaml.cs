@@ -21,6 +21,7 @@ public sealed partial class QuickPaletteWindow : Window
     private bool _allowClose;
     private bool _isClosing;
     private string? _validationInputText;
+    private ScheduleSnapshot? _activeSchedule;
 
     public QuickPaletteWindow(SdatRuntime runtime)
     {
@@ -60,13 +61,15 @@ public sealed partial class QuickPaletteWindow : Window
             height));
     }
 
-    private void OnPaletteLoaded(object sender, RoutedEventArgs e)
+    private async void OnPaletteLoaded(object sender, RoutedEventArgs e)
     {
         PaletteRoot.Opacity = 1;
         if (_animationsEnabled)
         {
             FadeInStoryboard.Begin();
         }
+
+        await RefreshActiveScheduleAsync();
     }
 
     private void OnWindowClosing(AppWindow sender, AppWindowClosingEventArgs args)
@@ -112,7 +115,12 @@ public sealed partial class QuickPaletteWindow : Window
             var result = await _runtime.ScheduleCommands.SetAsync(prepared.Draft);
             if (result.IsFullyApplied)
             {
-                Close();
+                _activeSchedule = result.Mutation.Schedule;
+                ShowStatus(AppText.Format(
+                    "QuickScheduleSaved",
+                    "Scheduled for {0:HH:mm}.",
+                    _activeSchedule.TargetAt?.ToLocalTime()));
+                PaletteCancelButton.Visibility = Visibility.Visible;
             }
             else
             {
@@ -139,7 +147,8 @@ public sealed partial class QuickPaletteWindow : Window
 
     private void OnTimeInputChanged(object sender, TextChangedEventArgs e)
     {
-        if (ValidationText.Visibility == Visibility.Visible &&
+        if (FeedbackText.Visibility == Visibility.Visible &&
+            FeedbackText.Foreground == (Brush)Application.Current.Resources["SystemFillColorCriticalBrush"] &&
             !string.Equals(TimeInput.Text, _validationInputText, StringComparison.Ordinal))
         {
             ClearValidation();
@@ -149,15 +158,88 @@ public sealed partial class QuickPaletteWindow : Window
     private void ShowValidation(string message)
     {
         _validationInputText = TimeInput.Text;
-        ValidationText.Text = message;
-        ValidationText.Visibility = Visibility.Visible;
+        FeedbackText.Text = message;
+        FeedbackText.Foreground = (Brush)Application.Current.Resources["SystemFillColorCriticalBrush"];
+        FeedbackText.Visibility = Visibility.Visible;
     }
 
     private void ClearValidation()
     {
         _validationInputText = null;
-        ValidationText.Visibility = Visibility.Collapsed;
-        ValidationText.Text = string.Empty;
+        FeedbackText.Visibility = Visibility.Collapsed;
+        FeedbackText.Text = string.Empty;
+        FeedbackText.Foreground = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"];
+    }
+
+    private void ShowStatus(string message)
+    {
+        _validationInputText = null;
+        FeedbackText.Text = message;
+        FeedbackText.Foreground = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"];
+        FeedbackText.Visibility = Visibility.Visible;
+    }
+
+    private async Task RefreshActiveScheduleAsync()
+    {
+        try
+        {
+            _activeSchedule = (await _runtime.Schedules.ListAsync())
+                .SingleOrDefault(schedule => schedule.Kind == ScheduleKind.OneTime);
+            if (_activeSchedule is null)
+            {
+                PaletteCancelButton.Visibility = Visibility.Collapsed;
+                return;
+            }
+
+            ShowStatus(AppText.Format(
+                "QuickScheduleActive",
+                "Active schedule for {0:HH:mm}.",
+                _activeSchedule.TargetAt?.ToLocalTime()));
+            PaletteCancelButton.Visibility = Visibility.Visible;
+        }
+        catch
+        {
+            // Scheduling remains available if status refresh is temporarily unavailable.
+        }
+    }
+
+    private async void OnCancelSchedule(object sender, RoutedEventArgs e)
+    {
+        PaletteCancelButton.IsEnabled = false;
+        try
+        {
+            if (_activeSchedule is null)
+            {
+                throw new InvalidOperationException(
+                    AppText.Get("NothingToCancel", "There is no active schedule to cancel."));
+            }
+
+            var result = await AppScheduleCancellation.CancelAsync(_runtime, _activeSchedule);
+            if (!result.IsSafe)
+            {
+                throw new InvalidOperationException(result.ErrorDetail);
+            }
+
+            _activeSchedule = null;
+            PaletteCancelButton.Visibility = Visibility.Collapsed;
+            ShowStatus(AppText.Get(
+                result.Guard.WasCountdownAborted
+                    ? "WindowsCountdownCancelled"
+                    : "QuickScheduleCancelled",
+                result.Guard.WasCountdownAborted
+                    ? "Windows countdown stopped."
+                    : "Schedule cancelled."));
+            TimeInput.Focus(FocusState.Programmatic);
+            TimeInput.SelectAll();
+        }
+        catch (Exception exception)
+        {
+            ShowValidation(exception.Message);
+        }
+        finally
+        {
+            PaletteCancelButton.IsEnabled = true;
+        }
     }
 
     private async void OnKeyDown(object sender, KeyRoutedEventArgs e)

@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Reflection;
+using System.Runtime.ExceptionServices;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Sdat.Core.Commands;
@@ -8,6 +9,7 @@ using Sdat.Core.Execution;
 using Sdat.Core.Operations;
 using Sdat.Core.Scheduling;
 using Sdat.Core.Storage;
+using Sdat.Windows.Execution;
 using Sdat.Windows.Hosting;
 using Sdat.Windows.Migration;
 using Sdat.Windows.Maintenance;
@@ -31,6 +33,7 @@ internal static class SdatCli
     {
         var requestedJson = args.Contains("--json", StringComparer.OrdinalIgnoreCase);
         CliInvocation invocation;
+        var cancelFlowCompleted = false;
         try
         {
             var executableName = Path.GetFileNameWithoutExtension(Environment.ProcessPath);
@@ -74,10 +77,9 @@ internal static class SdatCli
             return 0;
         }
 
-        if (invocation.Command == CliCommandType.Cancel)
-        {
-            TryAbortWindowsCountdown();
-        }
+        var windowsCountdownAbort = invocation.Command == CliCommandType.Cancel
+            ? await WindowsShutdownCountdownAborter.TryAbortAfterLauncherPreflightAsync()
+            : null;
 
         if (invocation.Command is CliCommandType.Update or CliCommandType.Uninstall)
         {
@@ -153,7 +155,7 @@ internal static class SdatCli
                 return result.Outcome == TaskInvocationOutcome.Failed ? 10 : 0;
             }
 
-            return invocation.Command switch
+            var exitCode = invocation.Command switch
             {
                 CliCommandType.Status => await ShowStatusAsync(
                     services.Schedules,
@@ -162,7 +164,11 @@ internal static class SdatCli
                     services.StartupRecovery,
                     invocation.Json),
                 CliCommandType.Schedule => await ScheduleAsync(services.ScheduleCommands, invocation),
-                CliCommandType.Cancel => await CancelAsync(services.Coordinator, services.Schedules, invocation, reminderOffsets),
+                CliCommandType.Cancel => await CancelAsync(
+                    services.Coordinator,
+                    invocation,
+                    reminderOffsets,
+                    windowsCountdownAbort!),
                 CliCommandType.Skip => await SkipNextDailyAsync(services.DailySkips, invocation.Json),
                 CliCommandType.Logs => await ShowLogsAsync(
                     services.Diagnostics,
@@ -178,11 +184,25 @@ internal static class SdatCli
                 CliCommandType.Tui => await RunTuiAsync(services),
                 _ => 2,
             };
+            cancelFlowCompleted = invocation.Command == CliCommandType.Cancel;
+            return exitCode;
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
             WriteError(exception, invocation.Json, invocation.Command.ToString().ToLowerInvariant());
             return 10;
+        }
+        finally
+        {
+            if (invocation.Command == CliCommandType.Cancel && !cancelFlowCompleted)
+            {
+                var finalAbort = await WindowsShutdownCountdownAborter.TryAbortAsync();
+                if (finalAbort.Status == ShutdownCountdownAbortStatus.Failed)
+                {
+                    Console.Error.WriteLine(
+                        $"Emergency countdown cancellation was not confirmed. Retry 'sdat -a'. {finalAbort.Detail}");
+                }
+            }
         }
     }
 
@@ -354,30 +374,61 @@ internal static class SdatCli
 
     private static async Task<int> CancelAsync(
         ScheduleCoordinator coordinator,
-        IScheduleRepository repository,
         CliInvocation invocation,
-        IReadOnlyList<int> reminderOffsets)
+        IReadOnlyList<int> reminderOffsets,
+        ShutdownCountdownAbortResult windowsCountdownAbort)
     {
-        var schedules = await repository.ListAsync();
-        var targets = schedules
-            .Where(schedule => invocation.CancelAll || schedule.Kind == ScheduleKind.OneTime)
-            .OrderBy(schedule => schedule.Kind)
-            .ToArray();
-        var results = new List<ScheduleMutationResult>();
-
-        foreach (var target in targets)
+        var guardedCancellation = await WindowsShutdownCancellationGuard.RunAsync(
+            async cancellationToken =>
+            {
+                IReadOnlyCollection<ScheduleKind> kinds = invocation.CancelAll
+                    ? [ScheduleKind.OneTime, ScheduleKind.Daily]
+                    : [ScheduleKind.OneTime];
+                return await coordinator.CancelAvailableAsync(
+                    kinds,
+                    reminderOffsets,
+                    cancellationToken);
+            },
+            windowsCountdownAbort);
+        if (guardedCancellation.StateError is not null)
         {
-            results.Add(await coordinator.CancelAsync(target.Kind, reminderOffsets));
+            ExceptionDispatchInfo.Capture(guardedCancellation.StateError).Throw();
         }
+
+        var results = guardedCancellation.StateResult ?? [];
+        windowsCountdownAbort = guardedCancellation.EffectiveAbort;
 
         if (invocation.Json)
         {
-            var warnings = results.SelectMany(GetMutationWarnings).ToArray();
+            var warnings = results.SelectMany(GetMutationWarnings).ToList();
+            if (windowsCountdownAbort.Status == ShutdownCountdownAbortStatus.Failed)
+            {
+                warnings.Add(new MachineWarning(
+                    "WindowsCountdownAbortFailed",
+                    windowsCountdownAbort.Detail ?? "Windows could not stop its active shutdown countdown."));
+            }
+
             WriteMachineSuccess(
                 "cancel",
-                new { cancelled = results.Select(result => result.Schedule), results },
+                new
+                {
+                    windowsCountdownAbort,
+                    cancelled = results.Select(result => result.Schedule),
+                    results,
+                },
                 warnings,
-                results.All(result => result.IsFullyApplied));
+                results.All(result => result.IsFullyApplied) &&
+                windowsCountdownAbort.Status != ShutdownCountdownAbortStatus.Failed);
+        }
+        else if (results.Count == 0 && windowsCountdownAbort.WasAborted)
+        {
+            Console.WriteLine("Stopped the active Windows shutdown countdown.");
+        }
+        else if (results.Count == 0 &&
+                 windowsCountdownAbort.Status == ShutdownCountdownAbortStatus.Failed)
+        {
+            Console.Error.WriteLine(
+                $"Windows did not confirm countdown cancellation. Retry 'sdat -a'. {windowsCountdownAbort.Detail}");
         }
         else if (results.Count == 0)
         {
@@ -385,14 +436,27 @@ internal static class SdatCli
         }
         else
         {
-            Console.WriteLine(invocation.CancelAll ? "Cancelled all ShutdownAT schedules." : "Cancelled the one-time schedule.");
+            Console.WriteLine(windowsCountdownAbort.WasAborted
+                ? "Stopped the Windows countdown and cancelled the ShutdownAT schedule."
+                : invocation.CancelAll
+                    ? "Cancelled all ShutdownAT schedules."
+                    : "Cancelled the one-time schedule.");
             foreach (var result in results)
             {
                 WriteMutationWarnings(result);
             }
+
+            if (windowsCountdownAbort.Status == ShutdownCountdownAbortStatus.Failed)
+            {
+                Console.Error.WriteLine(
+                    $"Warning: the ShutdownAT schedule was cancelled, but Windows did not confirm countdown cancellation. {windowsCountdownAbort.Detail}");
+            }
         }
 
-        return results.All(result => result.IsFullyApplied) ? 0 : 3;
+        return results.All(result => result.IsFullyApplied) &&
+               windowsCountdownAbort.Status != ShutdownCountdownAbortStatus.Failed
+            ? 0
+            : 3;
     }
 
     private static async Task<int> ShowHealthAsync(
@@ -652,26 +716,6 @@ internal static class SdatCli
         Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
         ?? Assembly.GetExecutingAssembly().GetName().Version?.ToString()
         ?? "unknown";
-
-    internal static void TryAbortWindowsCountdown()
-    {
-        try
-        {
-            using var process = Process.Start(new ProcessStartInfo
-            {
-                FileName = Path.Combine(Environment.SystemDirectory, "shutdown.exe"),
-                Arguments = "/a",
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                WindowStyle = ProcessWindowStyle.Hidden,
-            });
-            process?.WaitForExit(2000);
-        }
-        catch
-        {
-            // Cancellation of SDAT state still proceeds; there may be no active Windows countdown.
-        }
-    }
 
     private static void PrintHelp() => Console.WriteLine(
         """

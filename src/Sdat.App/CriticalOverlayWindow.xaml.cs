@@ -16,26 +16,33 @@ public sealed partial class CriticalOverlayWindow : Window
     private readonly double _countdownWindowSeconds;
     private readonly OverlayPlacement _placement;
     private readonly bool _isTest;
+    private readonly bool _isFinalWindowsCountdown;
+    private readonly DateTimeOffset? _countdownEndsAt;
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromSeconds(1) };
 
     public CriticalOverlayWindow(
         SdatRuntime runtime,
         ScheduleSnapshot schedule,
-        int reminderOffsetMinutes,
+        TimeSpan countdownWindow,
         OverlayPlacement placement = OverlayPlacement.TopCenter,
-        bool isTest = false)
+        bool isTest = false,
+        bool isFinalWindowsCountdown = false)
     {
         _runtime = runtime;
         _schedule = schedule;
         _placement = placement;
         _isTest = isTest;
-        _countdownWindowSeconds = Math.Max(1, reminderOffsetMinutes) * 60d;
+        _isFinalWindowsCountdown = isFinalWindowsCountdown;
+        _countdownWindowSeconds = Math.Max(1, countdownWindow.TotalSeconds);
+        _countdownEndsAt = isFinalWindowsCountdown
+            ? DateTimeOffset.Now.Add(countdownWindow)
+            : schedule.TargetAt?.ToLocalTime();
         InitializeComponent();
         Title = AppText.Get("ReminderTitle", "ShutdownAT reminder");
         SystemBackdrop = new DesktopAcrylicBackdrop();
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(OverlayRoot);
-        SnoozeButton.Visibility = schedule.Kind == ScheduleKind.OneTime
+        SnoozeButton.Visibility = schedule.Kind == ScheduleKind.OneTime && !isFinalWindowsCountdown
             ? Visibility.Visible
             : Visibility.Collapsed;
         if (isTest)
@@ -117,7 +124,7 @@ public sealed partial class CriticalOverlayWindow : Window
 
     private void UpdateCountdown()
     {
-        var target = _schedule.TargetAt?.ToLocalTime();
+        var target = _countdownEndsAt;
         if (target is null)
         {
             CountdownText.Text = AppText.Format(
@@ -147,16 +154,34 @@ public sealed partial class CriticalOverlayWindow : Window
             return;
         }
 
+        var secondsRemaining = Math.Max(1, (int)Math.Ceiling(remaining.TotalSeconds));
         CountdownText.Text = remaining > TimeSpan.Zero
-            ? AppText.Format(
-                "SecondsRemaining",
-                "{0}s remaining. Save your work.",
-                Math.Max(1, (int)Math.Ceiling(remaining.TotalSeconds)))
-            : AppText.Get("CountdownStarting", "The Windows countdown is about to begin.");
+            ? _isFinalWindowsCountdown
+                ? AppText.Format(
+                    _schedule.Action == PowerActionType.Restart
+                        ? "WindowsRestartCountdownSeconds"
+                        : "WindowsShutdownCountdownSeconds",
+                    _schedule.Action == PowerActionType.Restart
+                        ? "Windows will restart in {0}s. Save your work."
+                        : "Windows will shut down in {0}s. Save your work.",
+                    secondsRemaining)
+                : AppText.Format(
+                    "SecondsRemaining",
+                    "{0}s remaining. Save your work.",
+                    secondsRemaining)
+            : AppText.Get(
+                _isFinalWindowsCountdown ? "WindowsCountdownEnding" : "CountdownStarting",
+                _isFinalWindowsCountdown
+                    ? "The Windows countdown has ended."
+                    : "The Windows countdown is about to begin.");
         CountdownProgress.Value = Math.Clamp(
             remaining.TotalSeconds / _countdownWindowSeconds * 100d,
             0d,
             100d);
+        if (remaining <= TimeSpan.Zero)
+        {
+            Close();
+        }
     }
 
     private void OnDismiss(object sender, RoutedEventArgs e) => Close();
@@ -165,15 +190,32 @@ public sealed partial class CriticalOverlayWindow : Window
     {
         try
         {
-            var settings = await _runtime.Settings.LoadAsync();
-            await _runtime.Coordinator.CancelExactAsync(
-                _schedule.Id,
-                _schedule.Revision,
-                settings.ReminderOffsetsMinutes);
-        }
-        finally
-        {
+            CancelButton.IsEnabled = false;
+            var result = await AppScheduleCancellation.CancelAsync(
+                _runtime,
+                _schedule,
+                cancelScheduleState: !_isFinalWindowsCountdown);
+            if (!result.IsSafe)
+            {
+                CountdownText.Text = AppText.Format(
+                    "WindowsCountdownCancelFailed",
+                    "Windows could not stop the countdown. Try sdat -a. Details: {0}",
+                    result.ErrorDetail ?? "Unknown error");
+                CountdownText.Foreground = (Brush)Application.Current.Resources["SystemFillColorCriticalBrush"];
+                CancelButton.IsEnabled = true;
+                return;
+            }
+
             Close();
+        }
+        catch (Exception exception)
+        {
+            CountdownText.Text = AppText.Format(
+                "ScheduleCancelFailed",
+                "Could not cancel the schedule. Details: {0}",
+                exception.Message);
+            CountdownText.Foreground = (Brush)Application.Current.Resources["SystemFillColorCriticalBrush"];
+            CancelButton.IsEnabled = true;
         }
     }
 

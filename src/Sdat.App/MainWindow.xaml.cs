@@ -495,7 +495,7 @@ public sealed partial class MainWindow : Window
         _testOverlay = new CriticalOverlayWindow(
             _runtime,
             schedule,
-            1,
+            TimeSpan.FromSeconds(15),
             Enum.Parse<OverlayPlacement>(GetSelectedTag(OverlayPlacementPicker)),
             isTest: true);
         _testOverlay.Closed += (_, _) => _testOverlay = null;

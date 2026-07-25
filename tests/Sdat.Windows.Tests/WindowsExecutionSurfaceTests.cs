@@ -24,6 +24,113 @@ public sealed class WindowsExecutionSurfaceTests
         Assert.True(startInfo.CreateNoWindow);
     }
 
+    [Theory]
+    [InlineData(0, ShutdownCountdownAbortStatus.Aborted)]
+    [InlineData(1116, ShutdownCountdownAbortStatus.NoCountdown)]
+    [InlineData(5, ShutdownCountdownAbortStatus.Failed)]
+    public void Shutdown_countdown_abort_reports_the_native_result(
+        int exitCode,
+        ShutdownCountdownAbortStatus expected)
+    {
+        var result = WindowsShutdownCountdownAborter.InterpretExitCode(exitCode);
+
+        Assert.Equal(expected, result.Status);
+        Assert.Equal(exitCode, result.ExitCode);
+    }
+
+    [Theory]
+    [InlineData(null, null, null, null)]
+    [InlineData("0", "1", "0", null)]
+    [InlineData("1", "1", null, ShutdownCountdownAbortStatus.Aborted)]
+    [InlineData("1", "1", "0", ShutdownCountdownAbortStatus.Aborted)]
+    [InlineData("1", "0", "1116", ShutdownCountdownAbortStatus.NoCountdown)]
+    [InlineData("1", "0", "5", ShutdownCountdownAbortStatus.Failed)]
+    public void Launcher_preflight_is_reused_without_a_second_abort(
+        string? attempted,
+        string? succeeded,
+        string? exitCode,
+        ShutdownCountdownAbortStatus? expected)
+    {
+        var result = WindowsShutdownCountdownAborter.InterpretLauncherPreflight(
+            attempted,
+            succeeded,
+            exitCode);
+
+        Assert.Equal(expected, result?.Status);
+    }
+
+    [Fact]
+    public async Task Cancellation_guard_aborts_a_countdown_started_during_state_mutation()
+    {
+        var abortCalls = 0;
+        var taskStarted = false;
+        Task<ShutdownCountdownAbortResult> Abort(CancellationToken _)
+        {
+            abortCalls++;
+            return Task.FromResult(taskStarted
+                ? new ShutdownCountdownAbortResult(ShutdownCountdownAbortStatus.Aborted)
+                : new ShutdownCountdownAbortResult(ShutdownCountdownAbortStatus.NoCountdown));
+        }
+
+        var result = await WindowsShutdownCancellationGuard.RunAsync(
+            _ =>
+            {
+                taskStarted = true;
+                return Task.FromResult(true);
+            },
+            abortCountdown: Abort);
+
+        Assert.Equal(2, abortCalls);
+        Assert.True(result.WindowsStateConfirmed);
+        Assert.True(result.WasCountdownAborted);
+        Assert.Equal(ShutdownCountdownAbortStatus.Aborted, result.EffectiveAbort.Status);
+        Assert.Null(result.EffectiveAbort.ExitCode);
+    }
+
+    [Fact]
+    public async Task Cancellation_guard_preserves_the_exit_code_from_the_abort_that_succeeded()
+    {
+        var abortCalls = 0;
+        Task<ShutdownCountdownAbortResult> Abort(CancellationToken _)
+        {
+            abortCalls++;
+            return Task.FromResult(
+                new ShutdownCountdownAbortResult(
+                    ShutdownCountdownAbortStatus.NoCountdown,
+                    1116));
+        }
+
+        var result = await WindowsShutdownCancellationGuard.RunAsync(
+            _ => Task.FromResult(true),
+            new ShutdownCountdownAbortResult(ShutdownCountdownAbortStatus.Aborted, 0),
+            Abort);
+
+        Assert.Equal(1, abortCalls);
+        Assert.Equal(ShutdownCountdownAbortStatus.Aborted, result.EffectiveAbort.Status);
+        Assert.Equal(0, result.EffectiveAbort.ExitCode);
+    }
+
+    [Fact]
+    public async Task Cancellation_guard_runs_the_final_abort_when_state_mutation_fails()
+    {
+        var abortCalls = 0;
+        Task<ShutdownCountdownAbortResult> Abort(CancellationToken _)
+        {
+            abortCalls++;
+            return Task.FromResult(
+                new ShutdownCountdownAbortResult(ShutdownCountdownAbortStatus.NoCountdown));
+        }
+
+        var result = await WindowsShutdownCancellationGuard.RunAsync<bool>(
+            _ => throw new IOException("database unavailable"),
+            abortCountdown: Abort);
+
+        Assert.Equal(2, abortCalls);
+        Assert.IsType<IOException>(result.StateError);
+        Assert.True(result.WindowsStateConfirmed);
+        Assert.False(result.StateResult);
+    }
+
     [Fact]
     public void Reminder_notification_is_persistent_and_contains_cancel_action()
     {

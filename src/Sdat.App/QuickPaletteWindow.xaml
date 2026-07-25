@@ -67,13 +67,28 @@
                 Style="{ThemeResource AccentButtonStyle}"
                 Click="OnSchedule"
                 VerticalAlignment="Center" />
-            <TextBlock
+            <Grid
                 Grid.Row="1"
                 Grid.ColumnSpan="3"
-                x:Name="ValidationText"
-                Visibility="Collapsed"
-                TextWrapping="Wrap"
-                Foreground="{ThemeResource SystemFillColorCriticalBrush}" />
+                ColumnSpacing="8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock
+                    x:Name="FeedbackText"
+                    Visibility="Collapsed"
+                    TextWrapping="Wrap"
+                    VerticalAlignment="Center"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                <Button
+                    Grid.Column="1"
+                    x:Name="PaletteCancelButton"
+                    x:Uid="PaletteCancelButton"
+                    Content="Cancel"
+                    Visibility="Collapsed"
+                    Click="OnCancelSchedule" />
+            </Grid>
         </Grid>
     </Border>
 </Window>

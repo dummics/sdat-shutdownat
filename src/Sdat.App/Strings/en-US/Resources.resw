@@ -188,4 +188,17 @@
   <data name="TestNotificationBody" xml:space="preserve"><value>This is a safe preview. No schedule or power action was created.</value></data>
   <data name="TestOverlayTitle" xml:space="preserve"><value>Test countdown</value></data>
   <data name="TestOverlayCountdown" xml:space="preserve"><value>Closing in {0}s. No action will run.</value></data>
+  <data name="PaletteCancelButton.Content" xml:space="preserve"><value>Cancel</value></data>
+  <data name="QuickScheduleSaved" xml:space="preserve"><value>Scheduled for {0:HH:mm}.</value></data>
+  <data name="QuickScheduleActive" xml:space="preserve"><value>Active schedule for {0:HH:mm}.</value></data>
+  <data name="QuickScheduleCancelled" xml:space="preserve"><value>Schedule cancelled.</value></data>
+  <data name="WindowsCountdownCancelled" xml:space="preserve"><value>Windows countdown stopped.</value></data>
+  <data name="NothingToCancel" xml:space="preserve"><value>There is no active schedule to cancel.</value></data>
+  <data name="WindowsShutdownCountdownSeconds" xml:space="preserve"><value>Windows will shut down in {0}s. Save your work.</value></data>
+  <data name="WindowsRestartCountdownSeconds" xml:space="preserve"><value>Windows will restart in {0}s. Save your work.</value></data>
+  <data name="WindowsCountdownEnding" xml:space="preserve"><value>The Windows countdown has ended.</value></data>
+  <data name="WindowsCountdownCancelFailed" xml:space="preserve"><value>Windows could not stop the countdown. Try sdat -a. Details: {0}</value></data>
+  <data name="ScheduleCancelFailed" xml:space="preserve"><value>Could not cancel the schedule. Details: {0}</value></data>
+  <data name="NotificationCancelFailedTitle" xml:space="preserve"><value>Cancellation needs attention</value></data>
+  <data name="NotificationCancelFailedBody" xml:space="preserve"><value>Windows could not confirm cancellation. Open ShutdownAT or retry sdat -a. Details: {0}</value></data>
 </root>

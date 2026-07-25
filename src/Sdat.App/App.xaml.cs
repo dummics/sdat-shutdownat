@@ -5,6 +5,7 @@ using System.Diagnostics;
 using Sdat.Core.Commands;
 using Sdat.Core.Execution;
 using Sdat.Core.Scheduling;
+using Sdat.Windows.Execution;
 using Sdat.Windows.Hosting;
 using Sdat.Windows.Notifications;
 
@@ -271,18 +272,93 @@ public partial class App : Application
             return;
         }
 
+        var initialAbort = await WindowsShutdownCountdownAborter.TryAbortAsync();
+        SdatRuntime? runtime = null;
+        var cancellationGuardCompleted = false;
+        string? failureDetail = null;
         try
         {
-            var runtime = await SdatRuntime.CreateAsync(Environment.ProcessPath!);
-            var settings = await runtime.Settings.LoadAsync();
-            await runtime.Coordinator.CancelExactAsync(
-                scheduleId,
-                revision,
-                settings.ReminderOffsetsMinutes);
+            runtime = await SdatRuntime.CreateAsync(Environment.ProcessPath!);
+            var schedule = await runtime.Schedules.GetAsync(scheduleId);
+            if (schedule is null)
+            {
+                return;
+            }
+
+            var matchesActiveSchedule =
+                schedule.Status == ScheduleStatus.Active && schedule.Revision == revision;
+            var matchesJustCompletedOneTime =
+                schedule.Kind == ScheduleKind.OneTime &&
+                schedule.Status == ScheduleStatus.Completed &&
+                schedule.Revision == revision + 1;
+            if (!matchesActiveSchedule && !matchesJustCompletedOneTime)
+            {
+                return;
+            }
+
+            var result = await AppScheduleCancellation.CancelAsync(
+                runtime,
+                schedule,
+                expectedRevision: revision,
+                initialAbort: initialAbort);
+            cancellationGuardCompleted = true;
+            if (!result.IsSafe)
+            {
+                failureDetail = AppText.Format(
+                    "NotificationCancelFailedBody",
+                    "Windows could not confirm cancellation. Open ShutdownAT or retry sdat -a. Details: {0}",
+                    result.ErrorDetail ?? "Unknown error");
+            }
         }
-        catch
+        catch (Exception exception)
         {
-            // Stale notification actions and unhealthy state are deliberate no-ops.
+            failureDetail = AppText.Format(
+                "NotificationCancelFailedBody",
+                "Windows could not confirm cancellation. Open ShutdownAT or retry sdat -a. Details: {0}",
+                exception.Message);
+        }
+        finally
+        {
+            if (!cancellationGuardCompleted)
+            {
+                var finalAbort = await WindowsShutdownCountdownAborter.TryAbortAsync();
+                if (finalAbort.Status == ShutdownCountdownAbortStatus.Failed)
+                {
+                    var abortDetail =
+                        finalAbort.Detail ?? $"shutdown.exe exited with code {finalAbort.ExitCode}.";
+                    failureDetail ??= AppText.Format(
+                        "NotificationCancelFailedBody",
+                        "Windows could not confirm cancellation. Open ShutdownAT or retry sdat -a. Details: {0}",
+                        abortDetail);
+                    if (!failureDetail.Contains(abortDetail, StringComparison.Ordinal))
+                    {
+                        failureDetail += " " + abortDetail;
+                    }
+                }
+            }
+
+            if (failureDetail is not null)
+            {
+                if (runtime is not null)
+                {
+                    try
+                    {
+                        await runtime.Logger.WriteAsync(
+                            Sdat.Core.Settings.AppLogLevel.Error,
+                            nameof(App),
+                            failureDetail);
+                    }
+                    catch
+                    {
+                        // The foreground warning remains the primary failure signal.
+                    }
+                }
+
+                await (runtime?.ReminderNotifications ?? new WindowsReminderNotifier())
+                    .ShowTransientAsync(
+                        AppText.Get("NotificationCancelFailedTitle", "Cancellation needs attention"),
+                        failureDetail);
+            }
         }
     }
 
@@ -370,17 +446,30 @@ public partial class App : Application
                 invocation.TaskRole!.Value,
                 invocation.ReminderOffsetMinutes));
             var settings = await runtime.Settings.LoadAsync();
-            return (result.Outcome is TaskInvocationOutcome.ReminderShown or
-                    TaskInvocationOutcome.ReminderDegraded) &&
-                   settings.CriticalOverlayEnabled &&
-                   schedule is not null &&
-                   schedule.Action is PowerActionType.Shutdown or PowerActionType.Restart
-                ? new CriticalOverlayWindow(
-                    runtime,
-                    schedule,
-                    invocation.ReminderOffsetMinutes ?? 2,
-                    settings.CriticalOverlayPlacement)
-                : null;
+            if (!settings.CriticalOverlayEnabled ||
+                schedule is null ||
+                schedule.Action is not (PowerActionType.Shutdown or PowerActionType.Restart))
+            {
+                return null;
+            }
+
+            return result.Outcome switch
+            {
+                TaskInvocationOutcome.ReminderShown or TaskInvocationOutcome.ReminderDegraded =>
+                    new CriticalOverlayWindow(
+                        runtime,
+                        schedule,
+                        TimeSpan.FromMinutes(invocation.ReminderOffsetMinutes ?? 2),
+                        settings.CriticalOverlayPlacement),
+                TaskInvocationOutcome.Executed =>
+                    new CriticalOverlayWindow(
+                        runtime,
+                        schedule,
+                        TimeSpan.FromSeconds(30),
+                        settings.CriticalOverlayPlacement,
+                        isFinalWindowsCountdown: true),
+                _ => null,
+            };
         }
         catch
         {

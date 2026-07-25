@@ -91,6 +91,19 @@ public sealed class ScheduleCoordinatorTests
     }
 
     [Fact]
+    public async Task Cancel_available_acquires_the_operation_barrier_even_when_state_is_already_inactive()
+    {
+        var fixture = new Fixture();
+
+        var results = await fixture.Coordinator.CancelAvailableAsync(
+            [ScheduleKind.OneTime],
+            [2]);
+
+        Assert.Empty(results);
+        Assert.Equal(1, fixture.Lock.AcquisitionCount);
+    }
+
+    [Fact]
     public async Task Exact_update_rejects_a_superseded_overlay_revision()
     {
         var fixture = new Fixture();
@@ -152,11 +165,12 @@ public sealed class ScheduleCoordinatorTests
     {
         public Fixture(IRuntimeSafetyPolicy? safetyPolicy = null)
         {
+            Lock = new NoOpLock();
             Coordinator = new ScheduleCoordinator(
                 Repository,
                 Backup,
                 new SchedulerReconciler(Repository, Projection, new ScheduleTaskPlanner()),
-                new NoOpLock(),
+                Lock,
                 new FixedTimeProvider(Now),
                 safetyPolicy);
         }
@@ -166,6 +180,8 @@ public sealed class ScheduleCoordinatorTests
         public FakeBackup Backup { get; } = new();
 
         public FakeProjection Projection { get; } = new();
+
+        public NoOpLock Lock { get; }
 
         public ScheduleCoordinator Coordinator { get; }
     }
@@ -292,8 +308,16 @@ public sealed class ScheduleCoordinatorTests
 
     private sealed class NoOpLock : IOperationLock
     {
+        public int AcquisitionCount { get; private set; }
+
         public Task<IAsyncDisposable> AcquireAsync(CancellationToken cancellationToken = default) =>
-            Task.FromResult<IAsyncDisposable>(new Lease());
+            Task.FromResult<IAsyncDisposable>(Acquire());
+
+        private IAsyncDisposable Acquire()
+        {
+            AcquisitionCount++;
+            return new Lease();
+        }
 
         private sealed class Lease : IAsyncDisposable
         {

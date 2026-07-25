@@ -188,4 +188,17 @@
   <data name="TestNotificationBody" xml:space="preserve"><value>Questa è un'anteprima sicura. Non sono state create pianificazioni o azioni energetiche.</value></data>
   <data name="TestOverlayTitle" xml:space="preserve"><value>Conto alla rovescia di prova</value></data>
   <data name="TestOverlayCountdown" xml:space="preserve"><value>Chiusura tra {0}s. Nessuna azione verrà eseguita.</value></data>
+  <data name="PaletteCancelButton.Content" xml:space="preserve"><value>Annulla</value></data>
+  <data name="QuickScheduleSaved" xml:space="preserve"><value>Pianificato per le {0:HH:mm}.</value></data>
+  <data name="QuickScheduleActive" xml:space="preserve"><value>Pianificazione attiva per le {0:HH:mm}.</value></data>
+  <data name="QuickScheduleCancelled" xml:space="preserve"><value>Pianificazione annullata.</value></data>
+  <data name="WindowsCountdownCancelled" xml:space="preserve"><value>Conto alla rovescia di Windows interrotto.</value></data>
+  <data name="NothingToCancel" xml:space="preserve"><value>Non c'è una pianificazione attiva da annullare.</value></data>
+  <data name="WindowsShutdownCountdownSeconds" xml:space="preserve"><value>Windows si spegnerà tra {0}s. Salva il tuo lavoro.</value></data>
+  <data name="WindowsRestartCountdownSeconds" xml:space="preserve"><value>Windows si riavvierà tra {0}s. Salva il tuo lavoro.</value></data>
+  <data name="WindowsCountdownEnding" xml:space="preserve"><value>Il conto alla rovescia di Windows è terminato.</value></data>
+  <data name="WindowsCountdownCancelFailed" xml:space="preserve"><value>Windows non ha interrotto il conto alla rovescia. Prova sdat -a. Dettagli: {0}</value></data>
+  <data name="ScheduleCancelFailed" xml:space="preserve"><value>Impossibile annullare la pianificazione. Dettagli: {0}</value></data>
+  <data name="NotificationCancelFailedTitle" xml:space="preserve"><value>L'annullamento richiede attenzione</value></data>
+  <data name="NotificationCancelFailedBody" xml:space="preserve"><value>Windows non ha confermato l'annullamento. Apri ShutdownAT o riprova sdat -a. Dettagli: {0}</value></data>
 </root>

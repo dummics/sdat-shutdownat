@@ -79,6 +79,40 @@ public sealed class ScheduleCoordinator(
         return await FinishMutationAsync(schedule, reminderOffsetsMinutes, cancellationToken).ConfigureAwait(false);
     }
 
+    public async Task<IReadOnlyList<ScheduleMutationResult>> CancelAvailableAsync(
+        IReadOnlyCollection<ScheduleKind> kinds,
+        IReadOnlyList<int> reminderOffsetsMinutes,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(kinds);
+        if (kinds.Count == 0)
+        {
+            return [];
+        }
+
+        await using var lease = await operationLock.AcquireAsync(cancellationToken).ConfigureAwait(false);
+        await EnsureHealthyAsync(cancellationToken).ConfigureAwait(false);
+        var selectedKinds = kinds.ToHashSet();
+        var targets = (await repository.ListAsync(cancellationToken: cancellationToken).ConfigureAwait(false))
+            .Where(schedule => selectedKinds.Contains(schedule.Kind))
+            .OrderBy(schedule => schedule.Kind)
+            .ToArray();
+        var results = new List<ScheduleMutationResult>(targets.Length);
+        foreach (var target in targets)
+        {
+            var cancelled = await repository
+                .CancelAsync(target.Id, target.Revision, cancellationToken)
+                .ConfigureAwait(false);
+            results.Add(await FinishMutationAsync(
+                    cancelled,
+                    reminderOffsetsMinutes,
+                    cancellationToken)
+                .ConfigureAwait(false));
+        }
+
+        return results;
+    }
+
     public async Task<ScheduleMutationResult> CancelExactAsync(
         Guid scheduleId,
         long expectedRevision,

@@ -11,15 +11,18 @@ for %%A in (%*) do (
     if /I "%%~A"=="-a" set "SDAT_CANCEL_FAST=1"
     if /I "%%~A"=="-aa" set "SDAT_CANCEL_FAST=1"
 )
-if "%SDAT_CANCEL_FAST%"=="1" (
-    "%SystemRoot%\System32\shutdown.exe" /a >nul 2>nul
-    set "SDAT_FAST_ABORT_ATTEMPTED=1"
-    if errorlevel 1 (
-        set "SDAT_FAST_ABORT_SUCCEEDED=0"
-    ) else (
-        set "SDAT_FAST_ABORT_SUCCEEDED=1"
-    )
-)
+if "%SDAT_CANCEL_FAST%"=="1" call :SDAT_ABORT_WINDOWS_COUNTDOWN
 
 "%SDAT_DIR%sdat-cli.exe" --suspend %*
 exit /b %ERRORLEVEL%
+
+:SDAT_ABORT_WINDOWS_COUNTDOWN
+"%SystemRoot%\System32\shutdown.exe" /a >nul 2>nul
+set "SDAT_FAST_ABORT_EXIT_CODE=%ERRORLEVEL%"
+set "SDAT_FAST_ABORT_ATTEMPTED=1"
+if "%SDAT_FAST_ABORT_EXIT_CODE%"=="0" (
+    set "SDAT_FAST_ABORT_SUCCEEDED=1"
+) else (
+    set "SDAT_FAST_ABORT_SUCCEEDED=0"
+)
+exit /b 0

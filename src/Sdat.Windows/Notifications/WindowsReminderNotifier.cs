@@ -9,6 +9,12 @@ public sealed class WindowsReminderNotifier : ITaskReminderNotifier
     public Task<ReminderDeliveryResult> ShowTestAsync(
         string title,
         string detail,
+        CancellationToken cancellationToken = default) =>
+        ShowTransientAsync(title, detail, cancellationToken);
+
+    public Task<ReminderDeliveryResult> ShowTransientAsync(
+        string title,
+        string detail,
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();

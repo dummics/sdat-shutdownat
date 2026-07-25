@@ -1,6 +1,7 @@
 using Sdat.Core.Diagnostics;
 using Sdat.Core.Operations;
 using Sdat.Core.Scheduling;
+using Sdat.Windows.Execution;
 using Sdat.Windows.Hosting;
 using Sdat.Windows.Migration;
 using Spectre.Console;
@@ -230,21 +231,40 @@ internal sealed class TerminalApp
 
         try
         {
-            if (kinds.Contains(ScheduleKind.OneTime))
-            {
-                SdatCli.TryAbortWindowsCountdown();
-            }
-
             var offsets = (await _services.Settings.LoadAsync()).ReminderOffsetsMinutes;
-            var results = new List<ScheduleMutationResult>();
-            foreach (var kind in kinds)
+            var cancellation = await WindowsShutdownCancellationGuard.RunAsync(
+                async cancellationToken =>
+                    await _services.Coordinator.CancelAvailableAsync(
+                        kinds,
+                        offsets,
+                        cancellationToken));
+            if (cancellation.StateError is not null)
             {
-                results.Add(await _services.Coordinator.CancelAsync(kind, offsets));
+                System.Runtime.ExceptionServices.ExceptionDispatchInfo
+                    .Capture(cancellation.StateError)
+                    .Throw();
             }
 
-            _reconciliation = results[^1].Reconciliation;
-            _notice = results.All(result => result.IsFullyApplied)
-                ? TerminalNotice.Success(kinds.Count > 1 ? "All schedules were cancelled." : "Schedule cancelled.")
+            var results = cancellation.StateResult ?? [];
+            if (results.Count > 0)
+            {
+                _reconciliation = results[^1].Reconciliation;
+            }
+
+            _notice = !cancellation.WindowsStateConfirmed
+                ? TerminalNotice.Warning(
+                    "Windows may still be counting down. Retry sdat -a now.")
+                : results.Count == 0
+                    ? cancellation.WasCountdownAborted
+                        ? TerminalNotice.Success("Windows countdown stopped.")
+                        : TerminalNotice.Information("Nothing was left to cancel.")
+                    : results.All(result => result.IsFullyApplied)
+                ? TerminalNotice.Success(
+                    cancellation.WasCountdownAborted
+                        ? "Windows countdown stopped and schedule cancelled."
+                        : kinds.Count > 1
+                            ? "All schedules were cancelled."
+                            : "Schedule cancelled.")
                 : TerminalNotice.Warning("Schedule state changed, but Windows task repair needs attention.");
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
