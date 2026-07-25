@@ -1,0 +1,191 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType><xsd:sequence><xsd:element name="value" type="xsd:string" minOccurs="0" /></xsd:sequence><xsd:attribute name="name" use="required" type="xsd:string" /><xsd:attribute name="type" type="xsd:string" /><xsd:attribute name="mimetype" type="xsd:string" /><xsd:attribute ref="xml:space" /></xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly"><xsd:complexType><xsd:attribute name="alias" type="xsd:string" /><xsd:attribute name="name" type="xsd:string" /></xsd:complexType></xsd:element>
+          <xsd:element name="data"><xsd:complexType><xsd:sequence><xsd:element name="value" type="xsd:string" minOccurs="0" /><xsd:element name="comment" type="xsd:string" minOccurs="0" /></xsd:sequence><xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" /><xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" /><xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" /><xsd:attribute ref="xml:space" /></xsd:complexType></xsd:element>
+          <xsd:element name="resheader"><xsd:complexType><xsd:sequence><xsd:element name="value" type="xsd:string" minOccurs="0" /></xsd:sequence><xsd:attribute name="name" type="xsd:string" use="required" /></xsd:complexType></xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <data name="NavOverview.Content" xml:space="preserve"><value>Overview</value></data>
+  <data name="NavSchedule.Content" xml:space="preserve"><value>Schedule</value></data>
+  <data name="NavNotifications.Content" xml:space="preserve"><value>Notifications</value></data>
+  <data name="NavAbout.Content" xml:space="preserve"><value>About</value></data>
+  <data name="OverviewTitle.Text" xml:space="preserve"><value>Overview</value></data>
+  <data name="OverviewSubtitle.Text" xml:space="preserve"><value>Your active power schedules at a glance.</value></data>
+  <data name="OneTimeTitle.Text" xml:space="preserve"><value>Next one-time action</value></data>
+  <data name="LoadingStatus.Text" xml:space="preserve"><value>Loading…</value></data>
+  <data name="CancelButton.Content" xml:space="preserve"><value>Cancel schedule</value></data>
+  <data name="DailyTitle.Text" xml:space="preserve"><value>Daily action</value></data>
+  <data name="NewScheduleButton.Content" xml:space="preserve"><value>New schedule</value></data>
+  <data name="ScheduleTitle.Text" xml:space="preserve"><value>Schedule</value></data>
+  <data name="ScheduleSubtitle.Text" xml:space="preserve"><value>Use a duration such as 36m, or a clock time such as 23:41.</value></data>
+  <data name="PowerActionLabel.Text" xml:space="preserve"><value>What should this PC do?</value></data>
+  <data name="ShutdownAction.Content" xml:space="preserve"><value>Shut down</value></data>
+  <data name="SuspendAction.Content" xml:space="preserve"><value>Suspend</value></data>
+  <data name="RestartAction.Content" xml:space="preserve"><value>Restart</value></data>
+  <data name="RepeatsLabel.Text" xml:space="preserve"><value>How often?</value></data>
+  <data name="OnceKind.Content" xml:space="preserve"><value>Once</value></data>
+  <data name="DailyKind.Content" xml:space="preserve"><value>Daily</value></data>
+  <data name="WhenLabel.Text" xml:space="preserve"><value>When?</value></data>
+  <data name="TimeInput.PlaceholderText" xml:space="preserve"><value>36m or 23:41</value></data>
+  <data name="KeepDailyToggle.Header" xml:space="preserve"><value>Keep the daily action even when it is close to this one</value></data>
+  <data name="KeepDailyToggle.OnContent" xml:space="preserve"><value>On</value></data>
+  <data name="KeepDailyToggle.OffContent" xml:space="preserve"><value>Off</value></data>
+  <data name="ScheduleButton.Content" xml:space="preserve"><value>Save schedule</value></data>
+  <data name="NotificationsTitle.Text" xml:space="preserve"><value>Notifications</value></data>
+  <data name="NotificationsSubtitle.Text" xml:space="preserve"><value>Choose how early ShutdownAT should warn you.</value></data>
+  <data name="ReminderMinutesLabel.Text" xml:space="preserve"><value>Warning times</value></data>
+  <data name="ReminderOffsetsInput.PlaceholderText" xml:space="preserve"><value>2 or 10, 2</value></data>
+  <data name="ReminderMinutesHelp.Text" xml:space="preserve"><value>Minutes separated by commas, for example 10, 2.</value></data>
+  <data name="DailyOverlapLabel.Text" xml:space="preserve"><value>Avoid nearby actions</value></data>
+  <data name="DailyOverlapHelp.Text" xml:space="preserve"><value>Within this many minutes, the daily action is skipped once. Set 0 to keep both.</value></data>
+  <data name="CriticalOverlayToggle.Header" xml:space="preserve"><value>Show the on-screen countdown</value></data>
+  <data name="CriticalOverlayToggle.OnContent" xml:space="preserve"><value>On</value></data>
+  <data name="CriticalOverlayToggle.OffContent" xml:space="preserve"><value>Off</value></data>
+  <data name="OverlayPlacementPicker.Header" xml:space="preserve"><value>Countdown position</value></data>
+  <data name="OverlayPlacementHelp.Text" xml:space="preserve"><value>Top is the default. Left and right use a vertical layout.</value></data>
+  <data name="OverlayTopCenterOption.Content" xml:space="preserve"><value>Top center</value></data>
+  <data name="OverlayBottomCenterOption.Content" xml:space="preserve"><value>Bottom center</value></data>
+  <data name="OverlayLeftCenterOption.Content" xml:space="preserve"><value>Left</value></data>
+  <data name="OverlayRightCenterOption.Content" xml:space="preserve"><value>Right</value></data>
+  <data name="OverlayTopLeftOption.Content" xml:space="preserve"><value>Top left</value></data>
+  <data name="OverlayTopRightOption.Content" xml:space="preserve"><value>Top right</value></data>
+  <data name="OverlayBottomLeftOption.Content" xml:space="preserve"><value>Bottom left</value></data>
+  <data name="OverlayBottomRightOption.Content" xml:space="preserve"><value>Bottom right</value></data>
+  <data name="SaveSettingsButton.Content" xml:space="preserve"><value>Save settings</value></data>
+  <data name="HotkeyTitle.Text" xml:space="preserve"><value>Quick access</value></data>
+  <data name="HotkeySubtitle.Text" xml:space="preserve"><value>Set the shortcut and background companion.</value></data>
+  <data name="PaletteHotkeyLabel.Text" xml:space="preserve"><value>Keyboard shortcut</value></data>
+  <data name="PaletteHotkeyInput.PlaceholderText" xml:space="preserve"><value>Ctrl+Alt+S</value></data>
+  <data name="PaletteHotkeyHelp.Text" xml:space="preserve"><value>For example: Ctrl+Alt+S or Shift+F12.</value></data>
+  <data name="StartupToggle.Header" xml:space="preserve"><value>Keep ShutdownAT ready after I sign in</value></data>
+  <data name="StartupToggle.OnContent" xml:space="preserve"><value>On</value></data>
+  <data name="StartupToggle.OffContent" xml:space="preserve"><value>Off</value></data>
+  <data name="TrayHelp.Text" xml:space="preserve"><value>Keeps the tray icon and shortcut available in the background.</value></data>
+  <data name="AdvancedTitle.Text" xml:space="preserve"><value>Diagnostics</value></data>
+  <data name="AdvancedDescription.Text" xml:space="preserve"><value>Check local data, logs, and Windows integration.</value></data>
+  <data name="ReconcileButton.Content" xml:space="preserve"><value>Repair Windows integration</value></data>
+  <data name="RefreshButton.Content" xml:space="preserve"><value>Refresh status</value></data>
+  <data name="AboutDescription.Text" xml:space="preserve"><value>Local, open-source Windows power scheduling without accounts or telemetry.</value></data>
+  <data name="AboutCliDescription.Text" xml:space="preserve"><value>Prefer commands? The command line and terminal interface use the same scheduling system as the app.</value></data>
+  <data name="SettingsTitle.Text" xml:space="preserve"><value>Settings</value></data>
+  <data name="SettingsSubtitle.Text" xml:space="preserve"><value>Language, quick access, diagnostics, and test tools.</value></data>
+  <data name="GeneralSettingsTitle.Text" xml:space="preserve"><value>General</value></data>
+  <data name="GeneralSettingsDescription.Text" xml:space="preserve"><value>Choose the language used by ShutdownAT.</value></data>
+  <data name="LanguageLabel.Text" xml:space="preserve"><value>App language</value></data>
+  <data name="LanguageSystemOption.Content" xml:space="preserve"><value>Use the Windows language</value></data>
+  <data name="LanguageItalianOption.Content" xml:space="preserve"><value>Italiano</value></data>
+  <data name="LanguageEnglishOption.Content" xml:space="preserve"><value>English</value></data>
+  <data name="LanguageHelp.Text" xml:space="preserve"><value>Windows language is selected automatically the first time. You can choose a different language whenever you want.</value></data>
+  <data name="ApplyLanguageButton.Content" xml:space="preserve"><value>Apply language</value></data>
+  <data name="RestartLanguageButton.Content" xml:space="preserve"><value>Restart ShutdownAT</value></data>
+  <data name="LanguageRestartHelp.Text" xml:space="preserve"><value>Restart ShutdownAT to update every screen.</value></data>
+  <data name="DismissButton.Content" xml:space="preserve"><value>Dismiss</value></data>
+  <data name="SnoozeButton.Content" xml:space="preserve"><value>Snooze 10 min</value></data>
+  <data name="DatabasePath" xml:space="preserve"><value>Saved on this PC: {0}</value></data>
+  <data name="SchedulerRepairWarning" xml:space="preserve"><value>Your schedules are safe, but the Windows integration needs attention. Open Diagnostics in Settings to repair it.</value></data>
+  <data name="ScheduleSaved" xml:space="preserve"><value>Schedule saved.</value></data>
+  <data name="ScheduleSavedWarnings" xml:space="preserve"><value>Schedule saved, but the Windows integration needs attention.</value></data>
+  <data name="ScheduleCancelled" xml:space="preserve"><value>Schedule cancelled.</value></data>
+  <data name="CancelConfirmationTitle" xml:space="preserve"><value>Cancel this schedule?</value></data>
+  <data name="CancelOneTimeConfirmationBody" xml:space="preserve"><value>The next one-time action will be removed.</value></data>
+  <data name="CancelDailyConfirmationBody" xml:space="preserve"><value>The daily schedule will stop until you create it again.</value></data>
+  <data name="ConfirmCancelButton" xml:space="preserve"><value>Cancel schedule</value></data>
+  <data name="KeepScheduleButton" xml:space="preserve"><value>Keep it</value></data>
+  <data name="NoScheduleInSlot" xml:space="preserve"><value>There is no active schedule in that slot.</value></data>
+  <data name="SettingsSaved" xml:space="preserve"><value>Settings saved.</value></data>
+  <data name="LanguageSavedRestartRequired" xml:space="preserve"><value>Language saved. Restart ShutdownAT to update every screen.</value></data>
+  <data name="LanguageAlreadyActive" xml:space="preserve"><value>This language is already active.</value></data>
+  <data name="ProjectionHealthy" xml:space="preserve"><value>Windows integration is ready. Fixed: {0}; removed old entries: {1}.</value></data>
+  <data name="ReconciliationWarnings" xml:space="preserve"><value>The repair finished, but some items still need attention.</value></data>
+  <data name="NoOneTimeSchedule" xml:space="preserve"><value>No one-time action scheduled.</value></data>
+  <data name="OneTimeScheduleStatus" xml:space="preserve"><value>{0} at {1:ddd HH:mm}</value></data>
+  <data name="NoDailySchedule" xml:space="preserve"><value>No daily action scheduled.</value></data>
+  <data name="DailyScheduleStatus" xml:space="preserve"><value>{0} every day at {1:HH:mm}</value></data>
+  <data name="NotificationCancelled" xml:space="preserve"><value>Schedule cancelled from the notification.</value></data>
+  <data name="NotificationUnavailable" xml:space="preserve"><value>Windows notifications are unavailable. The on-screen countdown will still appear. Details: {0}</value></data>
+  <data name="HotkeyUnavailable" xml:space="preserve"><value>ShutdownAT is running in the notification area, but the keyboard shortcut could not be enabled. Details: {0}</value></data>
+  <data name="ActionShutdown" xml:space="preserve"><value>Shut down</value></data>
+  <data name="ActionSuspend" xml:space="preserve"><value>Suspend</value></data>
+  <data name="ActionRestart" xml:space="preserve"><value>Restart</value></data>
+  <data name="QuickPaletteTitle" xml:space="preserve"><value>Quick schedule — ShutdownAT</value></data>
+  <data name="PaletteRecoveryWarning" xml:space="preserve"><value>Schedule saved, but the Windows integration needs attention. Open ShutdownAT for details.</value></data>
+  <data name="ReminderTitle" xml:space="preserve"><value>ShutdownAT reminder</value></data>
+  <data name="RestartScheduledTitle" xml:space="preserve"><value>Restarting soon</value></data>
+  <data name="ShutdownScheduledTitle" xml:space="preserve"><value>Shutting down soon</value></data>
+  <data name="DailyActionAt" xml:space="preserve"><value>Daily action at {0:HH:mm}.</value></data>
+  <data name="SecondsRemaining" xml:space="preserve"><value>{0}s remaining. Save your work.</value></data>
+  <data name="CountdownStarting" xml:space="preserve"><value>The Windows countdown is about to begin.</value></data>
+  <data name="TrayTooltip" xml:space="preserve"><value>ShutdownAT</value></data>
+  <data name="TrayQuickSchedule" xml:space="preserve"><value>Quick schedule</value></data>
+  <data name="TrayOpen" xml:space="preserve"><value>Open ShutdownAT</value></data>
+  <data name="TrayExit" xml:space="preserve"><value>Exit</value></data>
+  <data name="DatabaseHealthTitle.Text" xml:space="preserve"><value>Local data</value></data>
+  <data name="RecentActivityTitle.Text" xml:space="preserve"><value>Recent activity</value></data>
+  <data name="NoDiagnosticsText.Text" xml:space="preserve"><value>Nothing needs your attention.</value></data>
+  <data name="DatabaseHealthy" xml:space="preserve"><value>Everything is ready. Your schedules can run normally.</value></data>
+  <data name="DatabaseUnhealthy" xml:space="preserve"><value>Schedules cannot run safely right now. Details: {0}</value></data>
+  <data name="SeverityInformation" xml:space="preserve"><value>Information</value></data>
+  <data name="SeverityWarning" xml:space="preserve"><value>Warning</value></data>
+  <data name="SeverityError" xml:space="preserve"><value>Error</value></data>
+  <data name="DatabaseRecovered" xml:space="preserve"><value>Your saved schedules were restored from the latest healthy backup.</value></data>
+  <data name="DiagnosticScheduleCreated" xml:space="preserve"><value>Schedule created</value></data>
+  <data name="DiagnosticScheduleUpdated" xml:space="preserve"><value>Schedule updated</value></data>
+  <data name="DiagnosticScheduleCancelled" xml:space="preserve"><value>Schedule cancelled</value></data>
+  <data name="DiagnosticDailySkipped" xml:space="preserve"><value>Daily action skipped</value></data>
+  <data name="DiagnosticScheduledAction" xml:space="preserve"><value>Scheduled action</value></data>
+  <data name="DiagnosticGenericTitle" xml:space="preserve"><value>ShutdownAT activity</value></data>
+  <data name="DiagnosticCompleted" xml:space="preserve"><value>Completed successfully.</value></data>
+  <data name="DiagnosticReminderShown" xml:space="preserve"><value>The reminder was shown.</value></data>
+  <data name="DiagnosticSkippedAsRequested" xml:space="preserve"><value>Skipped as requested.</value></data>
+  <data name="DiagnosticNoActionNeeded" xml:space="preserve"><value>No action was needed.</value></data>
+  <data name="DiagnosticFallbackUsed" xml:space="preserve"><value>The on-screen reminder was used instead.</value></data>
+  <data name="DiagnosticFailed" xml:space="preserve"><value>Something went wrong. Details: {0}</value></data>
+  <data name="TestModeBanner.Title" xml:space="preserve"><value>Safe test mode</value></data>
+  <data name="TestModeBanner.Message" xml:space="preserve"><value>Real schedules and power actions are blocked.</value></data>
+  <data name="OpenLogButton.Content" xml:space="preserve"><value>Open log</value></data>
+  <data name="CreateDiagnosticReportButton.Content" xml:space="preserve"><value>Create report</value></data>
+  <data name="OpenDataFolderButton.Content" xml:space="preserve"><value>Open data folder</value></data>
+  <data name="LoggingTitle.Text" xml:space="preserve"><value>Log detail</value></data>
+  <data name="LogErrorsOption.Content" xml:space="preserve"><value>Errors only</value></data>
+  <data name="LogNormalOption.Content" xml:space="preserve"><value>Normal</value></data>
+  <data name="LogDetailedOption.Content" xml:space="preserve"><value>Detailed</value></data>
+  <data name="LoggingHelp.Text" xml:space="preserve"><value>Detailed logging is useful while reproducing a problem and may create a larger local file.</value></data>
+  <data name="SaveLoggingButton.Content" xml:space="preserve"><value>Save logging setting</value></data>
+  <data name="DeveloperOptionsTitle.Text" xml:space="preserve"><value>Developer mode</value></data>
+  <data name="DeveloperOptionsDescription.Text" xml:space="preserve"><value>Safe previews and troubleshooting tools.</value></data>
+  <data name="DeveloperModeToggle.Header" xml:space="preserve"><value>Enable developer mode</value></data>
+  <data name="DeveloperModeToggle.OnContent" xml:space="preserve"><value>On</value></data>
+  <data name="DeveloperModeToggle.OffContent" xml:space="preserve"><value>Off</value></data>
+  <data name="DeveloperWarning.Title" xml:space="preserve"><value>Test tools</value></data>
+  <data name="DeveloperWarning.Message" xml:space="preserve"><value>Test mode never schedules or powers off this PC.</value></data>
+  <data name="SimulationModeToggle.Header" xml:space="preserve"><value>Test mode</value></data>
+  <data name="SimulationModeToggle.OnContent" xml:space="preserve"><value>On</value></data>
+  <data name="SimulationModeToggle.OffContent" xml:space="preserve"><value>Off</value></data>
+  <data name="SimulationModeHelp.Text" xml:space="preserve"><value>Blocks real schedules and power actions while you test.</value></data>
+  <data name="TestNotificationButton.Content" xml:space="preserve"><value>Test notification</value></data>
+  <data name="TestOverlayButton.Content" xml:space="preserve"><value>Test countdown</value></data>
+  <data name="SaveDeveloperSettingsButton.Content" xml:space="preserve"><value>Save developer settings</value></data>
+  <data name="TestModeScheduleBlocked" xml:space="preserve"><value>Safe test mode is active. Turn it off before creating a real schedule.</value></data>
+  <data name="TestModeRepairSuppressed" xml:space="preserve"><value>Safe test mode is active. Windows integration was not changed.</value></data>
+  <data name="DiagnosticReportCreated" xml:space="preserve"><value>Diagnostic report created.</value></data>
+  <data name="TestNotificationShown" xml:space="preserve"><value>Test notification sent. No schedule was created.</value></data>
+  <data name="TestNotificationFailed" xml:space="preserve"><value>The test notification could not be shown. Details: {0}</value></data>
+  <data name="TestNotificationTitle" xml:space="preserve"><value>[TEST] ShutdownAT notification</value></data>
+  <data name="TestNotificationBody" xml:space="preserve"><value>This is a safe preview. No schedule or power action was created.</value></data>
+  <data name="TestOverlayTitle" xml:space="preserve"><value>Test countdown</value></data>
+  <data name="TestOverlayCountdown" xml:space="preserve"><value>Closing in {0}s. No action will run.</value></data>
+</root>

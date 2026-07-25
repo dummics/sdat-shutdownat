@@ -1,0 +1,59 @@
+namespace Sdat.Windows.Persistence;
+
+public sealed record SqliteStoreOptions
+{
+    public required string DatabasePath { get; init; }
+
+    public required string BackupDirectory { get; init; }
+
+    public string DataDirectory => Path.GetDirectoryName(DatabasePath)!;
+
+    public string LogPath => Path.Combine(DataDirectory, "sdat.log");
+
+    public string DiagnosticReportPath => Path.Combine(DataDirectory, "diagnostics.txt");
+
+    public string OperationLockPath => Path.Combine(Path.GetDirectoryName(DatabasePath)!, "operation.lock");
+
+    public int BackupRetentionCount { get; init; } = 5;
+
+    public static SqliteStoreOptions CreateDefault()
+    {
+        var root = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "SDAT");
+
+        return CreateAtRoot(root);
+    }
+
+    public static SqliteStoreOptions CreateAtRoot(string root)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(root);
+        root = Path.GetFullPath(root);
+        return new SqliteStoreOptions
+        {
+            DatabasePath = Path.Combine(root, "sdat.db"),
+            BackupDirectory = Path.Combine(root, "backups"),
+        };
+    }
+
+    public void Validate()
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(DatabasePath);
+        ArgumentException.ThrowIfNullOrWhiteSpace(BackupDirectory);
+
+        if (!Path.IsPathFullyQualified(DatabasePath))
+        {
+            throw new ArgumentException("The SQLite database path must be absolute.", nameof(DatabasePath));
+        }
+
+        if (!Path.IsPathFullyQualified(BackupDirectory))
+        {
+            throw new ArgumentException("The SQLite backup directory must be absolute.", nameof(BackupDirectory));
+        }
+
+        if (BackupRetentionCount < 1)
+        {
+            throw new ArgumentOutOfRangeException(nameof(BackupRetentionCount));
+        }
+    }
+}

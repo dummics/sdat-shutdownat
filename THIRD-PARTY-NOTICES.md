@@ -1,14 +1,23 @@
 # Third-party notices
 
-SDAT release packages include **PwshSpectreConsole 2.6.3** by Shaun Lawrie and **Spectre.Console** by Patrik Svensson and contributors. Both projects are distributed under the MIT License.
+SDAT release packages include third-party components. Their licenses remain their own and are not replaced by SDAT's MIT license.
 
-- https://github.com/ShaunLawrie/PwshSpectreConsole
+Primary direct/runtime dependencies include:
+
+- Microsoft Windows App SDK Base, Foundation, Interactive Experiences, Runtime 2.3.1, and WinUI 2.3.0 components — Microsoft Software License Terms; the release package includes the available upstream license and notice files for every direct component in `licenses/`.
+- Microsoft.Data.Sqlite 10.0.10 — MIT License.
+- SQLitePCLRaw 3.0.4 and SourceGear SQLite — Apache-2.0 and upstream SQLite distribution terms.
+- TaskScheduler 2.12.2 by David Hall — MIT License.
+- Spectre.Console 0.57.2 by Patrik Svensson and contributors — MIT License.
+- The .NET runtime and its dependencies when included in the optional portable artifact — their respective Microsoft and third-party license terms.
+
+Project links:
+
+- https://github.com/microsoft/WindowsAppSDK
+- https://github.com/dotnet/efcore
+- https://github.com/ericsink/SQLitePCL.raw
+- https://github.com/dahall/TaskScheduler
 - https://github.com/spectreconsole/spectre.console
+- https://github.com/dotnet/runtime
 
-Copyright (c) the respective project authors and contributors.
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+Exact resolved dependency versions are recorded in `Directory.Packages.props` and generated project assets. The release package manifest records the shipped file set. Upstream copyright and license notices apply.

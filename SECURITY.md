@@ -1,7 +1,16 @@
 # Security and safety
 
-SDAT runs only for the current Windows user. It creates named Task Scheduler entries, stores local configuration, and does not use telemetry, accounts, cloud services, or a background service.
+SDAT runs for the current Windows user. It stores authoritative state in local SQLite, creates only named SDAT Task Scheduler entries, and does not use accounts, telemetry, mandatory cloud services, or a privileged background service.
 
-Scheduled shutdown and restart actions currently force applications to close. Save work before scheduling them. Every one-time action can be canceled with `sdat cancel`; `sdat cancel all` also removes the daily schedule.
+Power execution is fail-safe:
+
+- task, notification, and overlay actions carry a schedule id and revision;
+- stale or superseded activations do nothing;
+- corrupt, unavailable, or forward-version databases block power actions;
+- backups are verified before they are considered restorable;
+- v1 migration imports only recognized state and exact legacy task signatures;
+- cancellation attempts Windows' emergency countdown abort before loading the database or scheduler path.
+
+Shutdown and restart force applications to close. Save work before scheduling them. Windows controls the final system countdown and notification delivery policy.
 
 To report a vulnerability, use GitHub's private security advisory flow for this repository. Do not include sensitive machine data in a public issue.
