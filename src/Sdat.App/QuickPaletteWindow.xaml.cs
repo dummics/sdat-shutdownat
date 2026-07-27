@@ -25,6 +25,9 @@ public sealed partial class QuickPaletteWindow : Window
     private const int DwmWindowBorderColor = 34;
     private const int DwmWindowCornerRound = 2;
     private const int DwmColorNone = unchecked((int)0xFFFFFFFE);
+    private const int WindowStyleIndex = -16;
+    private const long WindowFrameStyleMask = 0x00CC0000; // WS_BORDER | WS_DLGFRAME | WS_SYSMENU | WS_THICKFRAME
+    private const uint FrameChangedFlags = 0x0037; // SWP_FRAMECHANGED | SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER
     private static readonly TimeSpan TransientFeedbackDuration = TimeSpan.FromSeconds(2.2);
     private readonly SdatRuntime _runtime;
     private readonly bool _animationsEnabled = new UISettings().AnimationsEnabled;
@@ -78,6 +81,24 @@ public sealed partial class QuickPaletteWindow : Window
 
     private void ApplyNativeWindowStyle()
     {
+        var currentStyle = GetWindowLongPtr(_windowHandle, WindowStyleIndex).ToInt64();
+        var borderlessStyle = currentStyle & ~WindowFrameStyleMask;
+        if (borderlessStyle != currentStyle)
+        {
+            _ = SetWindowLongPtr(
+                _windowHandle,
+                WindowStyleIndex,
+                new nint(borderlessStyle));
+            _ = SetWindowPos(
+                _windowHandle,
+                nint.Zero,
+                0,
+                0,
+                0,
+                0,
+                FrameChangedFlags);
+        }
+
         var cornerPreference = DwmWindowCornerRound;
         _ = DwmSetWindowAttribute(
             _windowHandle,
@@ -373,10 +394,6 @@ public sealed partial class QuickPaletteWindow : Window
                 ? global::Windows.UI.Color.FromArgb(255, 32, 32, 32)
                 : global::Windows.UI.Color.FromArgb(255, 248, 248, 248);
         }
-        PaletteRoot.BorderBrush = new SolidColorBrush(
-            theme == SystemBackdropTheme.Dark
-                ? global::Windows.UI.Color.FromArgb(16, 255, 255, 255)
-                : global::Windows.UI.Color.FromArgb(20, 0, 0, 0));
         TimeInputFrame.Background = new SolidColorBrush(
             theme == SystemBackdropTheme.Dark
                 ? global::Windows.UI.Color.FromArgb(245, 38, 38, 38)
@@ -431,6 +448,23 @@ public sealed partial class QuickPaletteWindow : Window
         int attribute,
         ref int value,
         int valueSize);
+
+    [DllImport("user32.dll", EntryPoint = "GetWindowLongPtrW")]
+    private static extern nint GetWindowLongPtr(nint window, int index);
+
+    [DllImport("user32.dll", EntryPoint = "SetWindowLongPtrW")]
+    private static extern nint SetWindowLongPtr(nint window, int index, nint newLong);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool SetWindowPos(
+        nint window,
+        nint insertAfter,
+        int x,
+        int y,
+        int width,
+        int height,
+        uint flags);
 
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]

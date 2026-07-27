@@ -8,8 +8,7 @@
         CornerRadius="14"
         Opacity="0"
         Background="Transparent"
-        BorderBrush="Transparent"
-        BorderThickness="1"
+        BorderThickness="0"
         RenderTransformOrigin="0.5,0.5"
         Loaded="OnPaletteLoaded"
         PreviewKeyDown="OnKeyDown">
