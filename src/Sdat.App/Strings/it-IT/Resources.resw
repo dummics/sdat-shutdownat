@@ -189,7 +189,7 @@
   <data name="TestOverlayTitle" xml:space="preserve"><value>Conto alla rovescia di prova</value></data>
   <data name="TestOverlayCountdown" xml:space="preserve"><value>Chiusura tra {0}s. Nessuna azione verrà eseguita.</value></data>
   <data name="PaletteCancelButton.Content" xml:space="preserve"><value>Annulla</value></data>
-  <data name="QuickScheduleSaved" xml:space="preserve"><value>Pianificato per le {0:HH:mm}.</value></data>
+  <data name="QuickScheduleSaved" xml:space="preserve"><value>Pianificazione creata · {0:HH:mm}</value></data>
   <data name="QuickScheduleActive" xml:space="preserve"><value>Pianificazione attiva per le {0:HH:mm}.</value></data>
   <data name="QuickScheduleCancelled" xml:space="preserve"><value>Pianificazione annullata.</value></data>
   <data name="WindowsCountdownCancelled" xml:space="preserve"><value>Conto alla rovescia di Windows interrotto.</value></data>

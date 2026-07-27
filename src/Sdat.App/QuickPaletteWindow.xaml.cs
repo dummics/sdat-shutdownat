@@ -1,11 +1,16 @@
 using Microsoft.UI.Windowing;
+using Microsoft.UI.Composition;
+using Microsoft.UI.Composition.SystemBackdrops;
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Animation;
+using System.Runtime.InteropServices;
 using Sdat.Core.Scheduling;
 using Sdat.Windows.Hosting;
+using WinRT.Interop;
 using Windows.Graphics;
 using Windows.System;
 using Windows.UI.ViewManagement;
@@ -16,24 +21,32 @@ public sealed partial class QuickPaletteWindow : Window
 {
     private const int CompactWidth = 480;
     private const int ValidationHeight = 116;
+    private const int DwmWindowCornerPreference = 33;
+    private const int DwmWindowCornerRound = 2;
+    private static readonly TimeSpan TransientFeedbackDuration = TimeSpan.FromSeconds(2.2);
     private readonly SdatRuntime _runtime;
     private readonly bool _animationsEnabled = new UISettings().AnimationsEnabled;
+    private readonly nint _windowHandle;
+    private DesktopAcrylicController? _acrylicController;
+    private SystemBackdropConfiguration? _backdropConfiguration;
     private bool _allowClose;
     private bool _isClosing;
     private string? _validationInputText;
     private ScheduleSnapshot? _activeSchedule;
+    private CancellationTokenSource? _feedbackResetCancellation;
 
     public QuickPaletteWindow(SdatRuntime runtime)
     {
         _runtime = runtime;
         InitializeComponent();
         Title = AppText.Get("QuickPaletteTitle", "Quick schedule — ShutdownAT");
-        SystemBackdrop = new DesktopAcrylicBackdrop();
+        ConfigureBackdrop();
         ExtendsContentIntoTitleBar = true;
-        SetTitleBar(PaletteRoot);
+        _windowHandle = WindowNative.GetWindowHandle(this);
         ConfigureWindow();
         AppWindow.Closing += OnWindowClosing;
-        Activated += (_, _) => TimeInput.Focus(FocusState.Programmatic);
+        Activated += OnActivated;
+        Closed += (_, _) => DisposeBackdrop();
     }
 
     private void ConfigureWindow()
@@ -47,7 +60,22 @@ public sealed partial class QuickPaletteWindow : Window
             presenter.SetBorderAndTitleBar(hasBorder: false, hasTitleBar: false);
         }
 
+        var cornerPreference = DwmWindowCornerRound;
+        _ = DwmSetWindowAttribute(
+            _windowHandle,
+            DwmWindowCornerPreference,
+            ref cornerPreference,
+            sizeof(int));
         ResizePalette(ValidationHeight);
+    }
+
+    public void ShowAndFocus()
+    {
+        AppWindow.Show(activateWindow: true);
+        Activate();
+        _ = BringWindowToTop(_windowHandle);
+        _ = SetForegroundWindow(_windowHandle);
+        QueueInputFocus();
     }
 
     private void ResizePalette(int height)
@@ -63,13 +91,20 @@ public sealed partial class QuickPaletteWindow : Window
 
     private async void OnPaletteLoaded(object sender, RoutedEventArgs e)
     {
-        PaletteRoot.Opacity = 1;
+        PaletteRoot.ActualThemeChanged += OnPaletteThemeChanged;
+        UpdateBackdropTheme();
         if (_animationsEnabled)
         {
             FadeInStoryboard.Begin();
         }
+        else
+        {
+            PaletteRoot.Opacity = 1;
+            PaletteTransform.Y = 0;
+        }
 
         await RefreshActiveScheduleAsync();
+        QueueInputFocus();
     }
 
     private void OnWindowClosing(AppWindow sender, AppWindowClosingEventArgs args)
@@ -86,6 +121,7 @@ public sealed partial class QuickPaletteWindow : Window
         }
 
         _isClosing = true;
+        _feedbackResetCancellation?.Cancel();
         PaletteRoot.IsHitTestVisible = false;
         FadeOutStoryboard.Begin();
     }
@@ -118,7 +154,7 @@ public sealed partial class QuickPaletteWindow : Window
                 _activeSchedule = result.Mutation.Schedule;
                 ShowStatus(AppText.Format(
                     "QuickScheduleSaved",
-                    "Scheduled for {0:HH:mm}.",
+                    "Schedule created · {0:HH:mm}",
                     _activeSchedule.TargetAt?.ToLocalTime()));
                 PaletteCancelButton.Visibility = Visibility.Visible;
             }
@@ -157,6 +193,7 @@ public sealed partial class QuickPaletteWindow : Window
 
     private void ShowValidation(string message)
     {
+        _feedbackResetCancellation?.Cancel();
         _validationInputText = TimeInput.Text;
         FeedbackText.Text = message;
         FeedbackText.Foreground = (Brush)Application.Current.Resources["SystemFillColorCriticalBrush"];
@@ -165,6 +202,7 @@ public sealed partial class QuickPaletteWindow : Window
 
     private void ClearValidation()
     {
+        _feedbackResetCancellation?.Cancel();
         _validationInputText = null;
         FeedbackText.Visibility = Visibility.Collapsed;
         FeedbackText.Text = string.Empty;
@@ -173,10 +211,13 @@ public sealed partial class QuickPaletteWindow : Window
 
     private void ShowStatus(string message)
     {
+        _feedbackResetCancellation?.Cancel();
         _validationInputText = null;
         FeedbackText.Text = message;
         FeedbackText.Foreground = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"];
         FeedbackText.Visibility = Visibility.Visible;
+        _feedbackResetCancellation = new CancellationTokenSource();
+        _ = ClearTransientStatusAsync(_feedbackResetCancellation.Token);
     }
 
     private async Task RefreshActiveScheduleAsync()
@@ -191,10 +232,6 @@ public sealed partial class QuickPaletteWindow : Window
                 return;
             }
 
-            ShowStatus(AppText.Format(
-                "QuickScheduleActive",
-                "Active schedule for {0:HH:mm}.",
-                _activeSchedule.TargetAt?.ToLocalTime()));
             PaletteCancelButton.Visibility = Visibility.Visible;
         }
         catch
@@ -202,6 +239,14 @@ public sealed partial class QuickPaletteWindow : Window
             // Scheduling remains available if status refresh is temporarily unavailable.
         }
     }
+
+    private void OnTimeInputGotFocus(object sender, RoutedEventArgs e) =>
+        TimeInputFrame.BorderBrush =
+            (Brush)Application.Current.Resources["AccentFillColorDefaultBrush"];
+
+    private void OnTimeInputLostFocus(object sender, RoutedEventArgs e) =>
+        TimeInputFrame.BorderBrush =
+            (Brush)Application.Current.Resources["ControlStrokeColorDefaultBrush"];
 
     private async void OnCancelSchedule(object sender, RoutedEventArgs e)
     {
@@ -255,4 +300,128 @@ public sealed partial class QuickPaletteWindow : Window
             await ScheduleAsync();
         }
     }
+
+    private void OnActivated(object sender, WindowActivatedEventArgs args)
+    {
+        if (args.WindowActivationState != WindowActivationState.Deactivated)
+        {
+            QueueInputFocus();
+        }
+    }
+
+    private void ConfigureBackdrop()
+    {
+        if (!DesktopAcrylicController.IsSupported())
+        {
+            SystemBackdrop = new DesktopAcrylicBackdrop();
+            return;
+        }
+
+        _backdropConfiguration = new SystemBackdropConfiguration
+        {
+            IsInputActive = true,
+        };
+        UpdateBackdropTheme();
+
+        _acrylicController = new DesktopAcrylicController
+        {
+            TintOpacity = 0.62f,
+            LuminosityOpacity = 0.78f,
+        };
+        _acrylicController.AddSystemBackdropTarget(
+            WinRT.CastExtensions.As<ICompositionSupportsSystemBackdrop>(this));
+        _acrylicController.SetSystemBackdropConfiguration(_backdropConfiguration);
+        UpdateBackdropTheme();
+    }
+
+    private void OnPaletteThemeChanged(FrameworkElement sender, object args) =>
+        UpdateBackdropTheme();
+
+    private void UpdateBackdropTheme()
+    {
+        if (_backdropConfiguration is null)
+        {
+            return;
+        }
+
+        var theme = PaletteRoot.ActualTheme switch
+        {
+            ElementTheme.Dark => SystemBackdropTheme.Dark,
+            ElementTheme.Light => SystemBackdropTheme.Light,
+            _ => GetWindowsBackdropTheme(),
+        };
+        _backdropConfiguration.Theme = theme;
+        _backdropConfiguration.IsInputActive = true;
+        if (_acrylicController is not null)
+        {
+            _acrylicController.TintColor = theme == SystemBackdropTheme.Dark
+                ? global::Windows.UI.Color.FromArgb(255, 32, 32, 32)
+                : global::Windows.UI.Color.FromArgb(255, 248, 248, 248);
+        }
+        PaletteRoot.BorderBrush = new SolidColorBrush(
+            theme == SystemBackdropTheme.Dark
+                ? global::Windows.UI.Color.FromArgb(16, 255, 255, 255)
+                : global::Windows.UI.Color.FromArgb(20, 0, 0, 0));
+        TimeInputFrame.Background = new SolidColorBrush(
+            theme == SystemBackdropTheme.Dark
+                ? global::Windows.UI.Color.FromArgb(245, 38, 38, 38)
+                : global::Windows.UI.Color.FromArgb(245, 250, 250, 250));
+    }
+
+    private static SystemBackdropTheme GetWindowsBackdropTheme()
+    {
+        var background = new UISettings().GetColorValue(UIColorType.Background);
+        return background.R + background.G + background.B < 384
+            ? SystemBackdropTheme.Dark
+            : SystemBackdropTheme.Light;
+    }
+
+    private void DisposeBackdrop()
+    {
+        PaletteRoot.ActualThemeChanged -= OnPaletteThemeChanged;
+        _acrylicController?.Dispose();
+        _acrylicController = null;
+        _backdropConfiguration = null;
+    }
+
+    private void QueueInputFocus() =>
+        DispatcherQueue.TryEnqueue(
+            Microsoft.UI.Dispatching.DispatcherQueuePriority.High,
+            () =>
+            {
+                _ = TimeInput.Focus(FocusState.Programmatic);
+                TimeInput.Select(TimeInput.Text.Length, 0);
+            });
+
+    private async Task ClearTransientStatusAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await Task.Delay(TransientFeedbackDuration, cancellationToken);
+            if (!cancellationToken.IsCancellationRequested)
+            {
+                FeedbackText.Visibility = Visibility.Collapsed;
+                FeedbackText.Text = string.Empty;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // A newer status or validation message owns the feedback area.
+        }
+    }
+
+    [DllImport("dwmapi.dll")]
+    private static extern int DwmSetWindowAttribute(
+        nint window,
+        int attribute,
+        ref int value,
+        int valueSize);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool BringWindowToTop(nint window);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool SetForegroundWindow(nint window);
 }

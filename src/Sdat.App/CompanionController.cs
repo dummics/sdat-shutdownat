@@ -54,8 +54,13 @@ internal sealed class CompanionController : IDisposable
         }
 
         _palette = new QuickPaletteWindow(_runtime);
-        _palette.Closed += (_, _) => _palette = null;
-        _palette.Activate();
+        _nativeWindow.SetPaletteEscapeHotkey(enabled: true);
+        _palette.Closed += (_, _) =>
+        {
+            _nativeWindow.SetPaletteEscapeHotkey(enabled: false);
+            _palette = null;
+        };
+        _palette.ShowAndFocus();
     }
 
     public void Dispose()
@@ -74,6 +79,7 @@ internal sealed class CompanionController : IDisposable
     private sealed class NativeCompanionWindow : IDisposable
     {
         private const int HotkeyId = 0x5344;
+        private const int PaletteEscapeHotkeyId = 0x5345;
         private const uint ModAlt = 0x0001;
         private const uint ModControl = 0x0002;
         private const uint ModShift = 0x0004;
@@ -83,6 +89,7 @@ internal sealed class CompanionController : IDisposable
         private const uint WmCommand = 0x0111;
         private const uint WmRightButtonUp = 0x0205;
         private const uint WmLeftButtonDoubleClick = 0x0203;
+        private const uint VirtualKeyEscape = 0x1B;
         private const uint TrayMessage = 0x8001;
         private const uint NimAdd = 0x00000000;
         private const uint NimDelete = 0x00000002;
@@ -106,6 +113,7 @@ internal sealed class CompanionController : IDisposable
         private NotificationIconData _iconData;
         private HotkeyGesture? _registeredHotkey;
         private bool _trayIconVisible;
+        private bool _paletteEscapeHotkeyRegistered;
 
         public NativeCompanionWindow(
             Action showPalette,
@@ -212,6 +220,27 @@ internal sealed class CompanionController : IDisposable
             _trayIconVisible = false;
         }
 
+        public void SetPaletteEscapeHotkey(bool enabled)
+        {
+            if (enabled == _paletteEscapeHotkeyRegistered)
+            {
+                return;
+            }
+
+            if (enabled)
+            {
+                _paletteEscapeHotkeyRegistered = RegisterHotKey(
+                    _window,
+                    PaletteEscapeHotkeyId,
+                    ModNoRepeat,
+                    VirtualKeyEscape);
+                return;
+            }
+
+            UnregisterHotKey(_window, PaletteEscapeHotkeyId);
+            _paletteEscapeHotkeyRegistered = false;
+        }
+
         private bool TryRegisterHotkey(HotkeyGesture hotkey)
         {
             if (!RegisterHotKey(
@@ -260,6 +289,11 @@ internal sealed class CompanionController : IDisposable
                 UnregisterHotKey(_window, HotkeyId);
                 _registeredHotkey = null;
             }
+            if (_paletteEscapeHotkeyRegistered)
+            {
+                UnregisterHotKey(_window, PaletteEscapeHotkeyId);
+                _paletteEscapeHotkeyRegistered = false;
+            }
             DestroyWindow(_window);
             _window = IntPtr.Zero;
             UnregisterClass(_className, GetModuleHandle(null));
@@ -283,6 +317,11 @@ internal sealed class CompanionController : IDisposable
         private IntPtr WindowProc(IntPtr window, uint message, IntPtr wParam, IntPtr lParam)
         {
             if (message == WmHotkey && wParam.ToInt32() == HotkeyId)
+            {
+                _showPalette();
+                return IntPtr.Zero;
+            }
+            if (message == WmHotkey && wParam.ToInt32() == PaletteEscapeHotkeyId)
             {
                 _showPalette();
                 return IntPtr.Zero;

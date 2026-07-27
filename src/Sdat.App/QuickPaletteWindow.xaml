@@ -5,13 +5,19 @@
     <Border
         x:Name="PaletteRoot"
         Padding="12"
-        CornerRadius="10"
+        CornerRadius="14"
         Opacity="0"
-        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+        Background="Transparent"
+        BorderBrush="Transparent"
         BorderThickness="1"
+        RenderTransformOrigin="0.5,0.5"
         Loaded="OnPaletteLoaded"
         PreviewKeyDown="OnKeyDown">
+        <Border.RenderTransform>
+            <TranslateTransform
+                x:Name="PaletteTransform"
+                Y="14" />
+        </Border.RenderTransform>
         <Border.Resources>
             <Storyboard x:Name="FadeInStoryboard">
                 <DoubleAnimation
@@ -19,7 +25,17 @@
                     Storyboard.TargetProperty="Opacity"
                     From="0"
                     To="1"
-                    Duration="0:0:0.14">
+                    Duration="0:0:0.22">
+                    <DoubleAnimation.EasingFunction>
+                        <QuadraticEase EasingMode="EaseOut" />
+                    </DoubleAnimation.EasingFunction>
+                </DoubleAnimation>
+                <DoubleAnimation
+                    Storyboard.TargetName="PaletteTransform"
+                    Storyboard.TargetProperty="Y"
+                    From="14"
+                    To="0"
+                    Duration="0:0:0.22">
                     <DoubleAnimation.EasingFunction>
                         <QuadraticEase EasingMode="EaseOut" />
                     </DoubleAnimation.EasingFunction>
@@ -31,46 +47,70 @@
                     Storyboard.TargetProperty="Opacity"
                     From="1"
                     To="0"
-                    Duration="0:0:0.10">
+                    Duration="0:0:0.16">
+                    <DoubleAnimation.EasingFunction>
+                        <QuadraticEase EasingMode="EaseIn" />
+                    </DoubleAnimation.EasingFunction>
+                </DoubleAnimation>
+                <DoubleAnimation
+                    Storyboard.TargetName="PaletteTransform"
+                    Storyboard.TargetProperty="Y"
+                    From="0"
+                    To="10"
+                    Duration="0:0:0.16">
                     <DoubleAnimation.EasingFunction>
                         <QuadraticEase EasingMode="EaseIn" />
                     </DoubleAnimation.EasingFunction>
                 </DoubleAnimation>
             </Storyboard>
         </Border.Resources>
-        <Grid ColumnSpacing="10" RowSpacing="6" VerticalAlignment="Center">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
-            </Grid.RowDefinitions>
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="120" />
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
-            <ComboBox x:Name="ActionPicker" SelectedIndex="0" VerticalAlignment="Center">
-                <ComboBoxItem x:Uid="ShutdownAction" Content="Shut down" Tag="Shutdown" />
-                <ComboBoxItem x:Uid="SuspendAction" Content="Suspend" Tag="Suspend" />
-                <ComboBoxItem x:Uid="RestartAction" Content="Restart" Tag="Restart" />
-            </ComboBox>
-            <TextBox
-                Grid.Column="1"
-                x:Name="TimeInput"
-                x:Uid="TimeInput"
-                PlaceholderText="36m or 23:41"
-                TextChanged="OnTimeInputChanged"
-                VerticalAlignment="Center" />
-            <Button
-                Grid.Column="2"
-                x:Uid="ScheduleButton"
-                Content="Schedule"
-                Style="{ThemeResource AccentButtonStyle}"
-                Click="OnSchedule"
-                VerticalAlignment="Center" />
+        <Grid>
             <Grid
-                Grid.Row="1"
-                Grid.ColumnSpan="3"
+                ColumnSpacing="10"
+                VerticalAlignment="Center">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="120" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <ComboBox x:Name="ActionPicker" SelectedIndex="0" VerticalAlignment="Center">
+                    <ComboBoxItem x:Uid="ShutdownAction" Content="Shut down" Tag="Shutdown" />
+                    <ComboBoxItem x:Uid="SuspendAction" Content="Suspend" Tag="Suspend" />
+                    <ComboBoxItem x:Uid="RestartAction" Content="Restart" Tag="Restart" />
+                </ComboBox>
+                <Border
+                    Grid.Column="1"
+                    x:Name="TimeInputFrame"
+                    Height="33"
+                    CornerRadius="4"
+                    Background="{ThemeResource ControlFillColorDefaultBrush}"
+                    BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
+                    BorderThickness="1"
+                    VerticalAlignment="Center">
+                    <TextBox
+                        x:Name="TimeInput"
+                        x:Uid="TimeInput"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Padding="10,4,10,5"
+                        PlaceholderText="36m or 23:41"
+                        TextChanged="OnTimeInputChanged"
+                        GotFocus="OnTimeInputGotFocus"
+                        LostFocus="OnTimeInputLostFocus"
+                        VerticalAlignment="Center" />
+                </Border>
+                <Button
+                    Grid.Column="2"
+                    x:Uid="ScheduleButton"
+                    Content="Schedule"
+                    Style="{ThemeResource AccentButtonStyle}"
+                    Click="OnSchedule"
+                    VerticalAlignment="Center" />
+            </Grid>
+            <Grid
+                Height="32"
                 ColumnSpacing="8">
+                <Grid.VerticalAlignment>Bottom</Grid.VerticalAlignment>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
