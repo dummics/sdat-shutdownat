@@ -62,6 +62,22 @@ public sealed partial class QuickPaletteWindow : Window
             presenter.SetBorderAndTitleBar(hasBorder: false, hasTitleBar: false);
         }
 
+        ApplyNativeWindowStyle();
+        ResizePalette(ValidationHeight);
+    }
+
+    public void ShowAndFocus()
+    {
+        AppWindow.Show(activateWindow: true);
+        Activate();
+        ApplyNativeWindowStyle();
+        _ = BringWindowToTop(_windowHandle);
+        _ = SetForegroundWindow(_windowHandle);
+        QueueInputFocus();
+    }
+
+    private void ApplyNativeWindowStyle()
+    {
         var cornerPreference = DwmWindowCornerRound;
         _ = DwmSetWindowAttribute(
             _windowHandle,
@@ -74,16 +90,6 @@ public sealed partial class QuickPaletteWindow : Window
             DwmWindowBorderColor,
             ref borderColor,
             sizeof(int));
-        ResizePalette(ValidationHeight);
-    }
-
-    public void ShowAndFocus()
-    {
-        AppWindow.Show(activateWindow: true);
-        Activate();
-        _ = BringWindowToTop(_windowHandle);
-        _ = SetForegroundWindow(_windowHandle);
-        QueueInputFocus();
     }
 
     private void ResizePalette(int height)
@@ -313,6 +319,7 @@ public sealed partial class QuickPaletteWindow : Window
     {
         if (args.WindowActivationState != WindowActivationState.Deactivated)
         {
+            ApplyNativeWindowStyle();
             QueueInputFocus();
         }
     }
