@@ -22,7 +22,9 @@ public sealed partial class QuickPaletteWindow : Window
     private const int CompactWidth = 480;
     private const int ValidationHeight = 116;
     private const int DwmWindowCornerPreference = 33;
+    private const int DwmWindowBorderColor = 34;
     private const int DwmWindowCornerRound = 2;
+    private const int DwmColorNone = unchecked((int)0xFFFFFFFE);
     private static readonly TimeSpan TransientFeedbackDuration = TimeSpan.FromSeconds(2.2);
     private readonly SdatRuntime _runtime;
     private readonly bool _animationsEnabled = new UISettings().AnimationsEnabled;
@@ -65,6 +67,12 @@ public sealed partial class QuickPaletteWindow : Window
             _windowHandle,
             DwmWindowCornerPreference,
             ref cornerPreference,
+            sizeof(int));
+        var borderColor = DwmColorNone;
+        _ = DwmSetWindowAttribute(
+            _windowHandle,
+            DwmWindowBorderColor,
+            ref borderColor,
             sizeof(int));
         ResizePalette(ValidationHeight);
     }
