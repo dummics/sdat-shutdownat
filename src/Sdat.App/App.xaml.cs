@@ -59,9 +59,10 @@ public partial class App : Application
             try
             {
                 var runtime = await SdatRuntime.CreateAsync(Environment.ProcessPath!);
-                _window = new QuickPaletteWindow(runtime);
+                var palette = new QuickPaletteWindow(runtime);
+                _window = palette;
                 _window.Closed += (_, _) => Exit();
-                _window.Activate();
+                palette.ShowAndFocus();
             }
             catch
             {

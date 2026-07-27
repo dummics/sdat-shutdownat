@@ -6,70 +6,43 @@
         x:Name="PaletteRoot"
         Padding="12"
         CornerRadius="14"
-        Opacity="0"
         Background="Transparent"
         BorderThickness="0"
-        RenderTransformOrigin="0.5,0.5"
         Loaded="OnPaletteLoaded"
         PreviewKeyDown="OnKeyDown">
-        <Border.RenderTransform>
-            <TranslateTransform
-                x:Name="PaletteTransform"
-                Y="14" />
-        </Border.RenderTransform>
-        <Border.Resources>
-            <Storyboard x:Name="FadeInStoryboard">
-                <DoubleAnimation
-                    Storyboard.TargetName="PaletteRoot"
-                    Storyboard.TargetProperty="Opacity"
-                    From="0"
-                    To="1"
-                    Duration="0:0:0.22">
-                    <DoubleAnimation.EasingFunction>
-                        <QuadraticEase EasingMode="EaseOut" />
-                    </DoubleAnimation.EasingFunction>
-                </DoubleAnimation>
-                <DoubleAnimation
-                    Storyboard.TargetName="PaletteTransform"
-                    Storyboard.TargetProperty="Y"
-                    From="14"
-                    To="0"
-                    Duration="0:0:0.22">
-                    <DoubleAnimation.EasingFunction>
-                        <QuadraticEase EasingMode="EaseOut" />
-                    </DoubleAnimation.EasingFunction>
-                </DoubleAnimation>
-            </Storyboard>
-            <Storyboard x:Name="FadeOutStoryboard" Completed="OnFadeOutCompleted">
-                <DoubleAnimation
-                    Storyboard.TargetName="PaletteRoot"
-                    Storyboard.TargetProperty="Opacity"
-                    From="1"
-                    To="0"
-                    Duration="0:0:0.16">
-                    <DoubleAnimation.EasingFunction>
-                        <QuadraticEase EasingMode="EaseIn" />
-                    </DoubleAnimation.EasingFunction>
-                </DoubleAnimation>
-                <DoubleAnimation
-                    Storyboard.TargetName="PaletteTransform"
-                    Storyboard.TargetProperty="Y"
-                    From="0"
-                    To="10"
-                    Duration="0:0:0.16">
-                    <DoubleAnimation.EasingFunction>
-                        <QuadraticEase EasingMode="EaseIn" />
-                    </DoubleAnimation.EasingFunction>
-                </DoubleAnimation>
-            </Storyboard>
-        </Border.Resources>
         <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+            <Border
+                Grid.Row="0"
+                x:Name="FeedbackPanel"
+                MaxWidth="510"
+                MaxHeight="44"
+                Margin="0,0,0,7"
+                Padding="10,5"
+                HorizontalAlignment="Center"
+                CornerRadius="7"
+                Background="{ThemeResource ControlFillColorSecondaryBrush}"
+                Visibility="Collapsed">
+                <TextBlock
+                    x:Name="FeedbackText"
+                    MaxLines="2"
+                    TextTrimming="CharacterEllipsis"
+                    TextWrapping="Wrap"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            </Border>
             <Grid
+                Grid.Row="1"
                 ColumnSpacing="10"
                 VerticalAlignment="Center">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="120" />
                     <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <ComboBox x:Name="ActionPicker" SelectedIndex="0" VerticalAlignment="Center">
@@ -105,28 +78,14 @@
                     Style="{ThemeResource AccentButtonStyle}"
                     Click="OnSchedule"
                     VerticalAlignment="Center" />
-            </Grid>
-            <Grid
-                Height="32"
-                ColumnSpacing="8">
-                <Grid.VerticalAlignment>Bottom</Grid.VerticalAlignment>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
-                <TextBlock
-                    x:Name="FeedbackText"
-                    Visibility="Collapsed"
-                    TextWrapping="Wrap"
-                    VerticalAlignment="Center"
-                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                 <Button
-                    Grid.Column="1"
+                    Grid.Column="3"
                     x:Name="PaletteCancelButton"
                     x:Uid="PaletteCancelButton"
                     Content="Cancel"
                     Visibility="Collapsed"
-                    Click="OnCancelSchedule" />
+                    Click="OnCancelSchedule"
+                    VerticalAlignment="Center" />
             </Grid>
         </Grid>
     </Border>

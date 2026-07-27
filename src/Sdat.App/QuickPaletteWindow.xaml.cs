@@ -6,7 +6,6 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
-using Microsoft.UI.Xaml.Media.Animation;
 using System.Runtime.InteropServices;
 using Sdat.Core.Scheduling;
 using Sdat.Windows.Hosting;
@@ -19,8 +18,9 @@ namespace Sdat.App;
 
 public sealed partial class QuickPaletteWindow : Window
 {
-    private const int CompactWidth = 480;
+    private const int CompactWidth = 560;
     private const int ValidationHeight = 116;
+    private const int PaletteCornerRadiusDip = 14;
     private const int DwmWindowCornerPreference = 33;
     private const int DwmWindowBorderColor = 34;
     private const int DwmWindowCornerRound = 2;
@@ -28,14 +28,23 @@ public sealed partial class QuickPaletteWindow : Window
     private const int WindowStyleIndex = -16;
     private const long WindowFrameStyleMask = 0x00CC0000; // WS_BORDER | WS_DLGFRAME | WS_SYSMENU | WS_THICKFRAME
     private const uint FrameChangedFlags = 0x0037; // SWP_FRAMECHANGED | SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER
+    private const uint AnimateWindowHide = 0x00010000;
+    private const uint AnimateWindowActivate = 0x00020000;
+    private const uint AnimateWindowBlend = 0x00080000;
+    private const uint FadeInMilliseconds = 220;
+    private const uint FadeOutMilliseconds = 160;
+    private const int OffscreenCoordinate = -32000;
     private static readonly TimeSpan TransientFeedbackDuration = TimeSpan.FromSeconds(2.2);
     private readonly SdatRuntime _runtime;
     private readonly bool _animationsEnabled = new UISettings().AnimationsEnabled;
     private readonly nint _windowHandle;
     private DesktopAcrylicController? _acrylicController;
     private SystemBackdropConfiguration? _backdropConfiguration;
+    private readonly TaskCompletionSource _paletteReady =
+        new(TaskCreationOptions.RunContinuationsAsynchronously);
     private bool _allowClose;
     private bool _isClosing;
+    private bool _showInProgress;
     private string? _validationInputText;
     private ScheduleSnapshot? _activeSchedule;
     private CancellationTokenSource? _feedbackResetCancellation;
@@ -69,14 +78,44 @@ public sealed partial class QuickPaletteWindow : Window
         ResizePalette(ValidationHeight);
     }
 
-    public void ShowAndFocus()
+    public async void ShowAndFocus()
     {
-        AppWindow.Show(activateWindow: true);
-        Activate();
+        if (_showInProgress || _isClosing)
+        {
+            return;
+        }
+
+        _showInProgress = true;
+        AppWindow.MoveAndResize(new RectInt32(
+            OffscreenCoordinate,
+            OffscreenCoordinate,
+            CompactWidth,
+            ValidationHeight));
+        ApplyRoundedWindowRegion(CompactWidth, ValidationHeight);
+        AppWindow.Show(activateWindow: false);
+
+        await _paletteReady.Task;
+        if (_isClosing)
+        {
+            return;
+        }
+
+        // Pre-render XAML and acrylic away from the desktop so the complete
+        // palette appears together instead of exposing an empty black HWND.
+        await Task.Delay(32);
+        if (_isClosing)
+        {
+            return;
+        }
+
+        AppWindow.Hide();
+        ResizePalette(ValidationHeight);
         ApplyNativeWindowStyle();
+        ShowNativeWindow();
         _ = BringWindowToTop(_windowHandle);
         _ = SetForegroundWindow(_windowHandle);
         QueueInputFocus();
+        _showInProgress = false;
     }
 
     private void ApplyNativeWindowStyle()
@@ -113,6 +152,29 @@ public sealed partial class QuickPaletteWindow : Window
             sizeof(int));
     }
 
+    private void ApplyRoundedWindowRegion(int width, int height)
+    {
+        var dpi = GetDpiForWindow(_windowHandle);
+        var diameter = (int)Math.Round(
+            PaletteCornerRadiusDip * 2 * Math.Max(dpi, 96u) / 96d);
+        var region = CreateRoundRectRgn(
+            0,
+            0,
+            width + 1,
+            height + 1,
+            diameter,
+            diameter);
+        if (region == nint.Zero)
+        {
+            return;
+        }
+
+        if (SetWindowRgn(_windowHandle, region, redraw: true) == 0)
+        {
+            _ = DeleteObject(region);
+        }
+    }
+
     private void ResizePalette(int height)
     {
         var display = DisplayArea.GetFromWindowId(AppWindow.Id, DisplayAreaFallback.Primary);
@@ -122,24 +184,15 @@ public sealed partial class QuickPaletteWindow : Window
             workArea.Y + workArea.Height - height - 28,
             CompactWidth,
             height));
+        ApplyRoundedWindowRegion(CompactWidth, height);
     }
 
     private async void OnPaletteLoaded(object sender, RoutedEventArgs e)
     {
         PaletteRoot.ActualThemeChanged += OnPaletteThemeChanged;
         UpdateBackdropTheme();
-        if (_animationsEnabled)
-        {
-            FadeInStoryboard.Begin();
-        }
-        else
-        {
-            PaletteRoot.Opacity = 1;
-            PaletteTransform.Y = 0;
-        }
-
         await RefreshActiveScheduleAsync();
-        QueueInputFocus();
+        _paletteReady.TrySetResult();
     }
 
     private void OnWindowClosing(AppWindow sender, AppWindowClosingEventArgs args)
@@ -158,13 +211,28 @@ public sealed partial class QuickPaletteWindow : Window
         _isClosing = true;
         _feedbackResetCancellation?.Cancel();
         PaletteRoot.IsHitTestVisible = false;
-        FadeOutStoryboard.Begin();
-    }
-
-    private void OnFadeOutCompleted(object? sender, object e)
-    {
+        if (!AnimateWindow(
+                _windowHandle,
+                FadeOutMilliseconds,
+                AnimateWindowHide | AnimateWindowBlend))
+        {
+            AppWindow.Hide();
+        }
         _allowClose = true;
         Close();
+    }
+
+    private void ShowNativeWindow()
+    {
+        if (!_animationsEnabled ||
+            !AnimateWindow(
+                _windowHandle,
+                FadeInMilliseconds,
+                AnimateWindowActivate | AnimateWindowBlend))
+        {
+            AppWindow.Show(activateWindow: true);
+            Activate();
+        }
     }
 
     private async void OnSchedule(object sender, RoutedEventArgs e) => await ScheduleAsync();
@@ -218,7 +286,7 @@ public sealed partial class QuickPaletteWindow : Window
 
     private void OnTimeInputChanged(object sender, TextChangedEventArgs e)
     {
-        if (FeedbackText.Visibility == Visibility.Visible &&
+        if (FeedbackPanel.Visibility == Visibility.Visible &&
             FeedbackText.Foreground == (Brush)Application.Current.Resources["SystemFillColorCriticalBrush"] &&
             !string.Equals(TimeInput.Text, _validationInputText, StringComparison.Ordinal))
         {
@@ -232,14 +300,14 @@ public sealed partial class QuickPaletteWindow : Window
         _validationInputText = TimeInput.Text;
         FeedbackText.Text = message;
         FeedbackText.Foreground = (Brush)Application.Current.Resources["SystemFillColorCriticalBrush"];
-        FeedbackText.Visibility = Visibility.Visible;
+        FeedbackPanel.Visibility = Visibility.Visible;
     }
 
     private void ClearValidation()
     {
         _feedbackResetCancellation?.Cancel();
         _validationInputText = null;
-        FeedbackText.Visibility = Visibility.Collapsed;
+        FeedbackPanel.Visibility = Visibility.Collapsed;
         FeedbackText.Text = string.Empty;
         FeedbackText.Foreground = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"];
     }
@@ -250,7 +318,7 @@ public sealed partial class QuickPaletteWindow : Window
         _validationInputText = null;
         FeedbackText.Text = message;
         FeedbackText.Foreground = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"];
-        FeedbackText.Visibility = Visibility.Visible;
+        FeedbackPanel.Visibility = Visibility.Visible;
         _feedbackResetCancellation = new CancellationTokenSource();
         _ = ClearTransientStatusAsync(_feedbackResetCancellation.Token);
     }
@@ -432,7 +500,7 @@ public sealed partial class QuickPaletteWindow : Window
             await Task.Delay(TransientFeedbackDuration, cancellationToken);
             if (!cancellationToken.IsCancellationRequested)
             {
-                FeedbackText.Visibility = Visibility.Collapsed;
+                FeedbackPanel.Visibility = Visibility.Collapsed;
                 FeedbackText.Text = string.Empty;
             }
         }
@@ -473,4 +541,30 @@ public sealed partial class QuickPaletteWindow : Window
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool SetForegroundWindow(nint window);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool AnimateWindow(nint window, uint time, uint flags);
+
+    [DllImport("user32.dll")]
+    private static extern uint GetDpiForWindow(nint window);
+
+    [DllImport("gdi32.dll")]
+    private static extern nint CreateRoundRectRgn(
+        int left,
+        int top,
+        int right,
+        int bottom,
+        int widthEllipse,
+        int heightEllipse);
+
+    [DllImport("user32.dll")]
+    private static extern int SetWindowRgn(
+        nint window,
+        nint region,
+        [MarshalAs(UnmanagedType.Bool)] bool redraw);
+
+    [DllImport("gdi32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool DeleteObject(nint value);
 }
