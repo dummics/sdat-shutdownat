@@ -89,6 +89,9 @@ try {
     foreach ($file in @("README.md", "CHANGELOG.md", "ROADMAP.md", "SECURITY.md", "LICENSE", "THIRD-PARTY-NOTICES.md")) {
         Copy-Item -LiteralPath (Join-Path $root $file) -Destination $packageDocsRoot -Force
     }
+    $packageDocsAssetsRoot = Join-Path $packageDocsRoot "assets"
+    New-Item -ItemType Directory -Path $packageDocsAssetsRoot -Force | Out-Null
+    Copy-Item -LiteralPath (Join-Path $root "assets\sdat_logo_256.png") -Destination $packageDocsAssetsRoot -Force
     Copy-Item -LiteralPath (Join-Path $root "install.ps1") -Destination $packageScriptsRoot -Force
     Copy-Item -LiteralPath (Join-Path $root "uninstall.ps1") -Destination $packageScriptsRoot -Force
     Copy-Item -LiteralPath (Join-Path $root "Install SDAT.cmd") -Destination $packageRoot -Force

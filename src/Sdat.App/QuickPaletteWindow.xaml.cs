@@ -20,14 +20,10 @@ public sealed partial class QuickPaletteWindow : Window
 {
     private const int CompactWidth = 560;
     private const int ValidationHeight = 116;
-    private const int PaletteCornerRadiusDip = 14;
     private const int DwmWindowCornerPreference = 33;
     private const int DwmWindowBorderColor = 34;
     private const int DwmWindowCornerRound = 2;
-    private const int DwmColorNone = unchecked((int)0xFFFFFFFE);
-    private const int WindowStyleIndex = -16;
-    private const long WindowFrameStyleMask = 0x00CC0000; // WS_BORDER | WS_DLGFRAME | WS_SYSMENU | WS_THICKFRAME
-    private const uint FrameChangedFlags = 0x0037; // SWP_FRAMECHANGED | SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER
+    private const int DwmColorDefault = unchecked((int)0xFFFFFFFF);
     private const uint AnimateWindowHide = 0x00010000;
     private const uint AnimateWindowActivate = 0x00020000;
     private const uint AnimateWindowBlend = 0x00080000;
@@ -71,7 +67,7 @@ public sealed partial class QuickPaletteWindow : Window
             presenter.IsMaximizable = false;
             presenter.IsMinimizable = false;
             presenter.IsAlwaysOnTop = true;
-            presenter.SetBorderAndTitleBar(hasBorder: false, hasTitleBar: false);
+            presenter.SetBorderAndTitleBar(hasBorder: true, hasTitleBar: false);
         }
 
         ApplyNativeWindowStyle();
@@ -91,7 +87,6 @@ public sealed partial class QuickPaletteWindow : Window
             OffscreenCoordinate,
             CompactWidth,
             ValidationHeight));
-        ApplyRoundedWindowRegion(CompactWidth, ValidationHeight);
         AppWindow.Show(activateWindow: false);
 
         await _paletteReady.Task;
@@ -120,59 +115,18 @@ public sealed partial class QuickPaletteWindow : Window
 
     private void ApplyNativeWindowStyle()
     {
-        var currentStyle = GetWindowLongPtr(_windowHandle, WindowStyleIndex).ToInt64();
-        var borderlessStyle = currentStyle & ~WindowFrameStyleMask;
-        if (borderlessStyle != currentStyle)
-        {
-            _ = SetWindowLongPtr(
-                _windowHandle,
-                WindowStyleIndex,
-                new nint(borderlessStyle));
-            _ = SetWindowPos(
-                _windowHandle,
-                nint.Zero,
-                0,
-                0,
-                0,
-                0,
-                FrameChangedFlags);
-        }
-
         var cornerPreference = DwmWindowCornerRound;
         _ = DwmSetWindowAttribute(
             _windowHandle,
             DwmWindowCornerPreference,
             ref cornerPreference,
             sizeof(int));
-        var borderColor = DwmColorNone;
+        var borderColor = DwmColorDefault;
         _ = DwmSetWindowAttribute(
             _windowHandle,
             DwmWindowBorderColor,
             ref borderColor,
             sizeof(int));
-    }
-
-    private void ApplyRoundedWindowRegion(int width, int height)
-    {
-        var dpi = GetDpiForWindow(_windowHandle);
-        var diameter = (int)Math.Round(
-            PaletteCornerRadiusDip * 2 * Math.Max(dpi, 96u) / 96d);
-        var region = CreateRoundRectRgn(
-            0,
-            0,
-            width + 1,
-            height + 1,
-            diameter,
-            diameter);
-        if (region == nint.Zero)
-        {
-            return;
-        }
-
-        if (SetWindowRgn(_windowHandle, region, redraw: true) == 0)
-        {
-            _ = DeleteObject(region);
-        }
     }
 
     private void ResizePalette(int height)
@@ -184,7 +138,6 @@ public sealed partial class QuickPaletteWindow : Window
             workArea.Y + workArea.Height - height - 28,
             CompactWidth,
             height));
-        ApplyRoundedWindowRegion(CompactWidth, height);
     }
 
     private async void OnPaletteLoaded(object sender, RoutedEventArgs e)
@@ -517,23 +470,6 @@ public sealed partial class QuickPaletteWindow : Window
         ref int value,
         int valueSize);
 
-    [DllImport("user32.dll", EntryPoint = "GetWindowLongPtrW")]
-    private static extern nint GetWindowLongPtr(nint window, int index);
-
-    [DllImport("user32.dll", EntryPoint = "SetWindowLongPtrW")]
-    private static extern nint SetWindowLongPtr(nint window, int index, nint newLong);
-
-    [DllImport("user32.dll")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool SetWindowPos(
-        nint window,
-        nint insertAfter,
-        int x,
-        int y,
-        int width,
-        int height,
-        uint flags);
-
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool BringWindowToTop(nint window);
@@ -546,25 +482,4 @@ public sealed partial class QuickPaletteWindow : Window
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool AnimateWindow(nint window, uint time, uint flags);
 
-    [DllImport("user32.dll")]
-    private static extern uint GetDpiForWindow(nint window);
-
-    [DllImport("gdi32.dll")]
-    private static extern nint CreateRoundRectRgn(
-        int left,
-        int top,
-        int right,
-        int bottom,
-        int widthEllipse,
-        int heightEllipse);
-
-    [DllImport("user32.dll")]
-    private static extern int SetWindowRgn(
-        nint window,
-        nint region,
-        [MarshalAs(UnmanagedType.Bool)] bool redraw);
-
-    [DllImport("gdi32.dll")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool DeleteObject(nint value);
 }

@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/sdat_logo_256.png" alt="ShutdownAT logo" width="160">
+</p>
+
 # ShutdownAT (SDAT) — Windows power scheduling without friction
 
 [![CI](https://github.com/dummics/sdat-shutdownat/actions/workflows/ci.yml/badge.svg)](https://github.com/dummics/sdat-shutdownat/actions/workflows/ci.yml)

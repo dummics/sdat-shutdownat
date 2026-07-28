@@ -14,6 +14,7 @@ All notable user-facing changes to SDAT are documented here.
 - Made the quick-scheduler hotkey available whenever ShutdownAT is open, turned it into an open/close toggle, and tightened the palette with reduced-motion-aware fade transitions.
 - Refined the quick palette with reliable foreground text focus, global Escape dismissal while visible, a fixed non-draggable layout, persistent desktop acrylic when unfocused, no bright window outline, a clean acrylic edge, stronger entrance/exit motion, and transient success feedback that does not reappear on reopen.
 - Refined quick-palette opening so its acrylic surface and controls fade in as one pre-rendered window, clipped the native surface to the same rounded shape, widened the compact layout, and moved transient feedback above the controls to prevent clipping or overlap.
+- Restored the native Windows 11 border and DWM shadow around the quick palette, and adopted the official ShutdownAT logo for the executable, Start shortcuts, tray icon, package documentation, and repository README.
 - Added an easy-to-find developer section with a backend-enforced safe test mode, synthetic notification/countdown previews, configurable rolling local logging, log/data shortcuts, and a compact diagnostic report.
 - Made in-app status messages compact, dismissible, and self-closing, and made synthetic Windows test notifications transient.
 - Kept Windows reminder actions registered across scheduled task processes so Cancel and Open ShutdownAT remain actionable.

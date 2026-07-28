@@ -152,7 +152,7 @@ internal sealed class CompanionController : IDisposable
                 Id = 1,
                 Flags = NifMessage | NifIcon | NifTip,
                 CallbackMessage = TrayMessage,
-                Icon = LoadIcon(IntPtr.Zero, DefaultApplicationIcon),
+                Icon = LoadIcon(GetModuleHandle(null), DefaultApplicationIcon),
                 Tip = AppText.Get("TrayTooltip", "ShutdownAT power scheduler"),
                 Info = string.Empty,
                 InfoTitle = string.Empty,
@@ -306,7 +306,9 @@ internal sealed class CompanionController : IDisposable
                 Size = (uint)Marshal.SizeOf<WindowClass>(),
                 WindowProcedure = Marshal.GetFunctionPointerForDelegate(_windowProcedure),
                 Instance = GetModuleHandle(null),
+                Icon = LoadIcon(GetModuleHandle(null), DefaultApplicationIcon),
                 ClassName = _className,
+                SmallIcon = LoadIcon(GetModuleHandle(null), DefaultApplicationIcon),
             };
             if (RegisterClassEx(ref windowClass) == 0)
             {
