@@ -26,8 +26,8 @@ public sealed partial class QuickPaletteWindow : Window
     private const int VerticalHeight = 218;
     private const int ScreenEdgeGap = 28;
     private const int FeedbackGap = 8;
-    private const int MorphDurationMilliseconds = 120;
-    private const int MorphFrameCount = 6;
+    private const int MorphDurationMilliseconds = 100;
+    private const int MorphFrameCount = 5;
     private const int DwmWindowCornerPreference = 33;
     private const int DwmWindowBorderColor = 34;
     private const int DwmWindowCornerRound = 2;
@@ -35,8 +35,8 @@ public sealed partial class QuickPaletteWindow : Window
     private const uint AnimateWindowHide = 0x00010000;
     private const uint AnimateWindowActivate = 0x00020000;
     private const uint AnimateWindowBlend = 0x00080000;
-    private const uint FadeInMilliseconds = 220;
-    private const uint FadeOutMilliseconds = 160;
+    private const uint FadeInMilliseconds = 140;
+    private const uint FadeOutMilliseconds = 100;
     private const int OffscreenCoordinate = -32000;
     private static readonly TimeSpan TransientFeedbackDuration = TimeSpan.FromSeconds(2.2);
     private readonly SdatRuntime _runtime;
