@@ -228,6 +228,8 @@ public sealed partial class MainWindow : Window
                 StartCompanionAtLogin = StartupToggle.IsOn,
                 DailyOverlapWindowMinutes = checked((int)DailyOverlapInput.Value),
                 PaletteHotkey = PaletteHotkeyInput.Text,
+                PalettePlacement =
+                    Enum.Parse<OverlayPlacement>(GetSelectedTag(PalettePlacementPicker)),
                 LogLevel = Enum.Parse<AppLogLevel>(GetSelectedTag(LogLevelPicker)),
                 DeveloperModeEnabled = DeveloperModeToggle.IsOn,
                 SimulationModeEnabled = DeveloperModeToggle.IsOn && SimulationModeToggle.IsOn,
@@ -607,6 +609,7 @@ public sealed partial class MainWindow : Window
             StartupToggle.IsOn = settings.StartCompanionAtLogin;
             DailyOverlapInput.Value = settings.DailyOverlapWindowMinutes;
             PaletteHotkeyInput.Text = settings.PaletteHotkey;
+            SelectTag(PalettePlacementPicker, settings.PalettePlacement.ToString());
             SelectTag(LogLevelPicker, settings.LogLevel.ToString());
             DeveloperModeToggle.IsOn = settings.DeveloperModeEnabled;
             SimulationModeToggle.IsOn = settings.IsTestMode;

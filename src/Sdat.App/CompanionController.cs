@@ -12,6 +12,7 @@ internal sealed class CompanionController : IDisposable
     private readonly DispatcherQueue _dispatcher;
     private readonly NativeCompanionWindow _nativeWindow;
     private QuickPaletteWindow? _palette;
+    private OverlayPlacement _palettePlacement;
     private bool _disposed;
 
     public CompanionController(
@@ -22,6 +23,7 @@ internal sealed class CompanionController : IDisposable
     {
         _runtime = runtime;
         _mainWindow = mainWindow;
+        _palettePlacement = runtime.CurrentSettings.PalettePlacement;
         _dispatcher = DispatcherQueue.GetForCurrentThread();
         _nativeWindow = new NativeCompanionWindow(
             () => Enqueue(ShowPalette),
@@ -37,6 +39,7 @@ internal sealed class CompanionController : IDisposable
     {
         _nativeWindow.UpdateHotkey(HotkeyGesture.Parse(settings.PaletteHotkey));
         _nativeWindow.UpdateTrayIconVisibility(showTrayIcon);
+        _palettePlacement = settings.PalettePlacement;
     }
 
     public void ShowMainWindow()
@@ -53,7 +56,7 @@ internal sealed class CompanionController : IDisposable
             return;
         }
 
-        _palette = new QuickPaletteWindow(_runtime);
+        _palette = new QuickPaletteWindow(_runtime, _palettePlacement);
         _nativeWindow.SetPaletteEscapeHotkey(enabled: true);
         _palette.Closed += (_, _) =>
         {

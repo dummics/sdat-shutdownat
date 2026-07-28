@@ -10,22 +10,20 @@
         BorderThickness="0"
         Loaded="OnPaletteLoaded"
         PreviewKeyDown="OnKeyDown">
-        <Grid>
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="*" />
-            </Grid.RowDefinitions>
+        <Grid x:Name="PaletteLayout">
             <Border
-                Grid.Row="0"
                 x:Name="FeedbackPanel"
-                MaxWidth="510"
+                MaxWidth="570"
                 MaxHeight="44"
-                Margin="0,0,0,7"
                 Padding="10,5"
                 HorizontalAlignment="Center"
                 CornerRadius="7"
                 Background="{ThemeResource ControlFillColorSecondaryBrush}"
+                Opacity="0"
                 Visibility="Collapsed">
+                <Border.RenderTransform>
+                    <TranslateTransform x:Name="FeedbackTransform" />
+                </Border.RenderTransform>
                 <TextBlock
                     x:Name="FeedbackText"
                     MaxLines="2"
@@ -36,8 +34,9 @@
                     Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
             </Border>
             <Grid
-                Grid.Row="1"
+                x:Name="CommandPanel"
                 ColumnSpacing="10"
+                HorizontalAlignment="Stretch"
                 VerticalAlignment="Center">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="120" />
@@ -73,6 +72,7 @@
                 </Border>
                 <Button
                     Grid.Column="2"
+                    x:Name="ScheduleButton"
                     x:Uid="ScheduleButton"
                     Content="Schedule"
                     Style="{ThemeResource AccentButtonStyle}"
@@ -81,8 +81,7 @@
                 <Button
                     Grid.Column="3"
                     x:Name="PaletteCancelButton"
-                    x:Uid="PaletteCancelButton"
-                    Content="Cancel"
+                    Content="Cancel schedule"
                     Visibility="Collapsed"
                     Click="OnCancelSchedule"
                     VerticalAlignment="Center" />

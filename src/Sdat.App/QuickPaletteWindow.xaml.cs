@@ -11,15 +11,23 @@ using Sdat.Core.Scheduling;
 using Sdat.Windows.Hosting;
 using WinRT.Interop;
 using Windows.Graphics;
+using Windows.Foundation;
 using Windows.System;
 using Windows.UI.ViewManagement;
+using Sdat.Core.Settings;
 
 namespace Sdat.App;
 
 public sealed partial class QuickPaletteWindow : Window
 {
-    private const int CompactWidth = 560;
-    private const int ValidationHeight = 116;
+    private const int HorizontalCompactWidth = 620;
+    private const int HorizontalCompactHeight = 116;
+    private const int HorizontalExpandedHeight = 168;
+    private const int VerticalCompactWidth = 300;
+    private const int VerticalExpandedWidth = 558;
+    private const int VerticalHeight = 218;
+    private const int ScreenEdgeGap = 28;
+    private const int MorphDurationMilliseconds = 180;
     private const int DwmWindowCornerPreference = 33;
     private const int DwmWindowBorderColor = 34;
     private const int DwmWindowCornerRound = 2;
@@ -32,6 +40,7 @@ public sealed partial class QuickPaletteWindow : Window
     private const int OffscreenCoordinate = -32000;
     private static readonly TimeSpan TransientFeedbackDuration = TimeSpan.FromSeconds(2.2);
     private readonly SdatRuntime _runtime;
+    private readonly OverlayPlacement _placement;
     private readonly bool _animationsEnabled = new UISettings().AnimationsEnabled;
     private readonly nint _windowHandle;
     private DesktopAcrylicController? _acrylicController;
@@ -41,14 +50,21 @@ public sealed partial class QuickPaletteWindow : Window
     private bool _allowClose;
     private bool _isClosing;
     private bool _showInProgress;
+    private bool _hasBeenActivated;
+    private bool _feedbackExpanded;
     private string? _validationInputText;
     private ScheduleSnapshot? _activeSchedule;
     private CancellationTokenSource? _feedbackResetCancellation;
+    private CancellationTokenSource? _morphCancellation;
 
-    public QuickPaletteWindow(SdatRuntime runtime)
+    public QuickPaletteWindow(
+        SdatRuntime runtime,
+        OverlayPlacement? placement = null)
     {
         _runtime = runtime;
+        _placement = placement ?? runtime.CurrentSettings.PalettePlacement;
         InitializeComponent();
+        ConfigurePaletteLayout();
         Title = AppText.Get("QuickPaletteTitle", "Quick schedule — ShutdownAT");
         ConfigureBackdrop();
         ExtendsContentIntoTitleBar = true;
@@ -71,7 +87,7 @@ public sealed partial class QuickPaletteWindow : Window
         }
 
         ApplyNativeWindowStyle();
-        ResizePalette(ValidationHeight);
+        MovePalette(expanded: false);
     }
 
     public async void ShowAndFocus()
@@ -82,11 +98,12 @@ public sealed partial class QuickPaletteWindow : Window
         }
 
         _showInProgress = true;
+        var compactBounds = GetPaletteBounds(expanded: false);
         AppWindow.MoveAndResize(new RectInt32(
             OffscreenCoordinate,
             OffscreenCoordinate,
-            CompactWidth,
-            ValidationHeight));
+            compactBounds.Width,
+            compactBounds.Height));
         AppWindow.Show(activateWindow: false);
 
         await _paletteReady.Task;
@@ -104,7 +121,7 @@ public sealed partial class QuickPaletteWindow : Window
         }
 
         AppWindow.Hide();
-        ResizePalette(ValidationHeight);
+        MovePalette(expanded: false);
         ApplyNativeWindowStyle();
         ShowNativeWindow();
         _ = BringWindowToTop(_windowHandle);
@@ -129,15 +146,117 @@ public sealed partial class QuickPaletteWindow : Window
             sizeof(int));
     }
 
-    private void ResizePalette(int height)
+    private bool UsesVerticalLayout =>
+        _placement is OverlayPlacement.LeftCenter or OverlayPlacement.RightCenter;
+
+    private bool GrowsTowardTop =>
+        _placement is OverlayPlacement.BottomCenter
+            or OverlayPlacement.BottomLeft
+            or OverlayPlacement.BottomRight;
+
+    private void ConfigurePaletteLayout()
+    {
+        CommandPanel.ColumnDefinitions.Clear();
+        CommandPanel.RowDefinitions.Clear();
+
+        if (UsesVerticalLayout)
+        {
+            CommandPanel.Width = VerticalCompactWidth - 24;
+            CommandPanel.HorizontalAlignment = _placement == OverlayPlacement.LeftCenter
+                ? HorizontalAlignment.Left
+                : HorizontalAlignment.Right;
+            CommandPanel.VerticalAlignment = VerticalAlignment.Center;
+            CommandPanel.ColumnSpacing = 0;
+            CommandPanel.RowSpacing = 10;
+            CommandPanel.ColumnDefinitions.Add(new ColumnDefinition());
+            for (var row = 0; row < 4; row++)
+            {
+                CommandPanel.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            }
+
+            PlaceCommandControl(ActionPicker, row: 0);
+            PlaceCommandControl(TimeInputFrame, row: 1);
+            PlaceCommandControl(ScheduleButton, row: 2);
+            PlaceCommandControl(PaletteCancelButton, row: 3);
+            ActionPicker.HorizontalAlignment = HorizontalAlignment.Stretch;
+            ScheduleButton.HorizontalAlignment = HorizontalAlignment.Stretch;
+            PaletteCancelButton.HorizontalAlignment = HorizontalAlignment.Stretch;
+
+            FeedbackPanel.Width = 238;
+            FeedbackPanel.HorizontalAlignment = _placement == OverlayPlacement.LeftCenter
+                ? HorizontalAlignment.Right
+                : HorizontalAlignment.Left;
+            FeedbackPanel.VerticalAlignment = VerticalAlignment.Center;
+            return;
+        }
+
+        CommandPanel.ColumnSpacing = 10;
+        CommandPanel.RowSpacing = 0;
+        CommandPanel.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(120) });
+        CommandPanel.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        CommandPanel.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        CommandPanel.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        CommandPanel.RowDefinitions.Add(new RowDefinition());
+        PlaceCommandControl(ActionPicker, column: 0);
+        PlaceCommandControl(TimeInputFrame, column: 1);
+        PlaceCommandControl(ScheduleButton, column: 2);
+        PlaceCommandControl(PaletteCancelButton, column: 3);
+
+        CommandPanel.VerticalAlignment = GrowsTowardTop
+            ? VerticalAlignment.Bottom
+            : VerticalAlignment.Top;
+        CommandPanel.Margin = GrowsTowardTop
+            ? new Thickness(0, 0, 0, 29)
+            : new Thickness(0, 29, 0, 0);
+        FeedbackPanel.VerticalAlignment = GrowsTowardTop
+            ? VerticalAlignment.Bottom
+            : VerticalAlignment.Top;
+        FeedbackPanel.Margin = GrowsTowardTop
+            ? new Thickness(0, 0, 0, 69)
+            : new Thickness(0, 69, 0, 0);
+    }
+
+    private static void PlaceCommandControl(
+        FrameworkElement element,
+        int row = 0,
+        int column = 0)
+    {
+        Grid.SetRow(element, row);
+        Grid.SetColumn(element, column);
+    }
+
+    private void MovePalette(bool expanded) =>
+        AppWindow.MoveAndResize(GetPaletteBounds(expanded));
+
+    private RectInt32 GetPaletteBounds(bool expanded)
     {
         var display = DisplayArea.GetFromWindowId(AppWindow.Id, DisplayAreaFallback.Primary);
         var workArea = display.WorkArea;
-        AppWindow.MoveAndResize(new RectInt32(
-            workArea.X + (workArea.Width - CompactWidth) / 2,
-            workArea.Y + workArea.Height - height - 28,
-            CompactWidth,
-            height));
+        var width = UsesVerticalLayout
+            ? expanded ? VerticalExpandedWidth : VerticalCompactWidth
+            : HorizontalCompactWidth;
+        var height = UsesVerticalLayout
+            ? VerticalHeight
+            : expanded ? HorizontalExpandedHeight : HorizontalCompactHeight;
+
+        var x = _placement switch
+        {
+            OverlayPlacement.TopLeft or OverlayPlacement.BottomLeft or OverlayPlacement.LeftCenter =>
+                workArea.X + ScreenEdgeGap,
+            OverlayPlacement.TopRight or OverlayPlacement.BottomRight or OverlayPlacement.RightCenter =>
+                workArea.X + workArea.Width - width - ScreenEdgeGap,
+            _ => workArea.X + (workArea.Width - width) / 2,
+        };
+        var y = _placement switch
+        {
+            OverlayPlacement.TopCenter or OverlayPlacement.TopLeft or OverlayPlacement.TopRight =>
+                workArea.Y + ScreenEdgeGap,
+            OverlayPlacement.BottomCenter or OverlayPlacement.BottomLeft or OverlayPlacement.BottomRight =>
+                workArea.Y + workArea.Height - height - ScreenEdgeGap,
+            _ => workArea.Y + (workArea.Height - height) / 2,
+        };
+
+        return new RectInt32(x, y, width, height);
     }
 
     private async void OnPaletteLoaded(object sender, RoutedEventArgs e)
@@ -163,6 +282,7 @@ public sealed partial class QuickPaletteWindow : Window
 
         _isClosing = true;
         _feedbackResetCancellation?.Cancel();
+        _morphCancellation?.Cancel();
         PaletteRoot.IsHitTestVisible = false;
         if (!AnimateWindow(
                 _windowHandle,
@@ -212,7 +332,7 @@ public sealed partial class QuickPaletteWindow : Window
                     "QuickScheduleSaved",
                     "Schedule created · {0:HH:mm}",
                     _activeSchedule.TargetAt?.ToLocalTime()));
-                PaletteCancelButton.Visibility = Visibility.Visible;
+                UpdateCancelButton();
             }
             else
             {
@@ -253,16 +373,16 @@ public sealed partial class QuickPaletteWindow : Window
         _validationInputText = TimeInput.Text;
         FeedbackText.Text = message;
         FeedbackText.Foreground = (Brush)Application.Current.Resources["SystemFillColorCriticalBrush"];
-        FeedbackPanel.Visibility = Visibility.Visible;
+        _ = SetFeedbackVisibleAsync(visible: true);
     }
 
     private void ClearValidation()
     {
         _feedbackResetCancellation?.Cancel();
         _validationInputText = null;
-        FeedbackPanel.Visibility = Visibility.Collapsed;
-        FeedbackText.Text = string.Empty;
-        FeedbackText.Foreground = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"];
+        _ = SetFeedbackVisibleAsync(
+            visible: false,
+            clearTextWhenHidden: true);
     }
 
     private void ShowStatus(string message)
@@ -271,9 +391,139 @@ public sealed partial class QuickPaletteWindow : Window
         _validationInputText = null;
         FeedbackText.Text = message;
         FeedbackText.Foreground = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"];
-        FeedbackPanel.Visibility = Visibility.Visible;
+        _ = SetFeedbackVisibleAsync(visible: true);
         _feedbackResetCancellation = new CancellationTokenSource();
         _ = ClearTransientStatusAsync(_feedbackResetCancellation.Token);
+    }
+
+    private async Task SetFeedbackVisibleAsync(
+        bool visible,
+        bool clearTextWhenHidden = false)
+    {
+        if (visible && _feedbackExpanded)
+        {
+            FeedbackPanel.Visibility = Visibility.Visible;
+            FeedbackPanel.Opacity = 1;
+            FeedbackTransform.X = 0;
+            FeedbackTransform.Y = 0;
+            return;
+        }
+
+        _morphCancellation?.Cancel();
+        _morphCancellation?.Dispose();
+        _morphCancellation = new CancellationTokenSource();
+        var cancellationToken = _morphCancellation.Token;
+
+        if (visible)
+        {
+            FeedbackPanel.Visibility = Visibility.Visible;
+        }
+
+        var start = new RectInt32(
+            AppWindow.Position.X,
+            AppWindow.Position.Y,
+            AppWindow.Size.Width,
+            AppWindow.Size.Height);
+        var end = GetPaletteBounds(visible);
+        var startOpacity = FeedbackPanel.Opacity;
+        var endOpacity = visible ? 1d : 0d;
+        var hiddenOffset = GetFeedbackHiddenOffset();
+        var startX = visible && startOpacity <= 0 ? hiddenOffset.X : FeedbackTransform.X;
+        var startY = visible && startOpacity <= 0 ? hiddenOffset.Y : FeedbackTransform.Y;
+        var endX = visible ? 0d : hiddenOffset.X;
+        var endY = visible ? 0d : hiddenOffset.Y;
+        _feedbackExpanded = visible;
+
+        try
+        {
+            var frames = _animationsEnabled ? 12 : 1;
+            for (var frame = 1; frame <= frames; frame++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var progress = (double)frame / frames;
+                var eased = 1d - Math.Pow(1d - progress, 3d);
+                AppWindow.MoveAndResize(Interpolate(start, end, eased));
+                FeedbackPanel.Opacity = Lerp(startOpacity, endOpacity, eased);
+                FeedbackTransform.X = Lerp(startX, endX, eased);
+                FeedbackTransform.Y = Lerp(startY, endY, eased);
+                if (frame < frames)
+                {
+                    await Task.Delay(MorphDurationMilliseconds / frames, cancellationToken);
+                }
+            }
+
+            if (!visible)
+            {
+                FeedbackPanel.Visibility = Visibility.Collapsed;
+                if (clearTextWhenHidden)
+                {
+                    FeedbackText.Text = string.Empty;
+                    FeedbackText.Foreground =
+                        (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"];
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // A newer feedback state owns the morph.
+        }
+    }
+
+    private Point GetFeedbackHiddenOffset()
+    {
+        if (_placement == OverlayPlacement.LeftCenter)
+        {
+            return new Point(-8, 0);
+        }
+
+        if (_placement == OverlayPlacement.RightCenter)
+        {
+            return new Point(8, 0);
+        }
+
+        return GrowsTowardTop
+            ? new Point(0, 8)
+            : new Point(0, -8);
+    }
+
+    private static RectInt32 Interpolate(RectInt32 start, RectInt32 end, double amount) =>
+        new(
+            (int)Math.Round(Lerp(start.X, end.X, amount)),
+            (int)Math.Round(Lerp(start.Y, end.Y, amount)),
+            (int)Math.Round(Lerp(start.Width, end.Width, amount)),
+            (int)Math.Round(Lerp(start.Height, end.Height, amount)));
+
+    private static double Lerp(double start, double end, double amount) =>
+        start + ((end - start) * amount);
+
+    private void UpdateCancelButton()
+    {
+        if (_activeSchedule is null)
+        {
+            PaletteCancelButton.Visibility = Visibility.Collapsed;
+            PaletteCancelButton.Content = string.Empty;
+            ToolTipService.SetToolTip(PaletteCancelButton, null);
+            return;
+        }
+
+        var target = _activeSchedule.TargetAt?.ToLocalTime();
+        var (resourceKey, fallback) = _activeSchedule.Action switch
+        {
+            PowerActionType.Restart =>
+                ("QuickCancelRestart", "Cancel restart · {0:HH:mm}"),
+            PowerActionType.Suspend =>
+                ("QuickCancelSuspend", "Cancel suspend · {0:HH:mm}"),
+            _ =>
+                ("QuickCancelShutdown", "Cancel shutdown · {0:HH:mm}"),
+        };
+        var label = AppText.Format(resourceKey, fallback, target);
+        PaletteCancelButton.Content = label;
+        ToolTipService.SetToolTip(
+            PaletteCancelButton,
+            AppText.Get(
+                "QuickCancelToolTip",
+                "Cancel this active schedule."));
+        PaletteCancelButton.Visibility = Visibility.Visible;
     }
 
     private async Task RefreshActiveScheduleAsync()
@@ -284,11 +534,11 @@ public sealed partial class QuickPaletteWindow : Window
                 .SingleOrDefault(schedule => schedule.Kind == ScheduleKind.OneTime);
             if (_activeSchedule is null)
             {
-                PaletteCancelButton.Visibility = Visibility.Collapsed;
+                UpdateCancelButton();
                 return;
             }
 
-            PaletteCancelButton.Visibility = Visibility.Visible;
+            UpdateCancelButton();
         }
         catch
         {
@@ -322,7 +572,7 @@ public sealed partial class QuickPaletteWindow : Window
             }
 
             _activeSchedule = null;
-            PaletteCancelButton.Visibility = Visibility.Collapsed;
+            UpdateCancelButton();
             ShowStatus(AppText.Get(
                 result.Guard.WasCountdownAborted
                     ? "WindowsCountdownCancelled"
@@ -359,7 +609,17 @@ public sealed partial class QuickPaletteWindow : Window
 
     private void OnActivated(object sender, WindowActivatedEventArgs args)
     {
-        if (args.WindowActivationState != WindowActivationState.Deactivated)
+        if (args.WindowActivationState == WindowActivationState.Deactivated)
+        {
+            if (_hasBeenActivated && !_showInProgress && !_isClosing)
+            {
+                Close();
+            }
+            return;
+        }
+
+        _hasBeenActivated = true;
+        if (!_isClosing)
         {
             ApplyNativeWindowStyle();
             QueueInputFocus();
@@ -453,8 +713,9 @@ public sealed partial class QuickPaletteWindow : Window
             await Task.Delay(TransientFeedbackDuration, cancellationToken);
             if (!cancellationToken.IsCancellationRequested)
             {
-                FeedbackPanel.Visibility = Visibility.Collapsed;
-                FeedbackText.Text = string.Empty;
+                await SetFeedbackVisibleAsync(
+                    visible: false,
+                    clearTextWhenHidden: true);
             }
         }
         catch (OperationCanceledException)

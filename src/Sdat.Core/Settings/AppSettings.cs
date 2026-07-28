@@ -37,6 +37,8 @@ public sealed record AppSettings
 
     public string PaletteHotkey { get; init; } = "Ctrl+Alt+S";
 
+    public OverlayPlacement PalettePlacement { get; init; } = OverlayPlacement.BottomCenter;
+
     public AppLogLevel LogLevel { get; init; } = AppLogLevel.Information;
 
     public bool DeveloperModeEnabled { get; init; }
@@ -74,6 +76,13 @@ public sealed record AppSettings
             throw new ArgumentOutOfRangeException(
                 nameof(CriticalOverlayPlacement),
                 "Choose a supported countdown position.");
+        }
+
+        if (!Enum.IsDefined(PalettePlacement))
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(PalettePlacement),
+                "Choose a supported quick palette position.");
         }
 
         return this with

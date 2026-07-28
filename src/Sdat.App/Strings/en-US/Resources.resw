@@ -44,7 +44,7 @@
   <data name="KeepDailyToggle.Header" xml:space="preserve"><value>Keep the daily action even when it is close to this one</value></data>
   <data name="KeepDailyToggle.OnContent" xml:space="preserve"><value>On</value></data>
   <data name="KeepDailyToggle.OffContent" xml:space="preserve"><value>Off</value></data>
-  <data name="ScheduleButton.Content" xml:space="preserve"><value>Save schedule</value></data>
+  <data name="ScheduleButton.Content" xml:space="preserve"><value>Schedule</value></data>
   <data name="NotificationsTitle.Text" xml:space="preserve"><value>Notifications</value></data>
   <data name="NotificationsSubtitle.Text" xml:space="preserve"><value>Choose how early ShutdownAT should warn you.</value></data>
   <data name="ReminderMinutesLabel.Text" xml:space="preserve"><value>Warning times</value></data>
@@ -71,6 +71,16 @@
   <data name="PaletteHotkeyLabel.Text" xml:space="preserve"><value>Keyboard shortcut</value></data>
   <data name="PaletteHotkeyInput.PlaceholderText" xml:space="preserve"><value>Ctrl+Alt+S</value></data>
   <data name="PaletteHotkeyHelp.Text" xml:space="preserve"><value>For example: Ctrl+Alt+S or Shift+F12.</value></data>
+  <data name="PalettePlacementPicker.Header" xml:space="preserve"><value>Quick palette position</value></data>
+  <data name="PalettePlacementHelp.Text" xml:space="preserve"><value>Bottom is the default. Left and right use a vertical layout.</value></data>
+  <data name="PaletteTopCenterOption.Content" xml:space="preserve"><value>Top center</value></data>
+  <data name="PaletteBottomCenterOption.Content" xml:space="preserve"><value>Bottom center</value></data>
+  <data name="PaletteLeftCenterOption.Content" xml:space="preserve"><value>Left</value></data>
+  <data name="PaletteRightCenterOption.Content" xml:space="preserve"><value>Right</value></data>
+  <data name="PaletteTopLeftOption.Content" xml:space="preserve"><value>Top left</value></data>
+  <data name="PaletteTopRightOption.Content" xml:space="preserve"><value>Top right</value></data>
+  <data name="PaletteBottomLeftOption.Content" xml:space="preserve"><value>Bottom left</value></data>
+  <data name="PaletteBottomRightOption.Content" xml:space="preserve"><value>Bottom right</value></data>
   <data name="StartupToggle.Header" xml:space="preserve"><value>Keep ShutdownAT ready after I sign in</value></data>
   <data name="StartupToggle.OnContent" xml:space="preserve"><value>On</value></data>
   <data name="StartupToggle.OffContent" xml:space="preserve"><value>Off</value></data>
@@ -190,6 +200,10 @@
   <data name="TestOverlayCountdown" xml:space="preserve"><value>Closing in {0}s. No action will run.</value></data>
   <data name="PaletteCancelButton.Content" xml:space="preserve"><value>Cancel</value></data>
   <data name="QuickScheduleSaved" xml:space="preserve"><value>Schedule created · {0:HH:mm}</value></data>
+  <data name="QuickCancelShutdown" xml:space="preserve"><value>Cancel shutdown · {0:HH:mm}</value></data>
+  <data name="QuickCancelRestart" xml:space="preserve"><value>Cancel restart · {0:HH:mm}</value></data>
+  <data name="QuickCancelSuspend" xml:space="preserve"><value>Cancel suspend · {0:HH:mm}</value></data>
+  <data name="QuickCancelToolTip" xml:space="preserve"><value>Cancel this active schedule.</value></data>
   <data name="QuickScheduleActive" xml:space="preserve"><value>Active schedule for {0:HH:mm}.</value></data>
   <data name="QuickScheduleCancelled" xml:space="preserve"><value>Schedule cancelled.</value></data>
   <data name="WindowsCountdownCancelled" xml:space="preserve"><value>Windows countdown stopped.</value></data>

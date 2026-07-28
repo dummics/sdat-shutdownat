@@ -44,7 +44,7 @@
   <data name="KeepDailyToggle.Header" xml:space="preserve"><value>Mantieni l'azione giornaliera anche se è vicina a questa</value></data>
   <data name="KeepDailyToggle.OnContent" xml:space="preserve"><value>Attivato</value></data>
   <data name="KeepDailyToggle.OffContent" xml:space="preserve"><value>Disattivato</value></data>
-  <data name="ScheduleButton.Content" xml:space="preserve"><value>Salva pianificazione</value></data>
+  <data name="ScheduleButton.Content" xml:space="preserve"><value>Pianifica</value></data>
   <data name="NotificationsTitle.Text" xml:space="preserve"><value>Notifiche</value></data>
   <data name="NotificationsSubtitle.Text" xml:space="preserve"><value>Scegli con quanto anticipo essere avvisato.</value></data>
   <data name="ReminderMinutesLabel.Text" xml:space="preserve"><value>Tempi di preavviso</value></data>
@@ -71,6 +71,16 @@
   <data name="PaletteHotkeyLabel.Text" xml:space="preserve"><value>Scorciatoia da tastiera</value></data>
   <data name="PaletteHotkeyInput.PlaceholderText" xml:space="preserve"><value>Ctrl+Alt+S</value></data>
   <data name="PaletteHotkeyHelp.Text" xml:space="preserve"><value>Per esempio: Ctrl+Alt+S oppure Maiusc+F12.</value></data>
+  <data name="PalettePlacementPicker.Header" xml:space="preserve"><value>Posizione della pianificazione rapida</value></data>
+  <data name="PalettePlacementHelp.Text" xml:space="preserve"><value>In basso è la posizione predefinita. A sinistra e destra il layout è verticale.</value></data>
+  <data name="PaletteTopCenterOption.Content" xml:space="preserve"><value>In alto al centro</value></data>
+  <data name="PaletteBottomCenterOption.Content" xml:space="preserve"><value>In basso al centro</value></data>
+  <data name="PaletteLeftCenterOption.Content" xml:space="preserve"><value>A sinistra</value></data>
+  <data name="PaletteRightCenterOption.Content" xml:space="preserve"><value>A destra</value></data>
+  <data name="PaletteTopLeftOption.Content" xml:space="preserve"><value>In alto a sinistra</value></data>
+  <data name="PaletteTopRightOption.Content" xml:space="preserve"><value>In alto a destra</value></data>
+  <data name="PaletteBottomLeftOption.Content" xml:space="preserve"><value>In basso a sinistra</value></data>
+  <data name="PaletteBottomRightOption.Content" xml:space="preserve"><value>In basso a destra</value></data>
   <data name="StartupToggle.Header" xml:space="preserve"><value>Mantieni ShutdownAT pronto dopo l'accesso</value></data>
   <data name="StartupToggle.OnContent" xml:space="preserve"><value>Attivato</value></data>
   <data name="StartupToggle.OffContent" xml:space="preserve"><value>Disattivato</value></data>
@@ -190,6 +200,10 @@
   <data name="TestOverlayCountdown" xml:space="preserve"><value>Chiusura tra {0}s. Nessuna azione verrà eseguita.</value></data>
   <data name="PaletteCancelButton.Content" xml:space="preserve"><value>Annulla</value></data>
   <data name="QuickScheduleSaved" xml:space="preserve"><value>Pianificazione creata · {0:HH:mm}</value></data>
+  <data name="QuickCancelShutdown" xml:space="preserve"><value>Annulla spegnimento · {0:HH:mm}</value></data>
+  <data name="QuickCancelRestart" xml:space="preserve"><value>Annulla riavvio · {0:HH:mm}</value></data>
+  <data name="QuickCancelSuspend" xml:space="preserve"><value>Annulla sospensione · {0:HH:mm}</value></data>
+  <data name="QuickCancelToolTip" xml:space="preserve"><value>Annulla questa pianificazione attiva.</value></data>
   <data name="QuickScheduleActive" xml:space="preserve"><value>Pianificazione attiva per le {0:HH:mm}.</value></data>
   <data name="QuickScheduleCancelled" xml:space="preserve"><value>Pianificazione annullata.</value></data>
   <data name="WindowsCountdownCancelled" xml:space="preserve"><value>Conto alla rovescia di Windows interrotto.</value></data>
