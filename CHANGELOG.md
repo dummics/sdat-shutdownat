@@ -18,7 +18,7 @@ All notable user-facing changes to SDAT are documented here.
 - Added an easy-to-find developer section with a backend-enforced safe test mode, synthetic notification/countdown previews, configurable rolling local logging, log/data shortcuts, and a compact diagnostic report.
 - Made in-app status messages compact, dismissible, and self-closing, and made synthetic Windows test notifications transient.
 - Kept Windows reminder actions registered across scheduled task processes so Cancel and Open ShutdownAT remain actionable.
-- Made quick-palette feedback morph into the free screen direction without moving the command row, added configurable edge/corner placement with vertical side layouts, and shortened the primary action to Schedule/Pianifica.
+- Made quick-palette feedback morph into the free screen direction without moving the command row, size itself to the measured message instead of leaving reserved empty space, and use a shorter low-overhead resize sequence; also added configurable edge/corner placement with vertical side layouts and shortened the primary action to Schedule/Pianifica.
 - Kept the quick palette open after scheduling with an action-and-time-specific cancel control, added a visible final 30-second overlay for shutdown and restart, and made CLI, notification, palette, and overlay cancellation share the native Windows countdown abort result.
 - Fixed `sdat cancel` and `sdat -a` reporting `Nothing to cancel` after the launcher had already stopped an active Windows shutdown countdown.
 - Added English and Italian MRT Core localization for static and dynamic companion UI, with a persistent Windows-language/Italian/English selector and one-click app restart.

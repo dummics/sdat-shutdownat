@@ -22,12 +22,12 @@ public sealed partial class QuickPaletteWindow : Window
 {
     private const int HorizontalCompactWidth = 620;
     private const int HorizontalCompactHeight = 116;
-    private const int HorizontalExpandedHeight = 168;
     private const int VerticalCompactWidth = 300;
-    private const int VerticalExpandedWidth = 558;
     private const int VerticalHeight = 218;
     private const int ScreenEdgeGap = 28;
-    private const int MorphDurationMilliseconds = 180;
+    private const int FeedbackGap = 8;
+    private const int MorphDurationMilliseconds = 120;
+    private const int MorphFrameCount = 6;
     private const int DwmWindowCornerPreference = 33;
     private const int DwmWindowBorderColor = 34;
     private const int DwmWindowCornerRound = 2;
@@ -52,6 +52,7 @@ public sealed partial class QuickPaletteWindow : Window
     private bool _showInProgress;
     private bool _hasBeenActivated;
     private bool _feedbackExpanded;
+    private int _feedbackExtent;
     private string? _validationInputText;
     private ScheduleSnapshot? _activeSchedule;
     private CancellationTokenSource? _feedbackResetCancellation;
@@ -212,8 +213,8 @@ public sealed partial class QuickPaletteWindow : Window
             ? VerticalAlignment.Bottom
             : VerticalAlignment.Top;
         FeedbackPanel.Margin = GrowsTowardTop
-            ? new Thickness(0, 0, 0, 69)
-            : new Thickness(0, 69, 0, 0);
+            ? new Thickness(0, 0, 0, 70)
+            : new Thickness(0, 70, 0, 0);
     }
 
     private static void PlaceCommandControl(
@@ -233,11 +234,11 @@ public sealed partial class QuickPaletteWindow : Window
         var display = DisplayArea.GetFromWindowId(AppWindow.Id, DisplayAreaFallback.Primary);
         var workArea = display.WorkArea;
         var width = UsesVerticalLayout
-            ? expanded ? VerticalExpandedWidth : VerticalCompactWidth
+            ? expanded ? VerticalCompactWidth + _feedbackExtent : VerticalCompactWidth
             : HorizontalCompactWidth;
         var height = UsesVerticalLayout
             ? VerticalHeight
-            : expanded ? HorizontalExpandedHeight : HorizontalCompactHeight;
+            : expanded ? HorizontalCompactHeight + _feedbackExtent : HorizontalCompactHeight;
 
         var x = _placement switch
         {
@@ -400,24 +401,29 @@ public sealed partial class QuickPaletteWindow : Window
         bool visible,
         bool clearTextWhenHidden = false)
     {
-        if (visible && _feedbackExpanded)
+        if (visible)
         {
             FeedbackPanel.Visibility = Visibility.Visible;
-            FeedbackPanel.Opacity = 1;
-            FeedbackTransform.X = 0;
-            FeedbackTransform.Y = 0;
-            return;
+            FeedbackPanel.UpdateLayout();
+            var measuredExtent = UsesVerticalLayout
+                ? (int)Math.Ceiling(FeedbackPanel.ActualWidth) + FeedbackGap
+                : (int)Math.Ceiling(FeedbackPanel.ActualHeight) + FeedbackGap;
+            measuredExtent = Math.Max(measuredExtent, FeedbackGap);
+            if (_feedbackExpanded && measuredExtent == _feedbackExtent)
+            {
+                FeedbackPanel.Opacity = 1;
+                FeedbackTransform.X = 0;
+                FeedbackTransform.Y = 0;
+                return;
+            }
+
+            _feedbackExtent = measuredExtent;
         }
 
         _morphCancellation?.Cancel();
         _morphCancellation?.Dispose();
         _morphCancellation = new CancellationTokenSource();
         var cancellationToken = _morphCancellation.Token;
-
-        if (visible)
-        {
-            FeedbackPanel.Visibility = Visibility.Visible;
-        }
 
         var start = new RectInt32(
             AppWindow.Position.X,
@@ -436,7 +442,7 @@ public sealed partial class QuickPaletteWindow : Window
 
         try
         {
-            var frames = _animationsEnabled ? 12 : 1;
+            var frames = _animationsEnabled ? MorphFrameCount : 1;
             for (var frame = 1; frame <= frames; frame++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
