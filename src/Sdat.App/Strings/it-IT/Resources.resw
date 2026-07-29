@@ -103,7 +103,7 @@
   <data name="ApplyLanguageButton.Content" xml:space="preserve"><value>Applica lingua</value></data>
   <data name="RestartLanguageButton.Content" xml:space="preserve"><value>Riavvia ShutdownAT</value></data>
   <data name="LanguageRestartHelp.Text" xml:space="preserve"><value>Riavvia ShutdownAT per aggiornare tutte le schermate.</value></data>
-  <data name="DismissButton.Content" xml:space="preserve"><value>Ignora</value></data>
+  <data name="DismissButton.Content" xml:space="preserve"><value>Nascondi avviso</value></data>
   <data name="SnoozeButton.Content" xml:space="preserve"><value>Rimanda di 10 min</value></data>
   <data name="DatabasePath" xml:space="preserve"><value>Salvati su questo PC: {0}</value></data>
   <data name="SchedulerRepairWarning" xml:space="preserve"><value>Le pianificazioni sono al sicuro, ma l'integrazione con Windows richiede attenzione. Apri Diagnostica nelle Impostazioni per correggerla.</value></data>
@@ -137,6 +137,10 @@
   <data name="ReminderTitle" xml:space="preserve"><value>Promemoria ShutdownAT</value></data>
   <data name="RestartScheduledTitle" xml:space="preserve"><value>Riavvio a breve</value></data>
   <data name="ShutdownScheduledTitle" xml:space="preserve"><value>Spegnimento a breve</value></data>
+  <data name="SuspendScheduledTitle" xml:space="preserve"><value>Sospensione a breve</value></data>
+  <data name="OverlayCancelShutdown" xml:space="preserve"><value>Annulla spegnimento</value></data>
+  <data name="OverlayCancelRestart" xml:space="preserve"><value>Annulla riavvio</value></data>
+  <data name="OverlayCancelSuspend" xml:space="preserve"><value>Annulla sospensione</value></data>
   <data name="DailyActionAt" xml:space="preserve"><value>Azione giornaliera alle {0:HH:mm}.</value></data>
   <data name="SecondsRemaining" xml:space="preserve"><value>Mancano {0}s. Salva il lavoro.</value></data>
   <data name="CountdownStarting" xml:space="preserve"><value>Il conto alla rovescia di Windows sta per iniziare.</value></data>
@@ -217,4 +221,42 @@
   <data name="ScheduleCancelFailed" xml:space="preserve"><value>Impossibile annullare la pianificazione. Dettagli: {0}</value></data>
   <data name="NotificationCancelFailedTitle" xml:space="preserve"><value>L'annullamento richiede attenzione</value></data>
   <data name="NotificationCancelFailedBody" xml:space="preserve"><value>Windows non ha confermato l'annullamento. Apri ShutdownAT o riprova sdat -a. Dettagli: {0}</value></data>
+  <data name="SchedulePreviewTitle.Text" xml:space="preserve"><value>Risultato</value></data>
+  <data name="SchedulePreviewDaily" xml:space="preserve"><value>{0} ogni giorno alle {1}</value></data>
+  <data name="SchedulePreviewToday" xml:space="preserve"><value>{0} oggi alle {1} · tra {2}</value></data>
+  <data name="SchedulePreviewTomorrow" xml:space="preserve"><value>{0} domani alle {1} · tra {2}</value></data>
+  <data name="SchedulePreviewDate" xml:space="preserve"><value>{0} il {1} alle {2} · tra {3}</value></data>
+  <data name="ScheduleButtonDefault" xml:space="preserve"><value>Pianifica</value></data>
+  <data name="ScheduleButtonDaily" xml:space="preserve"><value>{0} ogni giorno · {1}</value></data>
+  <data name="ScheduleButtonAt" xml:space="preserve"><value>{0} · {1}</value></data>
+  <data name="ScheduleErrorMissingValue" xml:space="preserve"><value>Inserisci un orario, per esempio 36m o 23:41.</value></data>
+  <data name="ScheduleErrorInvalidClock" xml:space="preserve"><value>Inserisci un orario valido tra 00:00 e 23:59.</value></data>
+  <data name="ScheduleErrorPositiveDuration" xml:space="preserve"><value>Inserisci una durata maggiore di zero.</value></data>
+  <data name="ScheduleErrorDailyClock" xml:space="preserve"><value>Le pianificazioni giornaliere richiedono un orario, per esempio 02:30.</value></data>
+  <data name="ScheduleErrorDaylightSaving" xml:space="preserve"><value>Questo orario locale non esiste a causa del cambio dell'ora.</value></data>
+  <data name="ScheduleErrorInvalidFormat" xml:space="preserve"><value>Usa una durata come 36m oppure un orario come 23:41.</value></data>
+  <data name="ScheduleRemainingNow" xml:space="preserve"><value>adesso</value></data>
+  <data name="ScheduleRemainingLessThanMinute" xml:space="preserve"><value>meno di un minuto</value></data>
+  <data name="ScheduleRemainingDays" xml:space="preserve"><value>{0} g</value></data>
+  <data name="ScheduleRemainingHours" xml:space="preserve"><value>{0} h</value></data>
+  <data name="ScheduleRemainingMinutes" xml:space="preserve"><value>{0} min</value></data>
+  <data name="OneTimeExtendButton.Content" xml:space="preserve"><value>Posticipa 10 min</value></data>
+  <data name="ModifyScheduleButton.Content" xml:space="preserve"><value>Modifica</value></data>
+  <data name="DailySkipButton.Content" xml:space="preserve"><value>Salta la prossima</value></data>
+  <data name="DisableScheduleButton.Content" xml:space="preserve"><value>Disattiva</value></data>
+  <data name="OneTimeExtended" xml:space="preserve"><value>Posticipata di 10 minuti.</value></data>
+  <data name="DailySkipped" xml:space="preserve"><value>La prossima azione giornaliera delle {0:g} verrà saltata.</value></data>
+  <data name="OneTimeOverviewStatus" xml:space="preserve"><value>{0} · {1:ddd d MMM, HH:mm}
+{2}</value></data>
+  <data name="DailyOverviewStatus" xml:space="preserve"><value>{0} · ogni giorno alle {1:HH:mm}
+Prossima: {2:ddd d MMM, HH:mm} · {3}</value></data>
+  <data name="TrayOneTimeState" xml:space="preserve"><value>{0} alle {1:HH:mm}</value></data>
+  <data name="TrayDailyState" xml:space="preserve"><value>{0} ogni giorno alle {1:HH:mm}</value></data>
+  <data name="TrayExtendOneTime" xml:space="preserve"><value>Posticipa 10 min</value></data>
+  <data name="TrayCancelOneTime" xml:space="preserve"><value>Annulla azione singola</value></data>
+  <data name="TraySkipDaily" xml:space="preserve"><value>Salta la prossima azione giornaliera</value></data>
+  <data name="BackgroundHintTitle" xml:space="preserve"><value>ShutdownAT è ancora pronto</value></data>
+  <data name="BackgroundHintBody" xml:space="preserve"><value>Usa {0} per pianificare al volo oppure apri ShutdownAT dall'area di notifica.</value></data>
+  <data name="UnableToSchedule" xml:space="preserve"><value>ShutdownAT non ha potuto creare questa pianificazione. Riprova oppure apri Diagnostica.</value></data>
+  <data name="UnableToChangeSchedule" xml:space="preserve"><value>ShutdownAT non ha potuto aggiornare questa pianificazione. Aggiorna la pagina e riprova.</value></data>
 </root>

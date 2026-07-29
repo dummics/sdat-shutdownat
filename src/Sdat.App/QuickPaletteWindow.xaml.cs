@@ -8,6 +8,7 @@ using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using System.Runtime.InteropServices;
 using Sdat.Core.Scheduling;
+using Sdat.Core.TimeExpressions;
 using Sdat.Windows.Hosting;
 using WinRT.Interop;
 using Windows.Graphics;
@@ -41,6 +42,9 @@ public sealed partial class QuickPaletteWindow : Window
     private static readonly TimeSpan TransientFeedbackDuration = TimeSpan.FromSeconds(2.2);
     private readonly SdatRuntime _runtime;
     private readonly OverlayPlacement _placement;
+    private readonly ScheduleInputService _scheduleInputService = new();
+    private readonly DispatcherTimer _previewTimer =
+        new() { Interval = TimeSpan.FromMilliseconds(160) };
     private readonly bool _animationsEnabled = new UISettings().AnimationsEnabled;
     private readonly nint _windowHandle;
     private DesktopAcrylicController? _acrylicController;
@@ -57,6 +61,8 @@ public sealed partial class QuickPaletteWindow : Window
     private ScheduleSnapshot? _activeSchedule;
     private CancellationTokenSource? _feedbackResetCancellation;
     private CancellationTokenSource? _morphCancellation;
+    private PaletteFeedbackKind _feedbackKind;
+    private bool _scheduleBusy;
 
     public QuickPaletteWindow(
         SdatRuntime runtime,
@@ -65,6 +71,7 @@ public sealed partial class QuickPaletteWindow : Window
         _runtime = runtime;
         _placement = placement ?? runtime.CurrentSettings.PalettePlacement;
         InitializeComponent();
+        _previewTimer.Tick += OnPreviewTimerTick;
         ConfigurePaletteLayout();
         Title = AppText.Get("QuickPaletteTitle", "Quick schedule — ShutdownAT");
         ConfigureBackdrop();
@@ -313,17 +320,38 @@ public sealed partial class QuickPaletteWindow : Window
 
     private async Task ScheduleAsync()
     {
+        if (_scheduleBusy)
+        {
+            return;
+        }
+
+        SetScheduleBusy(true);
         try
         {
-            ClearValidation();
             var action = Enum.Parse<PowerActionType>(
                 ((ComboBoxItem)ActionPicker.SelectedItem).Tag!.ToString()!);
-            var prepared = new ScheduleInputService().Prepare(
+            var now = DateTimeOffset.UtcNow;
+            var preview = _scheduleInputService.Preview(
                 TimeInput.Text,
                 ScheduleKind.OneTime,
                 action,
                 keepDaily: false,
-                DateTimeOffset.UtcNow,
+                now,
+                TimeZoneInfo.Local);
+            if (!preview.IsValid)
+            {
+                ShowValidation(SchedulePreviewFormatter.FormatError(preview.ErrorCode));
+                TimeInput.Focus(FocusState.Programmatic);
+                TimeInput.SelectAll();
+                return;
+            }
+
+            var prepared = _scheduleInputService.Prepare(
+                TimeInput.Text,
+                ScheduleKind.OneTime,
+                action,
+                keepDaily: false,
+                now,
                 TimeZoneInfo.Local);
             var result = await _runtime.ScheduleCommands.SetAsync(prepared.Draft);
             if (result.IsFullyApplied)
@@ -350,46 +378,132 @@ public sealed partial class QuickPaletteWindow : Window
             TimeInput.Focus(FocusState.Programmatic);
             TimeInput.SelectAll();
         }
-        catch (Exception exception)
+        catch (TimeExpressionParseException exception)
         {
-            ShowValidation(exception.Message);
+            ShowValidation(SchedulePreviewFormatter.FormatError(exception.ErrorCode));
             TimeInput.Focus(FocusState.Programmatic);
             TimeInput.SelectAll();
+        }
+        catch (Exception exception)
+        {
+            ShowValidation(AppText.Get(
+                "UnableToSchedule",
+                "ShutdownAT could not create this schedule. Try again or open Diagnostics."));
+            _ = LogUnexpectedErrorAsync(exception);
+            TimeInput.Focus(FocusState.Programmatic);
+            TimeInput.SelectAll();
+        }
+        finally
+        {
+            SetScheduleBusy(false);
+        }
+    }
+
+    private async Task LogUnexpectedErrorAsync(Exception exception)
+    {
+        try
+        {
+            await _runtime.Logger.WriteAsync(
+                Sdat.Core.Settings.AppLogLevel.Error,
+                nameof(QuickPaletteWindow),
+                exception.ToString());
+        }
+        catch
+        {
+            // Logging must never interrupt the quick scheduling flow.
         }
     }
 
     private void OnTimeInputChanged(object sender, TextChangedEventArgs e)
     {
-        if (FeedbackPanel.Visibility == Visibility.Visible &&
-            FeedbackText.Foreground == (Brush)Application.Current.Resources["SystemFillColorCriticalBrush"] &&
+        if (_feedbackKind == PaletteFeedbackKind.Error &&
             !string.Equals(TimeInput.Text, _validationInputText, StringComparison.Ordinal))
         {
-            ClearValidation();
+            _validationInputText = null;
+            _feedbackKind = PaletteFeedbackKind.None;
         }
+
+        QueueLivePreview();
+    }
+
+    private void OnActionChanged(object sender, SelectionChangedEventArgs e) => QueueLivePreview();
+
+    private void QueueLivePreview()
+    {
+        if (TimeInput is null || ScheduleButton is null)
+        {
+            return;
+        }
+
+        _previewTimer.Stop();
+        _previewTimer.Start();
+    }
+
+    private void OnPreviewTimerTick(object? sender, object e)
+    {
+        _previewTimer.Stop();
+        UpdateLivePreview();
+    }
+
+    private void UpdateLivePreview()
+    {
+        if (_scheduleBusy || _feedbackKind == PaletteFeedbackKind.Status ||
+            ActionPicker.SelectedItem is not ComboBoxItem selectedAction)
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(TimeInput.Text))
+        {
+            _feedbackKind = PaletteFeedbackKind.None;
+            ScheduleButton.Content = AppText.Get("ScheduleButtonDefault", "Schedule");
+            ScheduleButton.IsEnabled = false;
+            _ = SetFeedbackVisibleAsync(visible: false, clearTextWhenHidden: true);
+            return;
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        var preview = _scheduleInputService.Preview(
+            TimeInput.Text,
+            ScheduleKind.OneTime,
+            Enum.Parse<PowerActionType>(selectedAction.Tag!.ToString()!),
+            keepDaily: false,
+            now,
+            TimeZoneInfo.Local);
+        if (!preview.IsValid)
+        {
+            ShowValidation(SchedulePreviewFormatter.FormatError(preview.ErrorCode));
+            ScheduleButton.Content = AppText.Get("ScheduleButtonDefault", "Schedule");
+            ScheduleButton.IsEnabled = false;
+            return;
+        }
+
+        _feedbackResetCancellation?.Cancel();
+        _validationInputText = null;
+        _feedbackKind = PaletteFeedbackKind.Preview;
+        FeedbackText.Text = SchedulePreviewFormatter.Format(preview, now, TimeZoneInfo.Local);
+        FeedbackText.Foreground =
+            (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"];
+        ScheduleButton.Content = SchedulePreviewFormatter.FormatButton(preview);
+        ScheduleButton.IsEnabled = true;
+        _ = SetFeedbackVisibleAsync(visible: true);
     }
 
     private void ShowValidation(string message)
     {
         _feedbackResetCancellation?.Cancel();
         _validationInputText = TimeInput.Text;
+        _feedbackKind = PaletteFeedbackKind.Error;
         FeedbackText.Text = message;
         FeedbackText.Foreground = (Brush)Application.Current.Resources["SystemFillColorCriticalBrush"];
         _ = SetFeedbackVisibleAsync(visible: true);
-    }
-
-    private void ClearValidation()
-    {
-        _feedbackResetCancellation?.Cancel();
-        _validationInputText = null;
-        _ = SetFeedbackVisibleAsync(
-            visible: false,
-            clearTextWhenHidden: true);
     }
 
     private void ShowStatus(string message)
     {
         _feedbackResetCancellation?.Cancel();
         _validationInputText = null;
+        _feedbackKind = PaletteFeedbackKind.Status;
         FeedbackText.Text = message;
         FeedbackText.Foreground = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"];
         _ = SetFeedbackVisibleAsync(visible: true);
@@ -608,6 +722,19 @@ public sealed partial class QuickPaletteWindow : Window
         }
         else if (e.Key == VirtualKey.Enter)
         {
+            var focused = FocusManager.GetFocusedElement(PaletteRoot.XamlRoot);
+            if (ActionPicker.IsDropDownOpen ||
+                focused is Button ||
+                focused is ComboBoxItem)
+            {
+                return;
+            }
+
+            if (!ScheduleButton.IsEnabled)
+            {
+                return;
+            }
+
             e.Handled = true;
             await ScheduleAsync();
         }
@@ -719,15 +846,48 @@ public sealed partial class QuickPaletteWindow : Window
             await Task.Delay(TransientFeedbackDuration, cancellationToken);
             if (!cancellationToken.IsCancellationRequested)
             {
-                await SetFeedbackVisibleAsync(
-                    visible: false,
-                    clearTextWhenHidden: true);
+                _feedbackKind = PaletteFeedbackKind.None;
+                UpdateLivePreview();
             }
         }
         catch (OperationCanceledException)
         {
             // A newer status or validation message owns the feedback area.
         }
+    }
+
+    private void SetScheduleBusy(bool busy)
+    {
+        _scheduleBusy = busy;
+        ScheduleButton.IsEnabled = !busy && HasValidScheduleInput();
+        ActionPicker.IsEnabled = !busy;
+        TimeInput.IsEnabled = !busy;
+        PaletteCancelButton.IsEnabled = !busy;
+    }
+
+    private bool HasValidScheduleInput()
+    {
+        if (ActionPicker.SelectedItem is not ComboBoxItem selectedAction ||
+            string.IsNullOrWhiteSpace(TimeInput.Text))
+        {
+            return false;
+        }
+
+        return _scheduleInputService.Preview(
+            TimeInput.Text,
+            ScheduleKind.OneTime,
+            Enum.Parse<PowerActionType>(selectedAction.Tag!.ToString()!),
+            keepDaily: false,
+            DateTimeOffset.UtcNow,
+            TimeZoneInfo.Local).IsValid;
+    }
+
+    private enum PaletteFeedbackKind
+    {
+        None,
+        Preview,
+        Error,
+        Status,
     }
 
     [DllImport("dwmapi.dll")]

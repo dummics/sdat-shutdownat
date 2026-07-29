@@ -17,12 +17,6 @@
                 <NavigationViewItem x:Uid="NavSchedule" Content="Schedule" Tag="schedule">
                     <NavigationViewItem.Icon><SymbolIcon Symbol="Clock" /></NavigationViewItem.Icon>
                 </NavigationViewItem>
-                <NavigationViewItem x:Uid="NavNotifications" Content="Notifications" Tag="notifications">
-                    <NavigationViewItem.Icon><SymbolIcon Symbol="Message" /></NavigationViewItem.Icon>
-                </NavigationViewItem>
-                <NavigationViewItem x:Uid="NavAbout" Content="About" Tag="about">
-                    <NavigationViewItem.Icon><SymbolIcon Symbol="Help" /></NavigationViewItem.Icon>
-                </NavigationViewItem>
             </NavigationView.MenuItems>
             <Grid>
                 <ScrollViewer x:Name="OverviewView">
@@ -46,14 +40,22 @@
                                 <StackPanel Spacing="8">
                                     <TextBlock x:Uid="OneTimeTitle" Text="One-time" Style="{ThemeResource SubtitleTextBlockStyle}" />
                                     <TextBlock x:Uid="LoadingStatus" x:Name="OneTimeStatusText" Text="Loading…" TextWrapping="Wrap" />
-                                    <Button x:Uid="CancelButton" x:Name="OneTimeCancelButton" Content="Cancel" Click="OnCancelOneTime" HorizontalAlignment="Left" Visibility="Collapsed" />
+                                    <StackPanel x:Name="OneTimeActions" Orientation="Horizontal" Spacing="8" Visibility="Collapsed">
+                                        <Button x:Uid="OneTimeExtendButton" Content="10 min later" Click="OnExtendOneTime" />
+                                        <Button x:Uid="ModifyScheduleButton" Content="Modify" Click="OnModifyOneTime" />
+                                        <Button x:Uid="CancelButton" x:Name="OneTimeCancelButton" Content="Cancel" Click="OnCancelOneTime" />
+                                    </StackPanel>
                                 </StackPanel>
                             </Border>
                             <Border Grid.Column="1" Padding="20" CornerRadius="8" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
                                 <StackPanel Spacing="8">
                                     <TextBlock x:Uid="DailyTitle" Text="Daily" Style="{ThemeResource SubtitleTextBlockStyle}" />
                                     <TextBlock x:Uid="LoadingStatus" x:Name="DailyStatusText" Text="Loading…" TextWrapping="Wrap" />
-                                    <Button x:Uid="CancelButton" x:Name="DailyCancelButton" Content="Cancel" Click="OnCancelDaily" HorizontalAlignment="Left" Visibility="Collapsed" />
+                                    <StackPanel x:Name="DailyActions" Orientation="Horizontal" Spacing="8" Visibility="Collapsed">
+                                        <Button x:Uid="DailySkipButton" Content="Skip next" Click="OnSkipDaily" />
+                                        <Button x:Uid="ModifyScheduleButton" Content="Modify" Click="OnModifyDaily" />
+                                        <Button x:Uid="DisableScheduleButton" x:Name="DailyCancelButton" Content="Disable" Click="OnCancelDaily" />
+                                    </StackPanel>
                                 </StackPanel>
                             </Border>
                         </Grid>
@@ -80,7 +82,11 @@
                             <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition /></Grid.ColumnDefinitions>
                             <StackPanel Grid.Column="0" Spacing="6">
                             <TextBlock x:Uid="PowerActionLabel" Text="What should this PC do?" />
-                                <ComboBox x:Name="ActionPicker" SelectedIndex="0" HorizontalAlignment="Stretch">
+                                <ComboBox
+                                    x:Name="ActionPicker"
+                                    SelectedIndex="0"
+                                    HorizontalAlignment="Stretch"
+                                    SelectionChanged="OnScheduleInputChanged">
                                     <ComboBoxItem x:Uid="ShutdownAction" Content="Shut down" Tag="Shutdown" />
                                     <ComboBoxItem x:Uid="SuspendAction" Content="Suspend" Tag="Suspend" />
                                     <ComboBoxItem x:Uid="RestartAction" Content="Restart" Tag="Restart" />
@@ -96,62 +102,40 @@
                         </Grid>
                         <StackPanel Spacing="6">
                             <TextBlock x:Uid="WhenLabel" Text="When?" />
-                            <TextBox x:Uid="TimeInput" x:Name="TimeInput" PlaceholderText="36m or 23:41" />
+                            <TextBox
+                                x:Uid="TimeInput"
+                                x:Name="TimeInput"
+                                PlaceholderText="36m or 23:41"
+                                TextChanged="OnScheduleInputChanged" />
+                            <TextBlock
+                                x:Name="ScheduleInputErrorText"
+                                TextWrapping="Wrap"
+                                Visibility="Collapsed"
+                                Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                                Style="{ThemeResource CaptionTextBlockStyle}" />
                         </StackPanel>
                         <ToggleSwitch x:Uid="KeepDailyToggle" x:Name="KeepDailyToggle" Header="Keep the daily action even when it is close to this one" />
-                        <Button x:Uid="ScheduleButton" Content="Save schedule" Style="{ThemeResource AccentButtonStyle}" Click="OnSchedule" HorizontalAlignment="Left" />
-                    </StackPanel>
-                </ScrollViewer>
-
-                <ScrollViewer x:Name="NotificationsView" Visibility="Collapsed">
-                    <StackPanel Padding="36,28" Spacing="22" MaxWidth="720" HorizontalAlignment="Left">
-                        <StackPanel Spacing="4">
-                            <TextBlock x:Uid="NotificationsTitle" Text="Notifications" Style="{ThemeResource TitleTextBlockStyle}" />
-                            <TextBlock x:Uid="NotificationsSubtitle" Text="Choose how early ShutdownAT should warn you." Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        <StackPanel x:Name="SchedulePreviewPanel" Spacing="8" Visibility="Collapsed">
+                            <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
+                            <TextBlock x:Uid="SchedulePreviewTitle" Text="Result" FontWeight="SemiBold" />
+                            <TextBlock x:Name="SchedulePreviewText" TextWrapping="Wrap" />
                         </StackPanel>
-                        <StackPanel Spacing="6">
-                            <TextBlock x:Uid="ReminderMinutesLabel" Text="Warning times" />
-                            <TextBox x:Uid="ReminderOffsetsInput" x:Name="ReminderOffsetsInput" PlaceholderText="2 or 10, 2" Width="360" HorizontalAlignment="Left" />
-                            <TextBlock x:Uid="ReminderMinutesHelp" Text="Minutes separated by commas, for example 10, 2." TextWrapping="Wrap" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <Button
+                                x:Uid="ScheduleButton"
+                                x:Name="MainScheduleButton"
+                                Content="Schedule"
+                                IsEnabled="False"
+                                Style="{ThemeResource AccentButtonStyle}"
+                                Click="OnSchedule" />
+                            <ProgressRing
+                                x:Name="ScheduleProgress"
+                                Width="20"
+                                Height="20"
+                                IsActive="False"
+                                Visibility="Collapsed"
+                                VerticalAlignment="Center" />
                         </StackPanel>
-                        <StackPanel Spacing="6">
-                            <TextBlock x:Uid="DailyOverlapLabel" Text="Avoid nearby actions" />
-                            <NumberBox x:Name="DailyOverlapInput" Minimum="0" Maximum="1440" Width="180" HorizontalAlignment="Left" SpinButtonPlacementMode="Compact" />
-                            <TextBlock x:Uid="DailyOverlapHelp" Text="Within this many minutes, the daily action is skipped once. Set 0 to keep both." TextWrapping="Wrap" MaxWidth="520" HorizontalAlignment="Left" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                        </StackPanel>
-                        <ToggleSwitch x:Uid="CriticalOverlayToggle" x:Name="CriticalOverlayToggle" Header="Show the on-screen countdown" />
-                        <StackPanel Spacing="6">
-                            <ComboBox
-                                x:Uid="OverlayPlacementPicker"
-                                x:Name="OverlayPlacementPicker"
-                                Header="Countdown position"
-                                Width="280"
-                                HorizontalAlignment="Left">
-                                <ComboBoxItem x:Uid="OverlayTopCenterOption" Content="Top center" Tag="TopCenter" />
-                                <ComboBoxItem x:Uid="OverlayBottomCenterOption" Content="Bottom center" Tag="BottomCenter" />
-                                <ComboBoxItem x:Uid="OverlayLeftCenterOption" Content="Left" Tag="LeftCenter" />
-                                <ComboBoxItem x:Uid="OverlayRightCenterOption" Content="Right" Tag="RightCenter" />
-                                <ComboBoxItem x:Uid="OverlayTopLeftOption" Content="Top left" Tag="TopLeft" />
-                                <ComboBoxItem x:Uid="OverlayTopRightOption" Content="Top right" Tag="TopRight" />
-                                <ComboBoxItem x:Uid="OverlayBottomLeftOption" Content="Bottom left" Tag="BottomLeft" />
-                                <ComboBoxItem x:Uid="OverlayBottomRightOption" Content="Bottom right" Tag="BottomRight" />
-                            </ComboBox>
-                            <TextBlock
-                                x:Uid="OverlayPlacementHelp"
-                                Text="Top is the default. Left and right use a vertical layout."
-                                TextWrapping="Wrap"
-                                Style="{ThemeResource CaptionTextBlockStyle}"
-                                Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                        </StackPanel>
-                        <Button x:Uid="SaveSettingsButton" Content="Save settings" Style="{ThemeResource AccentButtonStyle}" Click="OnSaveSettings" HorizontalAlignment="Left" />
-                    </StackPanel>
-                </ScrollViewer>
-
-                <ScrollViewer x:Name="AboutView" Visibility="Collapsed">
-                    <StackPanel Padding="36,28" Spacing="12" MaxWidth="720" HorizontalAlignment="Left">
-                        <TextBlock Text="ShutdownAT" Style="{ThemeResource TitleTextBlockStyle}" />
-                        <TextBlock x:Uid="AboutDescription" Text="Local, open-source Windows power scheduling without accounts or telemetry." TextWrapping="Wrap" />
-                        <TextBlock x:Uid="AboutCliDescription" Text="Prefer commands? The command line and terminal interface use the same scheduling system as the app." TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                     </StackPanel>
                 </ScrollViewer>
 
@@ -166,6 +150,40 @@
                             <StackPanel Spacing="4">
                                 <TextBlock x:Uid="SettingsTitle" Text="Settings" Style="{ThemeResource TitleTextBlockStyle}" />
                                 <TextBlock x:Uid="SettingsSubtitle" Text="Language, quick access, diagnostics, and test tools." TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            </StackPanel>
+
+                            <StackPanel Width="620" HorizontalAlignment="Left" Spacing="12">
+                                <StackPanel Spacing="2">
+                                    <TextBlock x:Uid="NotificationsTitle" Text="Notifications" FontSize="18" FontWeight="SemiBold" />
+                                    <TextBlock x:Uid="NotificationsSubtitle" Text="Choose when and where ShutdownAT warns you." Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                </StackPanel>
+                                <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
+                                <StackPanel Spacing="12">
+                                    <StackPanel Spacing="6">
+                                        <TextBlock x:Uid="ReminderMinutesLabel" Text="Warning times" />
+                                        <TextBox x:Uid="ReminderOffsetsInput" x:Name="ReminderOffsetsInput" PlaceholderText="2 or 10, 2" Width="320" HorizontalAlignment="Left" />
+                                        <TextBlock x:Uid="ReminderMinutesHelp" Text="Minutes separated by commas, for example 10, 2." TextWrapping="Wrap" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                    </StackPanel>
+                                    <StackPanel Spacing="6">
+                                        <TextBlock x:Uid="DailyOverlapLabel" Text="Avoid nearby actions" />
+                                        <NumberBox x:Name="DailyOverlapInput" Minimum="0" Maximum="1440" Width="180" HorizontalAlignment="Left" SpinButtonPlacementMode="Compact" />
+                                        <TextBlock x:Uid="DailyOverlapHelp" Text="Within this many minutes, the daily action is skipped once. Set 0 to keep both." TextWrapping="Wrap" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                    </StackPanel>
+                                    <ToggleSwitch x:Uid="CriticalOverlayToggle" x:Name="CriticalOverlayToggle" Header="Show the on-screen countdown" />
+                                    <StackPanel Spacing="6">
+                                        <ComboBox x:Uid="OverlayPlacementPicker" x:Name="OverlayPlacementPicker" Header="Countdown position" Width="320" HorizontalAlignment="Left">
+                                            <ComboBoxItem x:Uid="OverlayTopCenterOption" Content="Top center" Tag="TopCenter" />
+                                            <ComboBoxItem x:Uid="OverlayBottomCenterOption" Content="Bottom center" Tag="BottomCenter" />
+                                            <ComboBoxItem x:Uid="OverlayLeftCenterOption" Content="Left" Tag="LeftCenter" />
+                                            <ComboBoxItem x:Uid="OverlayRightCenterOption" Content="Right" Tag="RightCenter" />
+                                            <ComboBoxItem x:Uid="OverlayTopLeftOption" Content="Top left" Tag="TopLeft" />
+                                            <ComboBoxItem x:Uid="OverlayTopRightOption" Content="Top right" Tag="TopRight" />
+                                            <ComboBoxItem x:Uid="OverlayBottomLeftOption" Content="Bottom left" Tag="BottomLeft" />
+                                            <ComboBoxItem x:Uid="OverlayBottomRightOption" Content="Bottom right" Tag="BottomRight" />
+                                        </ComboBox>
+                                        <TextBlock x:Uid="OverlayPlacementHelp" Text="Top is the default. Left and right use a vertical layout." TextWrapping="Wrap" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                    </StackPanel>
+                                </StackPanel>
                             </StackPanel>
 
                             <StackPanel Width="620" HorizontalAlignment="Left" Spacing="12">
@@ -306,6 +324,15 @@
                                         </StackPanel>
                                     </StackPanel>
                                 </StackPanel>
+                            </StackPanel>
+
+                            <StackPanel Width="620" HorizontalAlignment="Left" Spacing="12">
+                                <StackPanel Spacing="2">
+                                    <TextBlock Text="ShutdownAT" FontSize="18" FontWeight="SemiBold" />
+                                    <TextBlock x:Uid="AboutDescription" Text="Local, open-source Windows power scheduling without accounts or telemetry." TextWrapping="Wrap" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                </StackPanel>
+                                <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
+                                <TextBlock x:Uid="AboutCliDescription" Text="Prefer commands? The command line and terminal interface use the same scheduling system as the app." TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                             </StackPanel>
                         </StackPanel>
                     </ScrollViewer>

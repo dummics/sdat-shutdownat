@@ -53,9 +53,24 @@ public sealed partial class CriticalOverlayWindow : Window
 
         TitleText.Text = isTest
             ? AppText.Get("TestOverlayTitle", "Test countdown")
-            : schedule.Action == PowerActionType.Restart
-            ? AppText.Get("RestartScheduledTitle", "Restarting soon")
-            : AppText.Get("ShutdownScheduledTitle", "Shutting down soon");
+            : schedule.Action switch
+            {
+                PowerActionType.Restart =>
+                    AppText.Get("RestartScheduledTitle", "Restarting soon"),
+                PowerActionType.Suspend =>
+                    AppText.Get("SuspendScheduledTitle", "Suspending soon"),
+                _ =>
+                    AppText.Get("ShutdownScheduledTitle", "Shutting down soon"),
+            };
+        CancelButton.Content = schedule.Action switch
+        {
+            PowerActionType.Restart =>
+                AppText.Get("OverlayCancelRestart", "Cancel restart"),
+            PowerActionType.Suspend =>
+                AppText.Get("OverlayCancelSuspend", "Cancel suspend"),
+            _ =>
+                AppText.Get("OverlayCancelShutdown", "Cancel shutdown"),
+        };
         ConfigureWindow();
         UpdateCountdown();
         _timer.Tick += OnTimerTick;

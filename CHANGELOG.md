@@ -9,7 +9,10 @@ All notable user-facing changes to SDAT are documented here.
 - Replaced the PowerShell scheduling backend with a native C#/.NET core while preserving the established CLI commands, aliases, Win+R workflow, and Spectre.Console TUI.
 - Added authoritative SQLite state, cross-process mutation locking, verified backups, health checks, guarded recovery, and forward-schema fail-safe behavior.
 - Added revision-safe Windows Task Scheduler projection and stale-safe task, notification, cancellation, and snooze activations.
-- Added the WinUI 3 companion with Overview, Schedule, Notifications, About, and one unified Settings surface for language, quick access, diagnostics, logging, and developer tools.
+- Added the WinUI 3 companion with Overview, Schedule, and one unified Settings surface for notifications, language, quick access, diagnostics, logging, developer tools, and product information.
+- Added side-effect-free live schedule previews to the app and quick palette, friendly localized validation backed by stable core error codes, and contextual primary actions that show the resolved time before saving.
+- Made Overview and the tray operational views of authoritative schedule state, with contextual +10 minute, modify, cancel, skip-next, and disable actions; countdown controls now name the exact power action they stop.
+- Consolidated Notifications and About into the single scrollable Settings page, and added a one-time background hint that shows the configured quick-scheduler shortcut when the main window is first closed to the tray.
 - Reworked Settings into always-open scrollable sections with a persistent bottom-right Save action, and added a safe quick-palette preview to Developer mode.
 - Added the configurable quick-scheduler hotkey, native tray menu, compact critical overlay with configurable edge/corner placement, Windows reminder notifications, and per-user startup registration with a persistent single-instance background companion.
 - Made the quick-scheduler hotkey available whenever ShutdownAT is open, turned it into an open/close toggle, and tightened the palette with reduced-motion-aware fade transitions.

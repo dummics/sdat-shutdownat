@@ -44,7 +44,11 @@
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-                <ComboBox x:Name="ActionPicker" SelectedIndex="0" VerticalAlignment="Center">
+                <ComboBox
+                    x:Name="ActionPicker"
+                    SelectedIndex="0"
+                    VerticalAlignment="Center"
+                    SelectionChanged="OnActionChanged">
                     <ComboBoxItem x:Uid="ShutdownAction" Content="Shut down" Tag="Shutdown" />
                     <ComboBoxItem x:Uid="SuspendAction" Content="Suspend" Tag="Suspend" />
                     <ComboBoxItem x:Uid="RestartAction" Content="Restart" Tag="Restart" />
@@ -75,6 +79,7 @@
                     x:Name="ScheduleButton"
                     x:Uid="ScheduleButton"
                     Content="Schedule"
+                    IsEnabled="False"
                     Style="{ThemeResource AccentButtonStyle}"
                     Click="OnSchedule"
                     VerticalAlignment="Center" />

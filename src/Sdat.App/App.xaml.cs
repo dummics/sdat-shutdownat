@@ -133,6 +133,7 @@ public partial class App : Application
                 ExitCompanion,
                 keepRunningInBackground);
             mainWindow.QuickPaletteRequested += _companion.ShowPalette;
+            mainWindow.BackgroundHintRequested += _companion.ShowBackgroundHint;
             mainWindow.CompanionSettingsApplying += settings =>
             {
                 var shouldKeepRunning = background || settings.StartCompanionAtLogin;

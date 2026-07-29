@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using Microsoft.UI.Dispatching;
+using Sdat.Core.Scheduling;
 using Sdat.Core.Settings;
 using Sdat.Windows.Hosting;
 
@@ -28,6 +29,10 @@ internal sealed class CompanionController : IDisposable
         _nativeWindow = new NativeCompanionWindow(
             () => Enqueue(ShowPalette),
             () => Enqueue(ShowMainWindow),
+            GetTrayMenuState,
+            () => Enqueue(ExtendOneTimeFromTray),
+            () => Enqueue(CancelOneTimeFromTray),
+            () => Enqueue(SkipDailyFromTray),
             () => Enqueue(exit),
             HotkeyGesture.Parse(runtime.CurrentSettings.PaletteHotkey),
             showTrayIcon);
@@ -66,6 +71,8 @@ internal sealed class CompanionController : IDisposable
         _palette.ShowAndFocus();
     }
 
+    public void ShowBackgroundHint(string hotkey) => _nativeWindow.ShowBackgroundHint(hotkey);
+
     public void Dispose()
     {
         if (_disposed)
@@ -78,6 +85,101 @@ internal sealed class CompanionController : IDisposable
     }
 
     private void Enqueue(Action action) => _dispatcher.TryEnqueue(() => action());
+
+    private TrayMenuState GetTrayMenuState()
+    {
+        try
+        {
+            var schedules = _runtime.Schedules.ListAsync().GetAwaiter().GetResult();
+            var isTestMode = _runtime.Settings.LoadAsync().GetAwaiter().GetResult().IsTestMode;
+            var oneTime = schedules.SingleOrDefault(schedule => schedule.Kind == ScheduleKind.OneTime);
+            var daily = schedules.SingleOrDefault(schedule => schedule.Kind == ScheduleKind.Daily);
+            return new TrayMenuState(
+                oneTime is null
+                    ? null
+                    : AppText.Format(
+                        "TrayOneTimeState",
+                        "{0} at {1:HH:mm}",
+                        AppText.PowerAction(oneTime.Action),
+                        oneTime.TargetAt!.Value.ToLocalTime()),
+                daily is null
+                    ? null
+                    : AppText.Format(
+                        "TrayDailyState",
+                        "{0} daily at {1:HH:mm}",
+                        AppText.PowerAction(daily.Action),
+                        daily.DailyAt),
+                isTestMode);
+        }
+        catch
+        {
+            return new TrayMenuState(null, null, false);
+        }
+    }
+
+    private async void ExtendOneTimeFromTray()
+    {
+        try
+        {
+            var schedule = (await _runtime.Schedules.ListAsync())
+                .SingleOrDefault(item => item.Kind == ScheduleKind.OneTime);
+            if (schedule?.TargetAt is not { } targetAt)
+            {
+                return;
+            }
+
+            var settings = await _runtime.Settings.LoadAsync();
+            await _runtime.Coordinator.UpdateExactAsync(
+                schedule.Id,
+                schedule.Revision,
+                ScheduleDraft.OneTime(
+                    schedule.Action,
+                    targetAt.AddMinutes(10),
+                    schedule.TimeZoneId,
+                    schedule.KeepDaily),
+                settings.ReminderOffsetsMinutes);
+        }
+        catch
+        {
+            ShowMainWindow();
+        }
+    }
+
+    private async void CancelOneTimeFromTray()
+    {
+        try
+        {
+            var schedule = (await _runtime.Schedules.ListAsync())
+                .SingleOrDefault(item => item.Kind == ScheduleKind.OneTime);
+            if (schedule is not null)
+            {
+                await AppScheduleCancellation.CancelAsync(_runtime, schedule);
+            }
+        }
+        catch
+        {
+            ShowMainWindow();
+        }
+    }
+
+    private async void SkipDailyFromTray()
+    {
+        try
+        {
+            if ((await _runtime.Settings.LoadAsync()).IsTestMode)
+            {
+                return;
+            }
+
+            await _runtime.DailySkips.RequestNextAsync();
+        }
+        catch
+        {
+            ShowMainWindow();
+        }
+    }
+
+    private sealed record TrayMenuState(string? OneTimeLabel, string? DailyLabel, bool IsTestMode);
 
     private sealed class NativeCompanionWindow : IDisposable
     {
@@ -95,20 +197,30 @@ internal sealed class CompanionController : IDisposable
         private const uint VirtualKeyEscape = 0x1B;
         private const uint TrayMessage = 0x8001;
         private const uint NimAdd = 0x00000000;
+        private const uint NimModify = 0x00000001;
         private const uint NimDelete = 0x00000002;
         private const uint NifMessage = 0x00000001;
         private const uint NifIcon = 0x00000002;
         private const uint NifTip = 0x00000004;
+        private const uint NifInfo = 0x00000010;
         private const uint MfString = 0x00000000;
+        private const uint MfGrayed = 0x00000001;
         private const uint MfSeparator = 0x00000800;
         private const uint TpmRightButton = 0x0002;
         private const uint CommandPalette = 1;
         private const uint CommandOpen = 2;
         private const uint CommandExit = 3;
+        private const uint CommandExtendOneTime = 4;
+        private const uint CommandCancelOneTime = 5;
+        private const uint CommandSkipDaily = 6;
         private static readonly IntPtr MessageOnlyParent = new(-3);
         private static readonly IntPtr DefaultApplicationIcon = new(32512);
         private readonly Action _showPalette;
         private readonly Action _showMain;
+        private readonly Func<TrayMenuState> _getMenuState;
+        private readonly Action _extendOneTime;
+        private readonly Action _cancelOneTime;
+        private readonly Action _skipDaily;
         private readonly Action _exit;
         private readonly WindowProcedure _windowProcedure;
         private readonly string _className = $"SDAT.Companion.{Guid.NewGuid():N}";
@@ -121,12 +233,20 @@ internal sealed class CompanionController : IDisposable
         public NativeCompanionWindow(
             Action showPalette,
             Action showMain,
+            Func<TrayMenuState> getMenuState,
+            Action extendOneTime,
+            Action cancelOneTime,
+            Action skipDaily,
             Action exit,
             HotkeyGesture hotkey,
             bool showTrayIcon)
         {
             _showPalette = showPalette;
             _showMain = showMain;
+            _getMenuState = getMenuState;
+            _extendOneTime = extendOneTime;
+            _cancelOneTime = cancelOneTime;
+            _skipDaily = skipDaily;
             _exit = exit;
             _windowProcedure = WindowProc;
             RegisterWindowClass();
@@ -244,6 +364,25 @@ internal sealed class CompanionController : IDisposable
             _paletteEscapeHotkeyRegistered = false;
         }
 
+        public void ShowBackgroundHint(string hotkey)
+        {
+            if (!_trayIconVisible)
+            {
+                return;
+            }
+
+            _iconData.Flags = NifMessage | NifIcon | NifTip | NifInfo;
+            _iconData.InfoTitle = AppText.Get("BackgroundHintTitle", "ShutdownAT is still ready");
+            _iconData.Info = AppText.Format(
+                "BackgroundHintBody",
+                "Use {0} for quick scheduling, or open ShutdownAT from the tray.",
+                hotkey);
+            ShellNotifyIcon(NimModify, ref _iconData);
+            _iconData.Flags = NifMessage | NifIcon | NifTip;
+            _iconData.InfoTitle = string.Empty;
+            _iconData.Info = string.Empty;
+        }
+
         private bool TryRegisterHotkey(HotkeyGesture hotkey)
         {
             if (!RegisterHotKey(
@@ -357,6 +496,15 @@ internal sealed class CompanionController : IDisposable
                     case CommandOpen:
                         _showMain();
                         break;
+                    case CommandExtendOneTime:
+                        _extendOneTime();
+                        break;
+                    case CommandCancelOneTime:
+                        _cancelOneTime();
+                        break;
+                    case CommandSkipDaily:
+                        _skipDaily();
+                        break;
                     case CommandExit:
                         _exit();
                         break;
@@ -378,9 +526,29 @@ internal sealed class CompanionController : IDisposable
 
             try
             {
+                var state = _getMenuState();
                 AppendMenu(menu, MfString, CommandPalette, AppText.Get("TrayQuickSchedule", "Quick schedule"));
-                AppendMenu(menu, MfString, CommandOpen, AppText.Get("TrayOpen", "Open ShutdownAT"));
+                if (state.OneTimeLabel is not null)
+                {
+                    AppendMenu(menu, MfSeparator, 0, null);
+                    AppendMenu(menu, MfString | MfGrayed, 0, state.OneTimeLabel);
+                    if (!state.IsTestMode)
+                    {
+                        AppendMenu(menu, MfString, CommandExtendOneTime, AppText.Get("TrayExtendOneTime", "10 min later"));
+                    }
+                    AppendMenu(menu, MfString, CommandCancelOneTime, AppText.Get("TrayCancelOneTime", "Cancel one-time action"));
+                }
+                if (state.DailyLabel is not null)
+                {
+                    AppendMenu(menu, MfSeparator, 0, null);
+                    AppendMenu(menu, MfString | MfGrayed, 0, state.DailyLabel);
+                    if (!state.IsTestMode)
+                    {
+                        AppendMenu(menu, MfString, CommandSkipDaily, AppText.Get("TraySkipDaily", "Skip next daily action"));
+                    }
+                }
                 AppendMenu(menu, MfSeparator, 0, null);
+                AppendMenu(menu, MfString, CommandOpen, AppText.Get("TrayOpen", "Open ShutdownAT"));
                 AppendMenu(menu, MfString, CommandExit, AppText.Get("TrayExit", "Exit"));
                 GetCursorPos(out var cursor);
                 SetForegroundWindow(_window);
