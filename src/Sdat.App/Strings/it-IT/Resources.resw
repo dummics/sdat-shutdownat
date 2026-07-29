@@ -128,6 +128,7 @@
   <data name="NotificationCancelled" xml:space="preserve"><value>Pianificazione annullata dalla notifica.</value></data>
   <data name="NotificationUnavailable" xml:space="preserve"><value>Le notifiche Windows non sono disponibili. Il conto alla rovescia sullo schermo continuerà a comparire. Dettagli: {0}</value></data>
   <data name="HotkeyUnavailable" xml:space="preserve"><value>ShutdownAT è attivo nell'area di notifica, ma non è stato possibile abilitare la scorciatoia da tastiera. Dettagli: {0}</value></data>
+  <data name="StartupRegistrationUnavailable" xml:space="preserve"><value>ShutdownAT non ha potuto aggiornare l'avvio automatico di Windows. Salva le Impostazioni per riprovare. Dettagli: {0}</value></data>
   <data name="ActionShutdown" xml:space="preserve"><value>Spegni</value></data>
   <data name="ActionSuspend" xml:space="preserve"><value>Sospendi</value></data>
   <data name="ActionRestart" xml:space="preserve"><value>Riavvia</value></data>
@@ -188,6 +189,7 @@
   <data name="SimulationModeHelp.Text" xml:space="preserve"><value>Blocca pianificazioni e azioni energetiche reali durante i test.</value></data>
   <data name="TestNotificationButton.Content" xml:space="preserve"><value>Prova notifica</value></data>
   <data name="TestOverlayButton.Content" xml:space="preserve"><value>Prova conto alla rovescia</value></data>
+  <data name="TestPaletteButton.Content" xml:space="preserve"><value>Apri pianificazione rapida</value></data>
   <data name="SaveDeveloperSettingsButton.Content" xml:space="preserve"><value>Salva opzioni sviluppatore</value></data>
   <data name="TestModeScheduleBlocked" xml:space="preserve"><value>La modalità test sicura è attiva. Disattivala prima di creare una pianificazione reale.</value></data>
   <data name="TestModeRepairSuppressed" xml:space="preserve"><value>La modalità test sicura è attiva. L'integrazione con Windows non è stata modificata.</value></data>

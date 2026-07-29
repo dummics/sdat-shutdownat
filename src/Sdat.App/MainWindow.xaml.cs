@@ -22,6 +22,7 @@ public sealed partial class MainWindow : Window
     private readonly DispatcherTimer _statusDismissTimer = new();
 
     internal event Action<AppSettings>? CompanionSettingsApplying;
+    internal event Action? QuickPaletteRequested;
 
     public MainWindow(SdatRuntime? runtime = null)
     {
@@ -504,6 +505,16 @@ public sealed partial class MainWindow : Window
         _testOverlay.Activate();
     }
 
+    private void OnTestPalette(object sender, RoutedEventArgs e)
+    {
+        if (!DeveloperModeToggle.IsOn)
+        {
+            return;
+        }
+
+        QuickPaletteRequested?.Invoke();
+    }
+
     private async Task RefreshStatusAsync()
     {
         if (_runtime is null)
@@ -584,6 +595,14 @@ public sealed partial class MainWindow : Window
                 detail),
             InfoBarSeverity.Warning);
 
+    internal void ShowStartupInitializationWarning(string detail) =>
+        ShowStatus(
+            AppText.Format(
+                "StartupRegistrationUnavailable",
+                "ShutdownAT could not update its Windows startup entry. Save Settings to try again. Details: {0}",
+                detail),
+            InfoBarSeverity.Warning);
+
     internal void EnableCompanionMode() => _companionMode = true;
 
     internal void DisableCompanionMode() => _companionMode = false;
@@ -613,7 +632,6 @@ public sealed partial class MainWindow : Window
             SelectTag(LogLevelPicker, settings.LogLevel.ToString());
             DeveloperModeToggle.IsOn = settings.DeveloperModeEnabled;
             SimulationModeToggle.IsOn = settings.IsTestMode;
-            DeveloperOptionsPanel.IsExpanded = settings.DeveloperModeEnabled;
             DeveloperToolsBody.Visibility = settings.DeveloperModeEnabled
                 ? Visibility.Visible
                 : Visibility.Collapsed;

@@ -10,11 +10,13 @@ All notable user-facing changes to SDAT are documented here.
 - Added authoritative SQLite state, cross-process mutation locking, verified backups, health checks, guarded recovery, and forward-schema fail-safe behavior.
 - Added revision-safe Windows Task Scheduler projection and stale-safe task, notification, cancellation, and snooze activations.
 - Added the WinUI 3 companion with Overview, Schedule, Notifications, About, and one unified Settings surface for language, quick access, diagnostics, logging, and developer tools.
+- Reworked Settings into always-open scrollable sections with a persistent bottom-right Save action, and added a safe quick-palette preview to Developer mode.
 - Added the configurable quick-scheduler hotkey, native tray menu, compact critical overlay with configurable edge/corner placement, Windows reminder notifications, and per-user startup registration with a persistent single-instance background companion.
 - Made the quick-scheduler hotkey available whenever ShutdownAT is open, turned it into an open/close toggle, and tightened the palette with reduced-motion-aware fade transitions.
 - Refined the quick palette with reliable foreground text focus, global Escape and click-away dismissal, a fixed non-draggable layout, persistent desktop acrylic when unfocused, no bright window outline, a clean acrylic edge, stronger entrance/exit motion, and transient success feedback that does not reappear on reopen.
 - Refined quick-palette opening so its acrylic surface and controls fade in as one pre-rendered window, clipped the native surface to the same rounded shape, widened the compact layout, and moved transient feedback above the controls to prevent clipping or overlap.
 - Restored the native Windows 11 border and DWM shadow around the quick palette, and adopted the official ShutdownAT logo for the executable, Start shortcuts, tray icon, package documentation, and repository README.
+- Enlarged the generated Windows icon artwork to nearly double its previous occupied area so the app and tray glyph remain legible at small sizes.
 - Added an easy-to-find developer section with a backend-enforced safe test mode, synthetic notification/countdown previews, configurable rolling local logging, log/data shortcuts, and a compact diagnostic report.
 - Made in-app status messages compact, dismissible, and self-closing, and made synthetic Windows test notifications transient.
 - Kept Windows reminder actions registered across scheduled task processes so Cancel and Open ShutdownAT remain actionable.
@@ -28,6 +30,7 @@ All notable user-facing changes to SDAT are documented here.
 - Added versioned machine-readable JSON, side-effect-free preview, database health, reconciliation, and structured diagnostic history commands.
 - Added strict v1 state/task migration with preserved rollback evidence and ambiguous-task fail-safe behavior.
 - Rebuilt install, update, uninstall, packaging, checksum, and CI flows around native executables, with a compact framework-dependent default and an optional self-contained artifact.
+- Made the installed app reconcile its saved startup preference with the Windows Run entry on launch, repairing missing or stale registrations automatically.
 - Removed unused Windows App SDK AI, ML, widgets, and DWrite package dependencies from the shipped runtime graph.
 - Added an organized package layout, one-click install/uninstall launchers, prerequisite bootstrap, Start menu shortcuts, and backup-first clickable uninstall.
 - Added a dedicated CLI `bin` PATH surface so `sdat` and `ssat` resolve to the installed launchers without PowerShell aliases or collision with `SDAT.exe`.

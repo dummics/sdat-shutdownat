@@ -8,6 +8,7 @@ using Sdat.Core.Scheduling;
 using Sdat.Windows.Execution;
 using Sdat.Windows.Hosting;
 using Sdat.Windows.Notifications;
+using Sdat.Windows.Startup;
 
 namespace Sdat.App;
 
@@ -93,12 +94,31 @@ public partial class App : Application
 
         try
         {
-            var runtime = await SdatRuntime.CreateAsync(Environment.ProcessPath!);
+            var applicationPath = Environment.ProcessPath!;
+            var runtime = await SdatRuntime.CreateAsync(applicationPath);
+            string? startupRegistrationError = null;
+            if (IsInstalledPackage(applicationPath))
+            {
+                try
+                {
+                    new StartupRegistrationService(applicationPath)
+                        .SetEnabled(runtime.CurrentSettings.StartCompanionAtLogin);
+                }
+                catch (Exception exception)
+                {
+                    startupRegistrationError = exception.Message;
+                }
+            }
+
             var mainWindow = new MainWindow(runtime);
             _window = mainWindow;
             if (_notificationInitializationError is not null)
             {
                 mainWindow.ShowNotificationInitializationWarning(_notificationInitializationError);
+            }
+            if (startupRegistrationError is not null)
+            {
+                mainWindow.ShowStartupInitializationWarning(startupRegistrationError);
             }
             var background = commandLine.Contains("--background", StringComparer.OrdinalIgnoreCase);
             var keepRunningInBackground = background || runtime.CurrentSettings.StartCompanionAtLogin;
@@ -112,6 +132,7 @@ public partial class App : Application
                 mainWindow,
                 ExitCompanion,
                 keepRunningInBackground);
+            mainWindow.QuickPaletteRequested += _companion.ShowPalette;
             mainWindow.CompanionSettingsApplying += settings =>
             {
                 var shouldKeepRunning = background || settings.StartCompanionAtLogin;
@@ -361,6 +382,13 @@ public partial class App : Application
                         failureDetail);
             }
         }
+    }
+
+    private static bool IsInstalledPackage(string applicationPath)
+    {
+        var directory = Path.GetDirectoryName(applicationPath);
+        return !string.IsNullOrWhiteSpace(directory) &&
+               File.Exists(Path.Combine(directory, ".sdat-package-manifest.json"));
     }
 
     private static void WriteBootstrapFailure(Exception exception)

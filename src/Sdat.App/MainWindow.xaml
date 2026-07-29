@@ -155,163 +155,175 @@
                     </StackPanel>
                 </ScrollViewer>
 
-                <ScrollViewer x:Name="SettingsView" Visibility="Collapsed">
-                    <StackPanel Padding="36,28" Spacing="14" MaxWidth="760" HorizontalAlignment="Left">
-                        <StackPanel Spacing="4">
-                            <TextBlock x:Uid="SettingsTitle" Text="Settings" Style="{ThemeResource TitleTextBlockStyle}" />
-                            <TextBlock x:Uid="SettingsSubtitle" Text="Language, quick access, diagnostics, and test tools." TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                        </StackPanel>
+                <Grid x:Name="SettingsView" Visibility="Collapsed">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
 
-                        <Expander IsExpanded="True" Width="540" HorizontalAlignment="Left">
-                            <Expander.Header>
+                    <ScrollViewer Grid.Row="0">
+                        <StackPanel Padding="36,28,36,36" Spacing="26" MaxWidth="800" HorizontalAlignment="Left">
+                            <StackPanel Spacing="4">
+                                <TextBlock x:Uid="SettingsTitle" Text="Settings" Style="{ThemeResource TitleTextBlockStyle}" />
+                                <TextBlock x:Uid="SettingsSubtitle" Text="Language, quick access, diagnostics, and test tools." TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            </StackPanel>
+
+                            <StackPanel Width="620" HorizontalAlignment="Left" Spacing="12">
                                 <StackPanel Spacing="2">
-                                    <TextBlock x:Uid="GeneralSettingsTitle" Text="General" FontWeight="SemiBold" />
+                                    <TextBlock x:Uid="GeneralSettingsTitle" Text="General" FontSize="18" FontWeight="SemiBold" />
                                     <TextBlock x:Uid="GeneralSettingsDescription" Text="Choose the language used by ShutdownAT." Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                                 </StackPanel>
-                            </Expander.Header>
-                            <StackPanel Spacing="10" Padding="0,10,0,4">
-                                <ComboBox x:Name="LanguagePicker" HorizontalAlignment="Left" Width="320">
-                                    <ComboBoxItem x:Uid="LanguageSystemOption" Content="Use the Windows language" Tag="system" />
-                                    <ComboBoxItem x:Uid="LanguageItalianOption" Content="Italiano" Tag="it-IT" />
-                                    <ComboBoxItem x:Uid="LanguageEnglishOption" Content="English" Tag="en-US" />
-                                </ComboBox>
-                                <StackPanel Orientation="Horizontal" Spacing="10">
-                                    <Button x:Uid="ApplyLanguageButton" Content="Apply language" Click="OnApplyLanguage" />
-                                    <Button x:Uid="RestartLanguageButton" x:Name="RestartLanguageButton" Content="Restart ShutdownAT" Click="OnRestartForLanguage" Visibility="Collapsed" />
+                                <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
+                                <StackPanel Spacing="10">
+                                    <ComboBox x:Name="LanguagePicker" HorizontalAlignment="Left" Width="320">
+                                        <ComboBoxItem x:Uid="LanguageSystemOption" Content="Use the Windows language" Tag="system" />
+                                        <ComboBoxItem x:Uid="LanguageItalianOption" Content="Italiano" Tag="it-IT" />
+                                        <ComboBoxItem x:Uid="LanguageEnglishOption" Content="English" Tag="en-US" />
+                                    </ComboBox>
+                                    <StackPanel Orientation="Horizontal" Spacing="10">
+                                        <Button x:Uid="ApplyLanguageButton" Content="Apply language" Click="OnApplyLanguage" />
+                                        <Button x:Uid="RestartLanguageButton" x:Name="RestartLanguageButton" Content="Restart ShutdownAT" Click="OnRestartForLanguage" Visibility="Collapsed" />
+                                    </StackPanel>
+                                    <TextBlock x:Uid="LanguageRestartHelp" x:Name="LanguageRestartHelp" Text="Restart ShutdownAT to update every screen." Visibility="Collapsed" TextWrapping="Wrap" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                                 </StackPanel>
-                                <TextBlock x:Uid="LanguageRestartHelp" x:Name="LanguageRestartHelp" Text="Restart ShutdownAT to update every screen." Visibility="Collapsed" TextWrapping="Wrap" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                             </StackPanel>
-                        </Expander>
 
-                        <Expander Width="540" HorizontalAlignment="Left">
-                            <Expander.Header>
+                            <StackPanel Width="620" HorizontalAlignment="Left" Spacing="12">
                                 <StackPanel Spacing="2">
-                                    <TextBlock x:Uid="HotkeyTitle" Text="Quick access" FontWeight="SemiBold" />
+                                    <TextBlock x:Uid="HotkeyTitle" Text="Quick access" FontSize="18" FontWeight="SemiBold" />
                                     <TextBlock x:Uid="HotkeySubtitle" Text="Set the shortcut and background companion." Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                                 </StackPanel>
-                            </Expander.Header>
-                            <StackPanel Spacing="10" Padding="0,10,0,4">
-                                <TextBlock x:Uid="PaletteHotkeyLabel" Text="Keyboard shortcut" />
-                                <TextBox x:Uid="PaletteHotkeyInput" x:Name="PaletteHotkeyInput" PlaceholderText="Ctrl+Alt+S" Width="320" HorizontalAlignment="Left" />
-                                <TextBlock x:Uid="PaletteHotkeyHelp" Text="For example: Ctrl+Alt+S or Shift+F12." Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                <ComboBox
-                                    x:Uid="PalettePlacementPicker"
-                                    x:Name="PalettePlacementPicker"
-                                    Header="Quick palette position"
-                                    Width="320"
-                                    HorizontalAlignment="Left">
-                                    <ComboBoxItem x:Uid="PaletteTopCenterOption" Content="Top center" Tag="TopCenter" />
-                                    <ComboBoxItem x:Uid="PaletteBottomCenterOption" Content="Bottom center" Tag="BottomCenter" />
-                                    <ComboBoxItem x:Uid="PaletteLeftCenterOption" Content="Left" Tag="LeftCenter" />
-                                    <ComboBoxItem x:Uid="PaletteRightCenterOption" Content="Right" Tag="RightCenter" />
-                                    <ComboBoxItem x:Uid="PaletteTopLeftOption" Content="Top left" Tag="TopLeft" />
-                                    <ComboBoxItem x:Uid="PaletteTopRightOption" Content="Top right" Tag="TopRight" />
-                                    <ComboBoxItem x:Uid="PaletteBottomLeftOption" Content="Bottom left" Tag="BottomLeft" />
-                                    <ComboBoxItem x:Uid="PaletteBottomRightOption" Content="Bottom right" Tag="BottomRight" />
-                                </ComboBox>
-                                <TextBlock x:Uid="PalettePlacementHelp" Text="Bottom is the default. Left and right use a vertical layout." TextWrapping="Wrap" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                <ToggleSwitch x:Uid="StartupToggle" x:Name="StartupToggle" Header="Keep ShutdownAT ready after I sign in" />
-                                <TextBlock x:Uid="TrayHelp" Text="Keeps the tray icon and shortcut available in the background." TextWrapping="Wrap" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
+                                <StackPanel Spacing="10">
+                                    <TextBlock x:Uid="PaletteHotkeyLabel" Text="Keyboard shortcut" />
+                                    <TextBox x:Uid="PaletteHotkeyInput" x:Name="PaletteHotkeyInput" PlaceholderText="Ctrl+Alt+S" Width="320" HorizontalAlignment="Left" />
+                                    <TextBlock x:Uid="PaletteHotkeyHelp" Text="For example: Ctrl+Alt+S or Shift+F12." Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                    <ComboBox
+                                        x:Uid="PalettePlacementPicker"
+                                        x:Name="PalettePlacementPicker"
+                                        Header="Quick palette position"
+                                        Width="320"
+                                        HorizontalAlignment="Left">
+                                        <ComboBoxItem x:Uid="PaletteTopCenterOption" Content="Top center" Tag="TopCenter" />
+                                        <ComboBoxItem x:Uid="PaletteBottomCenterOption" Content="Bottom center" Tag="BottomCenter" />
+                                        <ComboBoxItem x:Uid="PaletteLeftCenterOption" Content="Left" Tag="LeftCenter" />
+                                        <ComboBoxItem x:Uid="PaletteRightCenterOption" Content="Right" Tag="RightCenter" />
+                                        <ComboBoxItem x:Uid="PaletteTopLeftOption" Content="Top left" Tag="TopLeft" />
+                                        <ComboBoxItem x:Uid="PaletteTopRightOption" Content="Top right" Tag="TopRight" />
+                                        <ComboBoxItem x:Uid="PaletteBottomLeftOption" Content="Bottom left" Tag="BottomLeft" />
+                                        <ComboBoxItem x:Uid="PaletteBottomRightOption" Content="Bottom right" Tag="BottomRight" />
+                                    </ComboBox>
+                                    <TextBlock x:Uid="PalettePlacementHelp" Text="Bottom is the default. Left and right use a vertical layout." TextWrapping="Wrap" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                    <ToggleSwitch x:Uid="StartupToggle" x:Name="StartupToggle" Header="Keep ShutdownAT ready after I sign in" />
+                                    <TextBlock x:Uid="TrayHelp" Text="Keeps the tray icon and shortcut available in the background." TextWrapping="Wrap" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                </StackPanel>
                             </StackPanel>
-                        </Expander>
 
-                        <Expander Width="540" HorizontalAlignment="Left">
-                            <Expander.Header>
+                            <StackPanel Width="620" HorizontalAlignment="Left" Spacing="12">
                                 <StackPanel Spacing="2">
-                                    <TextBlock x:Uid="AdvancedTitle" Text="Diagnostics" FontWeight="SemiBold" />
+                                    <TextBlock x:Uid="AdvancedTitle" Text="Diagnostics" FontSize="18" FontWeight="SemiBold" />
                                     <TextBlock x:Uid="AdvancedDescription" Text="Check local data, logs, and Windows integration." Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                                 </StackPanel>
-                            </Expander.Header>
-                            <StackPanel Spacing="12" Padding="0,10,0,4">
-                                <StackPanel Spacing="4">
-                                    <TextBlock x:Uid="DatabaseHealthTitle" Text="Local data" FontWeight="SemiBold" />
-                                    <TextBlock x:Name="DatabaseHealthText" TextWrapping="Wrap" />
-                                    <TextBlock x:Name="DatabasePathText" TextWrapping="Wrap" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                </StackPanel>
-                                <StackPanel Orientation="Horizontal" Spacing="10">
-                                    <Button x:Uid="ReconcileButton" Content="Repair Windows integration" Click="OnReconcile" />
-                                    <Button x:Uid="RefreshButton" Content="Refresh status" Click="OnRefresh" />
-                                </StackPanel>
-                                <StackPanel Spacing="6">
-                                    <TextBlock x:Uid="LoggingTitle" Text="Log detail" />
-                                    <ComboBox x:Name="LogLevelPicker" HorizontalAlignment="Left" Width="240">
-                                        <ComboBoxItem x:Uid="LogErrorsOption" Content="Errors only" Tag="Error" />
-                                        <ComboBoxItem x:Uid="LogNormalOption" Content="Normal" Tag="Information" />
-                                        <ComboBoxItem x:Uid="LogDetailedOption" Content="Detailed" Tag="Debug" />
-                                    </ComboBox>
-                                </StackPanel>
-                                <StackPanel Orientation="Horizontal" Spacing="10">
-                                    <Button x:Uid="OpenLogButton" Content="Open log" Click="OnOpenLog" />
-                                    <Button x:Uid="CreateDiagnosticReportButton" Content="Create report" Click="OnCreateDiagnosticReport" />
-                                    <Button x:Uid="OpenDataFolderButton" Content="Open data folder" Click="OnOpenDataFolder" />
-                                </StackPanel>
-                                <StackPanel Spacing="6">
-                                    <TextBlock x:Uid="RecentActivityTitle" Text="Recent activity" FontWeight="SemiBold" />
-                                    <TextBlock x:Uid="NoDiagnosticsText" x:Name="DiagnosticsEmptyText" Text="Nothing needs your attention." Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                    <ListView x:Name="DiagnosticsList" MaxHeight="240" SelectionMode="None">
-                                        <ListView.ItemTemplate>
-                                            <DataTemplate>
-                                                <Grid Padding="0,6" ColumnSpacing="10">
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="120" />
-                                                        <ColumnDefinition Width="80" />
-                                                        <ColumnDefinition Width="*" />
-                                                    </Grid.ColumnDefinitions>
-                                                    <TextBlock Text="{Binding OccurredAt}" Style="{ThemeResource CaptionTextBlockStyle}" />
-                                                    <TextBlock Grid.Column="1" Text="{Binding Severity}" Style="{ThemeResource CaptionTextBlockStyle}" />
-                                                    <StackPanel Grid.Column="2" Spacing="2">
-                                                        <TextBlock Text="{Binding Source}" FontWeight="SemiBold" />
-                                                        <TextBlock Text="{Binding Message}" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                                    </StackPanel>
-                                                </Grid>
-                                            </DataTemplate>
-                                        </ListView.ItemTemplate>
-                                    </ListView>
-                                </StackPanel>
-                            </StackPanel>
-                        </Expander>
-
-                        <Expander
-                            x:Name="DeveloperOptionsPanel"
-                            IsExpanded="False"
-                            Width="540"
-                            HorizontalAlignment="Left">
-                            <Expander.Header>
-                                <StackPanel Spacing="2">
-                                    <TextBlock x:Uid="DeveloperOptionsTitle" Text="Developer mode" FontWeight="SemiBold" />
-                                    <TextBlock x:Uid="DeveloperOptionsDescription" Text="Safe previews and troubleshooting tools." Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                </StackPanel>
-                            </Expander.Header>
-                            <StackPanel Spacing="12" Padding="0,10,0,4">
-                                <ToggleSwitch
-                                    x:Uid="DeveloperModeToggle"
-                                    x:Name="DeveloperModeToggle"
-                                    Header="Enable developer mode"
-                                    Toggled="OnDeveloperModeToggled" />
-                                <StackPanel x:Name="DeveloperToolsBody" Spacing="12" Visibility="Collapsed">
-                                    <InfoBar
-                                        x:Uid="DeveloperWarning"
-                                        IsOpen="True"
-                                        IsClosable="False"
-                                        Severity="Warning"
-                                        Title="Test tools"
-                                        Message="Test mode never schedules or powers off this PC." />
-                                    <ToggleSwitch
-                                        x:Uid="SimulationModeToggle"
-                                        x:Name="SimulationModeToggle"
-                                        Header="Test mode" />
-                                    <TextBlock x:Uid="SimulationModeHelp" Text="Blocks real schedules and power actions while you test." TextWrapping="Wrap" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
+                                <StackPanel Spacing="12">
+                                    <StackPanel Spacing="4">
+                                        <TextBlock x:Uid="DatabaseHealthTitle" Text="Local data" FontWeight="SemiBold" />
+                                        <TextBlock x:Name="DatabaseHealthText" TextWrapping="Wrap" />
+                                        <TextBlock x:Name="DatabasePathText" TextWrapping="Wrap" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                    </StackPanel>
                                     <StackPanel Orientation="Horizontal" Spacing="10">
-                                        <Button x:Uid="TestNotificationButton" Content="Test notification" Click="OnTestNotification" />
-                                        <Button x:Uid="TestOverlayButton" Content="Test countdown" Click="OnTestOverlay" />
+                                        <Button x:Uid="ReconcileButton" Content="Repair Windows integration" Click="OnReconcile" />
+                                        <Button x:Uid="RefreshButton" Content="Refresh status" Click="OnRefresh" />
+                                    </StackPanel>
+                                    <StackPanel Spacing="6">
+                                        <TextBlock x:Uid="LoggingTitle" Text="Log detail" />
+                                        <ComboBox x:Name="LogLevelPicker" HorizontalAlignment="Left" Width="240">
+                                            <ComboBoxItem x:Uid="LogErrorsOption" Content="Errors only" Tag="Error" />
+                                            <ComboBoxItem x:Uid="LogNormalOption" Content="Normal" Tag="Information" />
+                                            <ComboBoxItem x:Uid="LogDetailedOption" Content="Detailed" Tag="Debug" />
+                                        </ComboBox>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Spacing="10">
+                                        <Button x:Uid="OpenLogButton" Content="Open log" Click="OnOpenLog" />
+                                        <Button x:Uid="CreateDiagnosticReportButton" Content="Create report" Click="OnCreateDiagnosticReport" />
+                                        <Button x:Uid="OpenDataFolderButton" Content="Open data folder" Click="OnOpenDataFolder" />
+                                    </StackPanel>
+                                    <StackPanel Spacing="6">
+                                        <TextBlock x:Uid="RecentActivityTitle" Text="Recent activity" FontWeight="SemiBold" />
+                                        <TextBlock x:Uid="NoDiagnosticsText" x:Name="DiagnosticsEmptyText" Text="Nothing needs your attention." Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                        <ListView x:Name="DiagnosticsList" MaxHeight="240" SelectionMode="None">
+                                            <ListView.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Grid Padding="0,6" ColumnSpacing="10">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="120" />
+                                                            <ColumnDefinition Width="80" />
+                                                            <ColumnDefinition Width="*" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBlock Text="{Binding OccurredAt}" Style="{ThemeResource CaptionTextBlockStyle}" />
+                                                        <TextBlock Grid.Column="1" Text="{Binding Severity}" Style="{ThemeResource CaptionTextBlockStyle}" />
+                                                        <StackPanel Grid.Column="2" Spacing="2">
+                                                            <TextBlock Text="{Binding Source}" FontWeight="SemiBold" />
+                                                            <TextBlock Text="{Binding Message}" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                                        </StackPanel>
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </ListView.ItemTemplate>
+                                        </ListView>
                                     </StackPanel>
                                 </StackPanel>
                             </StackPanel>
-                        </Expander>
 
-                        <Button x:Uid="SaveSettingsButton" Content="Save settings" Style="{ThemeResource AccentButtonStyle}" Click="OnSaveSettings" HorizontalAlignment="Left" />
-                    </StackPanel>
-                </ScrollViewer>
+                            <StackPanel Width="620" HorizontalAlignment="Left" Spacing="12">
+                                <StackPanel Spacing="2">
+                                    <TextBlock x:Uid="DeveloperOptionsTitle" Text="Developer mode" FontSize="18" FontWeight="SemiBold" />
+                                    <TextBlock x:Uid="DeveloperOptionsDescription" Text="Safe previews and troubleshooting tools." Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                </StackPanel>
+                                <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
+                                <StackPanel Spacing="12">
+                                    <ToggleSwitch
+                                        x:Uid="DeveloperModeToggle"
+                                        x:Name="DeveloperModeToggle"
+                                        Header="Enable developer mode"
+                                        Toggled="OnDeveloperModeToggled" />
+                                    <StackPanel x:Name="DeveloperToolsBody" Spacing="12" Visibility="Collapsed">
+                                        <InfoBar
+                                            x:Uid="DeveloperWarning"
+                                            IsOpen="True"
+                                            IsClosable="False"
+                                            Severity="Warning"
+                                            Title="Test tools"
+                                            Message="Test mode never schedules or powers off this PC." />
+                                        <ToggleSwitch
+                                            x:Uid="SimulationModeToggle"
+                                            x:Name="SimulationModeToggle"
+                                            Header="Test mode" />
+                                        <TextBlock x:Uid="SimulationModeHelp" Text="Blocks real schedules and power actions while you test." TextWrapping="Wrap" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                        <StackPanel Orientation="Horizontal" Spacing="10">
+                                            <Button x:Uid="TestNotificationButton" Content="Test notification" Click="OnTestNotification" />
+                                            <Button x:Uid="TestOverlayButton" Content="Test countdown" Click="OnTestOverlay" />
+                                            <Button x:Uid="TestPaletteButton" Content="Open quick palette" Click="OnTestPalette" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                </StackPanel>
+                            </StackPanel>
+                        </StackPanel>
+                    </ScrollViewer>
+
+                    <Border
+                        Grid.Row="1"
+                        Padding="36,12,24,12"
+                        Background="{ThemeResource LayerFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                        BorderThickness="0,1,0,0">
+                        <Button
+                            x:Uid="SaveSettingsButton"
+                            Content="Save settings"
+                            Style="{ThemeResource AccentButtonStyle}"
+                            Click="OnSaveSettings"
+                            HorizontalAlignment="Right" />
+                    </Border>
+                </Grid>
 
                 <InfoBar
                     x:Name="StatusBar"

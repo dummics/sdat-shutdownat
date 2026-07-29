@@ -128,6 +128,7 @@
   <data name="NotificationCancelled" xml:space="preserve"><value>Schedule cancelled from the notification.</value></data>
   <data name="NotificationUnavailable" xml:space="preserve"><value>Windows notifications are unavailable. The on-screen countdown will still appear. Details: {0}</value></data>
   <data name="HotkeyUnavailable" xml:space="preserve"><value>ShutdownAT is running in the notification area, but the keyboard shortcut could not be enabled. Details: {0}</value></data>
+  <data name="StartupRegistrationUnavailable" xml:space="preserve"><value>ShutdownAT could not update its Windows startup entry. Save Settings to try again. Details: {0}</value></data>
   <data name="ActionShutdown" xml:space="preserve"><value>Shut down</value></data>
   <data name="ActionSuspend" xml:space="preserve"><value>Suspend</value></data>
   <data name="ActionRestart" xml:space="preserve"><value>Restart</value></data>
@@ -188,6 +189,7 @@
   <data name="SimulationModeHelp.Text" xml:space="preserve"><value>Blocks real schedules and power actions while you test.</value></data>
   <data name="TestNotificationButton.Content" xml:space="preserve"><value>Test notification</value></data>
   <data name="TestOverlayButton.Content" xml:space="preserve"><value>Test countdown</value></data>
+  <data name="TestPaletteButton.Content" xml:space="preserve"><value>Open quick palette</value></data>
   <data name="SaveDeveloperSettingsButton.Content" xml:space="preserve"><value>Save developer settings</value></data>
   <data name="TestModeScheduleBlocked" xml:space="preserve"><value>Safe test mode is active. Turn it off before creating a real schedule.</value></data>
   <data name="TestModeRepairSuppressed" xml:space="preserve"><value>Safe test mode is active. Windows integration was not changed.</value></data>
