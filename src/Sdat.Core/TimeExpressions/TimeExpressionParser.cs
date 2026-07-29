@@ -21,7 +21,9 @@ public sealed partial class TimeExpressionParser
         var raw = value.Trim();
         if (string.IsNullOrWhiteSpace(raw))
         {
-            throw new TimeExpressionParseException(MissingMessage);
+            throw new TimeExpressionParseException(
+                ScheduleInputErrorCode.MissingValue,
+                MissingMessage);
         }
 
         var durationSeconds = TryResolveDurationSeconds(raw);
@@ -103,7 +105,9 @@ public sealed partial class TimeExpressionParser
         var rounded = checked((int)Math.Round(seconds, MidpointRounding.AwayFromZero));
         if (rounded <= 0)
         {
-            throw new TimeExpressionParseException("Duration must be greater than zero.");
+            throw new TimeExpressionParseException(
+                ScheduleInputErrorCode.NonPositiveDuration,
+                "Duration must be greater than zero.");
         }
 
         return rounded;
@@ -138,7 +142,9 @@ public sealed partial class TimeExpressionParser
         var match = RawClockRegex().Match(value);
         if (!match.Success)
         {
-            throw new TimeExpressionParseException(InvalidMessage);
+            throw new TimeExpressionParseException(
+                ScheduleInputErrorCode.InvalidFormat,
+                InvalidMessage);
         }
 
         var compact = match.Groups["compact"];
@@ -150,7 +156,9 @@ public sealed partial class TimeExpressionParser
             : int.Parse(match.Groups["minute"].Value, CultureInfo.InvariantCulture);
         if (hours > 23 || minutes > 59)
         {
-            throw new TimeExpressionParseException($"Invalid time: {value}");
+            throw new TimeExpressionParseException(
+                ScheduleInputErrorCode.InvalidClockTime,
+                $"Invalid time: {value}");
         }
 
         return new TimeOnly(hours, minutes);
@@ -165,6 +173,7 @@ public sealed partial class TimeExpressionParser
         if (timeZone.IsInvalidTime(local))
         {
             throw new TimeExpressionParseException(
+                ScheduleInputErrorCode.NonexistentLocalTime,
                 $"The local time {local:yyyy-MM-dd HH:mm} does not exist because of a daylight-saving transition.");
         }
 

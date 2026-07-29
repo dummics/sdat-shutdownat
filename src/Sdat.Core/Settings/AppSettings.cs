@@ -45,6 +45,8 @@ public sealed record AppSettings
 
     public bool SimulationModeEnabled { get; init; }
 
+    public bool BackgroundHintShown { get; init; }
+
     [JsonIgnore]
     public bool IsTestMode => DeveloperModeEnabled && SimulationModeEnabled;
 
