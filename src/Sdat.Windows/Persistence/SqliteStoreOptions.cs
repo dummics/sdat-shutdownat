@@ -12,6 +12,8 @@ public sealed record SqliteStoreOptions
 
     public string DiagnosticReportPath => Path.Combine(DataDirectory, "diagnostics.txt");
 
+    public string CancellationSignalPath => Path.Combine(DataDirectory, "cancellation-signal.json");
+
     public string OperationLockPath => Path.Combine(Path.GetDirectoryName(DatabasePath)!, "operation.lock");
 
     public int BackupRetentionCount { get; init; } = 5;

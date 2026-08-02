@@ -153,7 +153,11 @@ internal sealed class CompanionController : IDisposable
                 .SingleOrDefault(item => item.Kind == ScheduleKind.OneTime);
             if (schedule is not null)
             {
-                await AppScheduleCancellation.CancelAsync(_runtime, schedule);
+                var result = await AppScheduleCancellation.CancelAsync(_runtime, schedule);
+                if (!result.IsSafe)
+                {
+                    ShowMainWindow();
+                }
             }
         }
         catch

@@ -452,10 +452,24 @@ public sealed partial class MainWindow : Window
 
         try
         {
-            var settings = await _runtime.Settings.LoadAsync();
-            await _runtime.Coordinator.CancelAsync(kind, settings.ReminderOffsetsMinutes);
+            var schedule = (await _runtime.Schedules.ListAsync())
+                .SingleOrDefault(item => item.Kind == kind)
+                ?? throw new KeyNotFoundException();
+            var result = await AppScheduleCancellation.CancelAsync(_runtime, schedule);
             await RefreshStatusAsync();
-            ShowStatus(AppText.Get("ScheduleCancelled", "Schedule cancelled."), InfoBarSeverity.Success);
+            if (result.IsSafe)
+            {
+                ShowStatus(AppText.Get("ScheduleCancelled", "Schedule cancelled."), InfoBarSeverity.Success);
+            }
+            else
+            {
+                ShowStatus(
+                    AppText.Format(
+                        "WindowsCountdownCancelFailed",
+                        "Windows could not stop the countdown. Try sdat -a. Details: {0}",
+                        result.ErrorDetail ?? "Unknown error"),
+                    InfoBarSeverity.Error);
+            }
         }
         catch (KeyNotFoundException)
         {

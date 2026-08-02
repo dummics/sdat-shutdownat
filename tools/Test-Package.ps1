@@ -90,6 +90,17 @@ try {
     foreach ($required in @("VERSION", "SDAT.exe", "SDAT.pri", "sdat-cli.exe", "sdatui.bat", "Uninstall SDAT.cmd", "bin\sdat.bat", "bin\ssat.bat", ".sdat-package-manifest.json")) {
         if (-not (Test-Path -LiteralPath (Join-Path $tempInstall $required))) { throw "Installed package is missing $required" }
     }
+    foreach ($launcherName in @("sdat.bat", "ssat.bat")) {
+        $launcher = Get-Content -LiteralPath (Join-Path $tempInstall "bin\$launcherName") -Raw
+        if ($launcher -notmatch 'set "SDAT_WRAPPER_PROCESS=1"') {
+            throw "$launcherName does not mark the native CLI wrapper for Win+R detection."
+        }
+        $abortIndex = $launcher.IndexOf("call :SDAT_ABORT_WINDOWS_COUNTDOWN", [StringComparison]::OrdinalIgnoreCase)
+        $cliIndex = $launcher.LastIndexOf('sdat-cli.exe', [StringComparison]::OrdinalIgnoreCase)
+        if ($abortIndex -lt 0 -or $cliIndex -lt 0 -or $abortIndex -gt $cliIndex) {
+            throw "$launcherName no longer attempts emergency abort before native CLI startup."
+        }
+    }
     if ($SmokeTestGuiBootstrap) {
         $smokeProcess = Start-Process `
             -FilePath (Join-Path $tempInstall "SDAT.exe") `

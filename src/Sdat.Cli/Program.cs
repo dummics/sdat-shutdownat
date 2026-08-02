@@ -50,8 +50,20 @@ internal static class SdatCli
             }
             else
             {
-                Console.Error.WriteLine(exception.Message);
-                Console.Error.WriteLine("Use 'sdat help' for examples.");
+                if (!CliTerminalPresentation.TryWriteResult(
+                        "ShutdownAT",
+                        "The command could not be understood",
+                        [
+                            new CliTerminalPresentation.DetailRow("Error", exception.Message, "yellow"),
+                            new CliTerminalPresentation.DetailRow("Help", "Use sdat help for examples.", "grey70"),
+                        ],
+                        "yellow"))
+                {
+                    Console.Error.WriteLine(exception.Message);
+                    Console.Error.WriteLine("Use 'sdat help' for examples.");
+                }
+
+                CliTerminalPresentation.HoldTransientResult();
             }
 
             return 2;
@@ -165,7 +177,7 @@ internal static class SdatCli
                     invocation.Json),
                 CliCommandType.Schedule => await ScheduleAsync(services.ScheduleCommands, invocation),
                 CliCommandType.Cancel => await CancelAsync(
-                    services.Coordinator,
+                    services,
                     invocation,
                     reminderOffsets,
                     windowsCountdownAbort!),
@@ -293,19 +305,46 @@ internal static class SdatCli
 
         if (schedules.Count == 0)
         {
-            Console.WriteLine("No active ShutdownAT schedules.");
+            if (!CliTerminalPresentation.TryWriteResult(
+                    "ShutdownAT status",
+                    "No active schedules",
+                    [new CliTerminalPresentation.DetailRow(
+                        "Task Scheduler",
+                        reconciliation.IsHealthy ? "healthy" : "needs attention",
+                        reconciliation.IsHealthy ? "green" : "yellow")]))
+            {
+                Console.WriteLine("No active ShutdownAT schedules.");
+            }
         }
         else
         {
-            foreach (var schedule in schedules)
+            var rows = schedules
+                .OrderBy(schedule => schedule.Kind)
+                .Select(schedule => new CliTerminalPresentation.DetailRow(
+                    schedule.Kind == ScheduleKind.OneTime ? "One-time" : "Daily",
+                    $"{FormatAction(schedule.Action)} {FormatWhen(schedule)}",
+                    schedule.Kind == ScheduleKind.OneTime ? "yellow" : "deepskyblue1"))
+                .Append(new CliTerminalPresentation.DetailRow(
+                    "Task Scheduler",
+                    reconciliation.IsHealthy ? "healthy" : "needs attention",
+                    reconciliation.IsHealthy ? "green" : "yellow"))
+                .ToArray();
+            if (!CliTerminalPresentation.TryWriteResult(
+                    "ShutdownAT status",
+                    schedules.Count == 1 ? "1 active schedule" : $"{schedules.Count} active schedules",
+                    rows))
             {
-                Console.WriteLine(FormatSchedule(schedule));
+                foreach (var schedule in schedules)
+                {
+                    Console.WriteLine(FormatSchedule(schedule));
+                }
             }
         }
 
         WriteReconciliationWarning(reconciliation);
         WriteLegacyMigrationWarnings(legacyMigration);
         WriteRecoveryWarning(startupRecovery);
+        CliTerminalPresentation.HoldTransientResult();
         return reconciliation.IsHealthy && legacyMigration.Status != LegacyMigrationStatus.Failed ? 0 : 3;
     }
 
@@ -334,15 +373,38 @@ internal static class SdatCli
         }
         else
         {
-            Console.WriteLine($"Scheduled: {FormatSchedule(result.Mutation.Schedule)}");
+            var schedule = result.Mutation.Schedule;
+            var rows = new List<CliTerminalPresentation.DetailRow>
+            {
+                new("Action", FormatAction(schedule.Action), "white"),
+                new("When", FormatWhen(schedule), schedule.Kind == ScheduleKind.OneTime ? "yellow" : "deepskyblue1"),
+                new("Type", schedule.Kind == ScheduleKind.OneTime ? "one-time" : "daily", "grey70"),
+            };
             if (result.AutomaticDailySkip is not null)
             {
-                Console.WriteLine(
-                    $"Skipped the overlapping daily occurrence at {result.AutomaticDailySkip.Request.ExecuteDueAt.ToLocalTime():yyyy-MM-dd HH:mm}.");
+                rows.Add(new CliTerminalPresentation.DetailRow(
+                    "Daily overlap",
+                    $"skipped {result.AutomaticDailySkip.Request.ExecuteDueAt.ToLocalTime():yyyy-MM-dd HH:mm}",
+                    "yellow"));
+            }
+
+            if (!CliTerminalPresentation.TryWriteResult(
+                    "Scheduled",
+                    $"{FormatAction(schedule.Action)} scheduled successfully",
+                    rows,
+                    result.IsFullyApplied ? "green" : "yellow"))
+            {
+                Console.WriteLine($"Scheduled: {FormatSchedule(schedule)}");
+                if (result.AutomaticDailySkip is not null)
+                {
+                    Console.WriteLine(
+                        $"Skipped the overlapping daily occurrence at {result.AutomaticDailySkip.Request.ExecuteDueAt.ToLocalTime():yyyy-MM-dd HH:mm}.");
+                }
             }
 
             WriteMutationWarnings(result.Mutation);
             WriteDailySkipWarnings(result.AutomaticDailySkip);
+            CliTerminalPresentation.HoldTransientResult();
         }
 
         return result.IsFullyApplied ? 0 : 3;
@@ -366,14 +428,28 @@ internal static class SdatCli
             var when = prepared.Draft.Kind == ScheduleKind.OneTime
                 ? prepared.Draft.TargetAt!.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm")
                 : $"daily at {prepared.Draft.DailyAt:HH:mm}";
-            Console.WriteLine($"Would schedule {prepared.Draft.Action} {when}. No state was changed.");
+            if (!CliTerminalPresentation.TryWriteResult(
+                    "Schedule preview",
+                    "No state was changed",
+                    [
+                        new CliTerminalPresentation.DetailRow(
+                            "Action",
+                            FormatAction(prepared.Draft.Action),
+                            "white"),
+                        new CliTerminalPresentation.DetailRow("When", when, "deepskyblue1"),
+                    ]))
+            {
+                Console.WriteLine($"Would schedule {prepared.Draft.Action} {when}. No state was changed.");
+            }
+
+            CliTerminalPresentation.HoldTransientResult();
         }
 
         return 0;
     }
 
     private static async Task<int> CancelAsync(
-        ScheduleCoordinator coordinator,
+        SdatRuntime services,
         CliInvocation invocation,
         IReadOnlyList<int> reminderOffsets,
         ShutdownCountdownAbortResult windowsCountdownAbort)
@@ -384,7 +460,7 @@ internal static class SdatCli
                 IReadOnlyCollection<ScheduleKind> kinds = invocation.CancelAll
                     ? [ScheduleKind.OneTime, ScheduleKind.Daily]
                     : [ScheduleKind.OneTime];
-                return await coordinator.CancelAvailableAsync(
+                return await services.Coordinator.CancelAvailableAsync(
                     kinds,
                     reminderOffsets,
                     cancellationToken);
@@ -397,6 +473,18 @@ internal static class SdatCli
 
         var results = guardedCancellation.StateResult ?? [];
         windowsCountdownAbort = guardedCancellation.EffectiveAbort;
+        string? surfaceSignalFailure = null;
+        try
+        {
+            await ScheduleCancellationSignalPublisher.PublishAvailableAsync(
+                services.CancellationSignals,
+                results,
+                guardedCancellation);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            surfaceSignalFailure = exception.Message;
+        }
 
         if (invocation.Json)
         {
@@ -406,6 +494,12 @@ internal static class SdatCli
                 warnings.Add(new MachineWarning(
                     "WindowsCountdownAbortFailed",
                     windowsCountdownAbort.Detail ?? "Windows could not stop its active shutdown countdown."));
+            }
+            if (surfaceSignalFailure is not null)
+            {
+                warnings.Add(new MachineWarning(
+                    "CancellationSurfaceSignalFailed",
+                    surfaceSignalFailure));
             }
 
             WriteMachineSuccess(
@@ -422,25 +516,45 @@ internal static class SdatCli
         }
         else if (results.Count == 0 && windowsCountdownAbort.WasAborted)
         {
-            Console.WriteLine("Stopped the active Windows shutdown countdown.");
+            WriteCancelResult(
+                "Windows shutdown cancelled",
+                windowsCountdownAbort,
+                await services.Schedules.ListAsync(),
+                surfaceSignalFailure,
+                fallback: "Stopped the active Windows shutdown countdown.");
         }
         else if (results.Count == 0 &&
                  windowsCountdownAbort.Status == ShutdownCountdownAbortStatus.Failed)
         {
-            Console.Error.WriteLine(
-                $"Windows did not confirm countdown cancellation. Retry 'sdat -a'. {windowsCountdownAbort.Detail}");
+            WriteCancelResult(
+                "Cancellation needs attention",
+                windowsCountdownAbort,
+                await services.Schedules.ListAsync(),
+                surfaceSignalFailure,
+                fallback: $"Windows did not confirm countdown cancellation. Retry 'sdat -a'. {windowsCountdownAbort.Detail}");
         }
         else if (results.Count == 0)
         {
-            Console.WriteLine("Nothing to cancel.");
+            WriteCancelResult(
+                "Nothing to cancel",
+                windowsCountdownAbort,
+                await services.Schedules.ListAsync(),
+                surfaceSignalFailure,
+                fallback: "Nothing to cancel.");
         }
         else
         {
-            Console.WriteLine(windowsCountdownAbort.WasAborted
+            var fallback = windowsCountdownAbort.WasAborted
                 ? "Stopped the Windows countdown and cancelled the ShutdownAT schedule."
                 : invocation.CancelAll
                     ? "Cancelled all ShutdownAT schedules."
-                    : "Cancelled the one-time schedule.");
+                    : "Cancelled the one-time schedule.";
+            WriteCancelResult(
+                invocation.CancelAll ? "All schedules cancelled" : "Schedule cancelled",
+                windowsCountdownAbort,
+                await services.Schedules.ListAsync(),
+                surfaceSignalFailure,
+                fallback);
             foreach (var result in results)
             {
                 WriteMutationWarnings(result);
@@ -451,6 +565,17 @@ internal static class SdatCli
                 Console.Error.WriteLine(
                     $"Warning: the ShutdownAT schedule was cancelled, but Windows did not confirm countdown cancellation. {windowsCountdownAbort.Detail}");
             }
+        }
+
+        if (!invocation.Json)
+        {
+            if (surfaceSignalFailure is not null)
+            {
+                Console.Error.WriteLine(
+                    $"Warning: cancellation completed, but another open ShutdownAT surface may refresh late. {surfaceSignalFailure}");
+            }
+
+            CliTerminalPresentation.HoldTransientResult();
         }
 
         return results.All(result => result.IsFullyApplied) &&
@@ -591,6 +716,67 @@ internal static class SdatCli
         return $"{schedule.Kind}: {schedule.Action} {when} (revision {schedule.Revision})";
     }
 
+    private static string FormatWhen(ScheduleSnapshot schedule) =>
+        schedule.Kind == ScheduleKind.OneTime
+            ? schedule.TargetAt!.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm")
+            : $"daily at {schedule.DailyAt:HH:mm}";
+
+    private static string FormatAction(PowerActionType action) => action switch
+    {
+        PowerActionType.Shutdown => "Shut down",
+        PowerActionType.Suspend => "Suspend",
+        PowerActionType.Restart => "Restart",
+        _ => action.ToString(),
+    };
+
+    private static void WriteCancelResult(
+        string summary,
+        ShutdownCountdownAbortResult windowsCountdownAbort,
+        IReadOnlyList<ScheduleSnapshot> remainingSchedules,
+        string? surfaceSignalFailure,
+        string fallback)
+    {
+        var oneTime = remainingSchedules.FirstOrDefault(schedule => schedule.Kind == ScheduleKind.OneTime);
+        var daily = remainingSchedules.FirstOrDefault(schedule => schedule.Kind == ScheduleKind.Daily);
+        var rows = new List<CliTerminalPresentation.DetailRow>
+        {
+            new(
+                "Windows",
+                windowsCountdownAbort.WasAborted
+                    ? "countdown stopped immediately"
+                    : windowsCountdownAbort.Status == ShutdownCountdownAbortStatus.Failed
+                        ? "cancellation not confirmed"
+                        : "no countdown active",
+                windowsCountdownAbort.Status == ShutdownCountdownAbortStatus.Failed
+                    ? "red"
+                    : windowsCountdownAbort.WasAborted ? "green" : "grey70"),
+            new(
+                "One-time",
+                oneTime is null ? "none" : $"{FormatAction(oneTime.Action)} {FormatWhen(oneTime)}",
+                oneTime is null ? "grey58" : "yellow"),
+            new(
+                "Daily",
+                daily is null ? "none" : $"{FormatAction(daily.Action)} {FormatWhen(daily)}",
+                daily is null ? "grey58" : "deepskyblue1"),
+        };
+        if (surfaceSignalFailure is not null)
+        {
+            rows.Add(new CliTerminalPresentation.DetailRow(
+                "Open surfaces",
+                "refresh may be delayed",
+                "yellow"));
+        }
+
+        if (!CliTerminalPresentation.TryWriteResult(
+                "Cancelled",
+                summary,
+                rows,
+                windowsCountdownAbort.Status == ShutdownCountdownAbortStatus.Failed ? "yellow" : "green"))
+        {
+            Console.WriteLine(fallback);
+        }
+    }
+
     private static void WriteMutationWarnings(ScheduleMutationResult result)
     {
         if (result.BackupFailure is not null)
@@ -622,7 +808,16 @@ internal static class SdatCli
         }
         else
         {
-            Console.Error.WriteLine($"ShutdownAT error: {exception.Message}");
+            if (!CliTerminalPresentation.TryWriteResult(
+                    "ShutdownAT error",
+                    "The command did not complete",
+                    [new CliTerminalPresentation.DetailRow("Error", exception.Message, "red")],
+                    "red"))
+            {
+                Console.Error.WriteLine($"ShutdownAT error: {exception.Message}");
+            }
+
+            CliTerminalPresentation.HoldTransientResult();
         }
     }
 

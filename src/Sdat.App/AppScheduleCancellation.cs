@@ -54,6 +54,32 @@ internal static class AppScheduleCancellation
             scheduleSettled = latest is null || latest.Status != ScheduleStatus.Active;
         }
 
+        try
+        {
+            await ScheduleCancellationSignalPublisher.PublishExactAsync(
+                runtime.CancellationSignals,
+                schedule.Id,
+                expectedRevision ?? schedule.Revision,
+                scheduleSettled,
+                guard,
+                cancellationToken);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            try
+            {
+                await runtime.Logger.WriteAsync(
+                    Sdat.Core.Settings.AppLogLevel.Information,
+                    nameof(AppScheduleCancellation),
+                    $"Cancellation completed, but other surfaces could not be signalled: {exception.Message}",
+                    CancellationToken.None);
+            }
+            catch
+            {
+                // Surface synchronization is best-effort and must not undo a safe cancellation.
+            }
+        }
+
         return new AppScheduleCancellationResult(scheduleSettled, guard);
     }
 }

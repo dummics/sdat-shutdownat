@@ -13,6 +13,9 @@ for %%A in (%*) do (
 )
 if "%SDAT_CANCEL_FAST%"=="1" call :SDAT_ABORT_WINDOWS_COUNTDOWN
 
+:: Let the native CLI distinguish Win+R's transient cmd from a real terminal.
+set "SDAT_WRAPPER_PROCESS=1"
+
 "%SDAT_DIR%sdat-cli.exe" --suspend %*
 exit /b %ERRORLEVEL%
 

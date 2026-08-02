@@ -4,6 +4,8 @@ All notable user-facing changes to SDAT are documented here.
 
 ## 2.0.0 - Unreleased
 
+- Restored centered Spectre.Console result panels for interactive CLI scheduling, preview, status, cancellation, and errors; transient Win+R consoles now remain readable for six seconds while existing terminals and redirected/JSON clients return immediately.
+- Unified cancellation across toast, critical overlay, tray, palette, TUI, and CLI with a revision-safe local cross-process signal plus authoritative schedule polling, so a successful external cancel closes the matching persistent countdown popup.
 - Restored a richer native C# terminal experience with schedule preview, task management, health/history diagnostics, safe repair, and an interactive no-argument entry path that preserves non-interactive status output.
 - Presented the installed Windows utility as ShutdownAT while keeping the compact `sdat` CLI and `SDAT.exe` technical executable names, and added searchable graphical and terminal Start shortcuts.
 - Replaced the PowerShell scheduling backend with a native C#/.NET core while preserving the established CLI commands, aliases, Win+R workflow, and Spectre.Console TUI.

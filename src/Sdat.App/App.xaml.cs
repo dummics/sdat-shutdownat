@@ -236,8 +236,13 @@ public partial class App : Application
         var action = ReminderNotificationActionParser.Parse(args.Argument);
         if (action.Kind == ReminderNotificationActionKind.Cancel)
         {
-            await CancelFromNotificationAsync(action);
-            if (_window is MainWindow mainWindow)
+            var cancellationSucceeded = await CancelFromNotificationAsync(action);
+            if (cancellationSucceeded && _window is CriticalOverlayWindow overlay)
+            {
+                overlay.DispatcherQueue.TryEnqueue(overlay.Close);
+            }
+
+            if (cancellationSucceeded && _window is MainWindow mainWindow)
             {
                 mainWindow.DispatcherQueue.TryEnqueue(async () => await mainWindow.RefreshAfterExternalChangeAsync());
             }
@@ -288,16 +293,17 @@ public partial class App : Application
         }
     }
 
-    private static async Task CancelFromNotificationAsync(ReminderNotificationAction action)
+    private static async Task<bool> CancelFromNotificationAsync(ReminderNotificationAction action)
     {
         if (action.ScheduleId is not { } scheduleId || action.Revision is not { } revision)
         {
-            return;
+            return false;
         }
 
         var initialAbort = await WindowsShutdownCountdownAborter.TryAbortAsync();
         SdatRuntime? runtime = null;
         var cancellationGuardCompleted = false;
+        var cancellationSucceeded = false;
         string? failureDetail = null;
         try
         {
@@ -305,32 +311,50 @@ public partial class App : Application
             var schedule = await runtime.Schedules.GetAsync(scheduleId);
             if (schedule is null)
             {
-                return;
+                var settledGuard = await WindowsShutdownCancellationGuard.RunAsync(
+                    _ => Task.FromResult(true),
+                    initialAbort);
+                cancellationGuardCompleted = true;
+                cancellationSucceeded = settledGuard.WindowsStateConfirmed;
+                await ScheduleCancellationSignalPublisher.PublishExactAsync(
+                    runtime.CancellationSignals,
+                    scheduleId,
+                    revision,
+                    scheduleSettled: true,
+                    settledGuard);
+                if (!cancellationSucceeded)
+                {
+                    failureDetail = AppText.Format(
+                        "NotificationCancelFailedBody",
+                        "Windows could not confirm cancellation. Open ShutdownAT or retry sdat -a. Details: {0}",
+                        settledGuard.FinalAbort.Detail ?? "Unknown error");
+                }
             }
-
-            var matchesActiveSchedule =
-                schedule.Status == ScheduleStatus.Active && schedule.Revision == revision;
-            var matchesJustCompletedOneTime =
-                schedule.Kind == ScheduleKind.OneTime &&
-                schedule.Status == ScheduleStatus.Completed &&
-                schedule.Revision == revision + 1;
-            if (!matchesActiveSchedule && !matchesJustCompletedOneTime)
+            else
             {
-                return;
-            }
-
-            var result = await AppScheduleCancellation.CancelAsync(
-                runtime,
-                schedule,
-                expectedRevision: revision,
-                initialAbort: initialAbort);
-            cancellationGuardCompleted = true;
-            if (!result.IsSafe)
-            {
-                failureDetail = AppText.Format(
-                    "NotificationCancelFailedBody",
-                    "Windows could not confirm cancellation. Open ShutdownAT or retry sdat -a. Details: {0}",
-                    result.ErrorDetail ?? "Unknown error");
+                var matchesActiveSchedule =
+                    schedule.Status == ScheduleStatus.Active && schedule.Revision == revision;
+                var matchesJustCompletedOneTime =
+                    schedule.Kind == ScheduleKind.OneTime &&
+                    schedule.Status == ScheduleStatus.Completed &&
+                    schedule.Revision == revision + 1;
+                if (matchesActiveSchedule || matchesJustCompletedOneTime)
+                {
+                    var result = await AppScheduleCancellation.CancelAsync(
+                        runtime,
+                        schedule,
+                        expectedRevision: revision,
+                        initialAbort: initialAbort);
+                    cancellationGuardCompleted = true;
+                    cancellationSucceeded = result.IsSafe;
+                    if (!result.IsSafe)
+                    {
+                        failureDetail = AppText.Format(
+                            "NotificationCancelFailedBody",
+                            "Windows could not confirm cancellation. Open ShutdownAT or retry sdat -a. Details: {0}",
+                            result.ErrorDetail ?? "Unknown error");
+                    }
+                }
             }
         }
         catch (Exception exception)
@@ -383,6 +407,8 @@ public partial class App : Application
                         failureDetail);
             }
         }
+
+        return cancellationSucceeded;
     }
 
     private static bool IsInstalledPackage(string applicationPath)

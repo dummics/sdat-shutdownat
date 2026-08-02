@@ -251,9 +251,25 @@ internal sealed class TerminalApp
                 _reconciliation = results[^1].Reconciliation;
             }
 
+            string? surfaceSignalFailure = null;
+            try
+            {
+                await ScheduleCancellationSignalPublisher.PublishAvailableAsync(
+                    _services.CancellationSignals,
+                    results,
+                    cancellation);
+            }
+            catch (Exception exception) when (exception is not OperationCanceledException)
+            {
+                surfaceSignalFailure = exception.Message;
+            }
+
             _notice = !cancellation.WindowsStateConfirmed
                 ? TerminalNotice.Warning(
                     "Windows may still be counting down. Retry sdat -a now.")
+                : surfaceSignalFailure is not null
+                    ? TerminalNotice.Warning(
+                        "Cancellation completed, but another open ShutdownAT surface may refresh late.")
                 : results.Count == 0
                     ? cancellation.WasCountdownAborted
                         ? TerminalNotice.Success("Windows countdown stopped.")

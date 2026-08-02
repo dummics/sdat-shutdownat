@@ -24,6 +24,7 @@ public sealed record SdatRuntime(
     IDiagnosticLogReader Diagnostics,
     RollingFileAppLogger Logger,
     LocalDiagnosticReportWriter DiagnosticReports,
+    ScheduleCancellationSignalStore CancellationSignals,
     WindowsReminderNotifier ReminderNotifications,
     TaskInvocationCoordinator TaskInvocations,
     AppSettings CurrentSettings,
@@ -113,6 +114,7 @@ public sealed record SdatRuntime(
                 .ReconcileAsync(settings.ReminderOffsetsMinutes, cancellationToken)
                 .ConfigureAwait(false);
         var reminderNotifications = new WindowsReminderNotifier();
+        var cancellationSignals = new ScheduleCancellationSignalStore(options.CancellationSignalPath);
         var taskInvocations = new TaskInvocationCoordinator(
             schedules,
             new SqliteTaskExecutionLedger(options),
@@ -155,6 +157,7 @@ public sealed record SdatRuntime(
                 settingsRepository,
                 diagnostics,
                 logger),
+            cancellationSignals,
             reminderNotifications,
             taskInvocations,
             settings,

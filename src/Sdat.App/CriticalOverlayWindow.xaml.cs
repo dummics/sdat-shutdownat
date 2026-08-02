@@ -18,7 +18,9 @@ public sealed partial class CriticalOverlayWindow : Window
     private readonly bool _isTest;
     private readonly bool _isFinalWindowsCountdown;
     private readonly DateTimeOffset? _countdownEndsAt;
+    private readonly DateTimeOffset _openedAtUtc = DateTimeOffset.UtcNow;
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromSeconds(1) };
+    private bool _externalRefreshInProgress;
 
     public CriticalOverlayWindow(
         SdatRuntime runtime,
@@ -135,7 +137,53 @@ public sealed partial class CriticalOverlayWindow : Window
         CancelButton.HorizontalAlignment = buttonAlignment;
     }
 
-    private void OnTimerTick(object? sender, object e) => UpdateCountdown();
+    private async void OnTimerTick(object? sender, object e)
+    {
+        if (_externalRefreshInProgress)
+        {
+            return;
+        }
+
+        _externalRefreshInProgress = true;
+        try
+        {
+            if (!_isTest && await WasCancelledExternallyAsync())
+            {
+                Close();
+                return;
+            }
+
+            UpdateCountdown();
+        }
+        catch
+        {
+            // The visible countdown remains useful if a transient state read fails.
+            UpdateCountdown();
+        }
+        finally
+        {
+            _externalRefreshInProgress = false;
+        }
+    }
+
+    private async Task<bool> WasCancelledExternallyAsync()
+    {
+        var signal = await _runtime.CancellationSignals.ReadLatestAsync();
+        if (signal?.Matches(_schedule.Id, _schedule.Revision, _openedAtUtc) == true)
+        {
+            return true;
+        }
+
+        if (_isFinalWindowsCountdown)
+        {
+            return false;
+        }
+
+        var latest = await _runtime.Schedules.GetAsync(_schedule.Id);
+        return latest is null ||
+               latest.Status != ScheduleStatus.Active ||
+               latest.Revision != _schedule.Revision;
+    }
 
     private void UpdateCountdown()
     {

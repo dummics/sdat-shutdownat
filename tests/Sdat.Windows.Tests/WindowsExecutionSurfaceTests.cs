@@ -10,6 +10,25 @@ namespace Sdat.Windows.Tests;
 public sealed class WindowsExecutionSurfaceTests
 {
     [Theory]
+    [InlineData(true, "cmd.exe", "explorer.exe", true)]
+    [InlineData(true, "cmd", "powershell", false)]
+    [InlineData(true, "powershell", "explorer", false)]
+    [InlineData(false, "cmd", "explorer", false)]
+    public void Transient_console_detection_requires_the_Windows_Run_process_chain(
+        bool wrapperMarkerPresent,
+        string wrapperProcessName,
+        string callerProcessName,
+        bool expected)
+    {
+        Assert.Equal(
+            expected,
+            TransientConsoleLaunchDetector.IsWindowsRunProcessChain(
+                wrapperMarkerPresent,
+                wrapperProcessName,
+                callerProcessName));
+    }
+
+    [Theory]
     [InlineData(PowerActionType.Shutdown, "/s")]
     [InlineData(PowerActionType.Restart, "/r")]
     public void Shutdown_command_preserves_native_thirty_second_countdown(
