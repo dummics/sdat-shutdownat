@@ -117,6 +117,8 @@ pwsh -NoProfile -File ./tools/Build-Package.ps1 -Flavor Portable
 
 Automated tests and package verification never trigger a real shutdown, restart, or suspend. Live power-action testing requires separate explicit authorization.
 
+For Dom's local development workflow, every completed implementation or fix must also update the current per-user installation at `%LOCALAPPDATA%\Programs\SDAT` from the verified package. The task is not complete while the repository and installed copy differ. After installation, verify the resolved `sdat` wrapper and the changed behavior with non-mutating commands or file/hash checks; real scheduling, cancellation, shutdown, restart, and suspend still require separate explicit authorization.
+
 See [ROADMAP.md](ROADMAP.md) for release gates and intentionally deferred integrations.
 
 ## License
